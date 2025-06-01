@@ -1,0 +1,66 @@
+# SpecStory explanation file
+.specstory/*
+
+# Operating System files
+.DS_Store
+*.swp
+
+# Log files
+*.log
+
+# Data files / Output files
+*.csv
+api_responses/
+premium_api_results/
+date_range_results/
+
+# Python specific
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log # Duplicated, but harmless
+.hypothesis/
+.pytest_cache/
+cover/
+local_settings.py
+instance/
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak
+venv.bak
+# SpecStory explanation file
+.specstory/.what-is-this.md
