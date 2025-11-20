@@ -13,6 +13,10 @@
 api_responses/
 premium_api_results/
 date_range_results/
+data/archive_index.parquet
+
+# Local chat/export artifacts
+chats/cursor_expanding_article_archive_analys.md
 
 # Python specific
 __pycache__/

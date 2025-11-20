@@ -1,0 +1,9 @@
+streamlit>=1.32.0
+pandas>=2.0.0
+plotly>=5.18.0
+python-frontmatter>=1.0.0
+ollama>=0.1.6
+pyarrow>=15.0.0
+textstat>=0.7.3
+watchdog>=4.0.0
+
