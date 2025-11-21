@@ -29,7 +29,7 @@ VAULT_PATH      = Path(
         str(Path.home() / "Obsidian" / "Vault" / "Instapaper"),
     )
 )
-MANIFEST_FILE   = Path.home()/".instapaper_manifest.json"
+MANIFEST_FILE   = VAULT_PATH / ".instapaper_manifest.json"
 
 API_BASE        = "https://www.instapaper.com/api/1"
 MAX_LIMIT       = 500  # ↪ limit 1–500 per spec  [oai_citation:11‡instapaper.com](https://www.instapaper.com/api?utm_source=chatgpt.com)
