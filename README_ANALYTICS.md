@@ -39,8 +39,13 @@ This project transforms a folder of Markdown files (your Instapaper export) into
     ```
 
 2.  **Configure Paths**:
-    *   Default Vault Path: `~/Obsidian/Vault/Instapaper`
-    *   *Note: To change this, edit `VAULT_PATH` in `scripts/build_index.py`.*
+    *   By default, the analytics pipeline looks for notes in: `~/Obsidian/Vault/Instapaper`
+    *   You can override this **without changing code** by setting an environment variable (or adding to `.env`):
+        ```bash
+        # Example (set this to wherever your Instapaper Markdown lives)
+        INSTAPAPER_VAULT_PATH=/path/to/your/instapaper/vault
+        ```
+    *   Both `scripts/build_index.py` and `scripts/export_instapaper_to_obsidian.py` read `INSTAPAPER_VAULT_PATH`, so exports and analytics stay in sync without hard‑coding any machine-specific paths.
 
 ## Usage Workflow
 

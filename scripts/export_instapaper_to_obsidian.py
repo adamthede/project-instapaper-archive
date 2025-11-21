@@ -22,7 +22,13 @@ CONSUMER_KEY    = os.getenv("INSTAPAPER_CONSUMER_KEY")
 CONSUMER_SECRET = os.getenv("INSTAPAPER_CONSUMER_SECRET")
 USERNAME        = os.getenv("INSTAPAPER_USERNAME")
 PASSWORD        = os.getenv("INSTAPAPER_PASSWORD")
-VAULT_PATH      = Path.home()/"Obsidian"/"Vault"/"Instapaper"
+# Destination for exported Markdown archive (can be overridden via .env)
+VAULT_PATH      = Path(
+    os.getenv(
+        "INSTAPAPER_VAULT_PATH",
+        str(Path.home() / "Obsidian" / "Vault" / "Instapaper"),
+    )
+)
 MANIFEST_FILE   = Path.home()/".instapaper_manifest.json"
 
 API_BASE        = "https://www.instapaper.com/api/1"

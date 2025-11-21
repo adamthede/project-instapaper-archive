@@ -5,9 +5,20 @@ import frontmatter
 from pathlib import Path
 from datetime import datetime
 import textstat
+from dotenv import load_dotenv
+
+# Load environment variables from .env if present
+load_dotenv()
 
 # Config
-VAULT_PATH = Path.home() / "Obsidian" / "Vault" / "Instapaper"
+# Location of the Instapaper Markdown archive.
+# Can be overridden by setting INSTAPAPER_VAULT_PATH in your environment or .env file.
+VAULT_PATH = Path(
+    os.getenv(
+        "INSTAPAPER_VAULT_PATH",
+        str(Path.home() / "Obsidian" / "Vault" / "Instapaper"),
+    )
+)
 DATA_DIR = Path(__file__).parent.parent / "data"
 INDEX_PATH = DATA_DIR / "archive_index.parquet"
 

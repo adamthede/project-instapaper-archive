@@ -6,4 +6,5 @@ ollama>=0.1.6
 pyarrow>=15.0.0
 textstat>=0.7.3
 watchdog>=4.0.0
+python-dotenv>=1.0.0
 
