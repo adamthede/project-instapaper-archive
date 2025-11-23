@@ -10,7 +10,7 @@ import time
 # Config
 DATA_DIR = Path(__file__).parent.parent / "data"
 INDEX_PATH = DATA_DIR / "archive_index.parquet"
-MODEL_NAME = "qwen2.5:7b"
+MODEL_NAME = "qwen2.5:14b-instruct"
 
 def get_enrichment(content):
     """
@@ -20,6 +20,20 @@ def get_enrichment(content):
     Analyze the following article text deeply. I need structured insights for a personal knowledge base.
 
     Provide the following output fields exactly as formatted below:
+
+    CONTENT_VALID: [Respond with ONLY one word: YES or NO.
+    Mark NO ONLY if you detect CLEAR corruption patterns like:
+    - Multiple separate article previews/summaries (e.g., "Article 1: ... Article 2: ... Article 3: ...")
+    - Login screens or "Please sign in" messages
+    - Website navigation menus (e.g., "Home | About | Contact | ...")
+    - List of unrelated headlines with no connecting narrative
+    - Placeholder text like "Content not available"
+
+    Mark YES if:
+    - The content tells a coherent story, even if multi-topical
+    - It has advertisements or links but still contains an actual article
+    - Multiple topics are discussed as part of one article's narrative
+    - You are uncertain (default to YES when unsure)]
 
     TOPICS: [List 3-5 high-level themes/topics, comma-separated]
     PEOPLE: [List key people mentioned, comma-separated. If none, write None]
@@ -36,9 +50,17 @@ def get_enrichment(content):
     # Increased context window slightly to 3500 chars for better entity detection
 
     try:
+        print(f"  → Calling Ollama model '{MODEL_NAME}'...")
+        print(f"  → (First call may take 1-5 minutes to load 9GB model into memory)")
+        start_time = time.time()
+
         response = ollama.chat(model=MODEL_NAME, messages=[
             {'role': 'user', 'content': prompt},
         ])
+
+        elapsed = time.time() - start_time
+        print(f"  → Model responded in {elapsed:.1f}s")
+
         return response['message']['content']
     except Exception as e:
         print(f"Error calling Ollama: {e}")
@@ -60,7 +82,8 @@ def parse_llm_response(response_text):
         "ai_concepts": [],
         "ai_sentiment": "Neutral",
         "ai_emotion": "Analytical",
-        "ai_summary": ""
+        "ai_summary": "",
+        "content_valid": "YES"  # Default to valid
     }
 
     current_key = None
@@ -84,7 +107,10 @@ def parse_llm_response(response_text):
         if not clean_line:
             continue
 
-        if clean_line.startswith("TOPICS:"):
+        if clean_line.startswith("CONTENT_VALID:"):
+            val = clean_line.replace("CONTENT_VALID:", "").strip().upper()
+            data["content_valid"] = val
+        elif clean_line.startswith("TOPICS:"):
             val = clean_line.replace("TOPICS:", "").strip()
             data["ai_topics"] = [t.strip() for t in val.split(",") if t.strip() and t.strip().lower() != "none"]
         elif clean_line.startswith("PEOPLE:"):
@@ -128,9 +154,18 @@ def update_markdown_file(file_path, enrichment_data):
 
         post = frontmatter.loads(clean_content)
 
-        # Update metadata with new fields
-        for k, v in enrichment_data.items():
-            post.metadata[k] = v
+        # Check if LLM detected invalid content
+        content_valid = enrichment_data.get("content_valid", "YES")
+        if content_valid == "NO":
+            # Mark as corrupted instead of adding AI fields
+            post.metadata["content_corrupted"] = True
+            post.metadata["corruption_reason"] = "llm_detected_invalid_content"
+            post.metadata["corruption_note"] = "LLM detected content doesn't match title or appears to be navigation/sidebar"
+        else:
+            # Update metadata with new fields (excluding content_valid flag)
+            for k, v in enrichment_data.items():
+                if k != "content_valid":  # Don't store the validation flag
+                    post.metadata[k] = v
 
         # Write back
         with open(path, "wb") as f:
@@ -141,9 +176,32 @@ def update_markdown_file(file_path, enrichment_data):
         print(f"Error updating file {file_path}: {e}")
         return False
 
+def test_ollama_connection():
+    """Test if Ollama is running and model is available."""
+    print(f"\n🔍 Testing Ollama connection and model '{MODEL_NAME}'...")
+    try:
+        # Try a simple test call
+        response = ollama.chat(model=MODEL_NAME, messages=[
+            {'role': 'user', 'content': 'Say "OK"'}
+        ])
+        print(f"✅ Ollama is working! Model '{MODEL_NAME}' is loaded and responsive.\n")
+        return True
+    except Exception as e:
+        print(f"❌ Error connecting to Ollama: {e}")
+        print(f"\nTroubleshooting:")
+        print(f"1. Is Ollama running? Try: ollama list")
+        print(f"2. Is the model installed? Try: ollama pull {MODEL_NAME}")
+        print(f"3. Is Ollama server running? Try: ollama serve\n")
+        return False
+
 def run_enrichment(limit=None, force_update=False):
     if not INDEX_PATH.exists():
         print("Index not found. Run build_index.py first.")
+        return
+
+    # Test Ollama before starting
+    if not test_ollama_connection():
+        print("Aborting enrichment due to Ollama connection issues.")
         return
 
     df = pd.read_parquet(INDEX_PATH)
@@ -203,6 +261,13 @@ def run_enrichment(limit=None, force_update=False):
             return False
 
         candidates = df[df.apply(needs_processing, axis=1)]
+
+    # ALWAYS filter out corrupted articles (whether force mode or not)
+    if "content_corrupted" in df.columns:
+        corrupted_count = len(df[df["content_corrupted"] == True])
+        if corrupted_count > 0:
+            print(f"   Skipping {corrupted_count} corrupted articles")
+            candidates = candidates[candidates.get("content_corrupted", False) != True]
 
     print(f"Found {len(candidates)} articles needing enrichment (New or Upgrade).")
 

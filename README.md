@@ -1,99 +1,159 @@
-# Instapaper Archive Export Tool
+# Article Archive - Export, Enrich, and Explore
 
-A collection of scripts for exporting and analyzing content from Instapaper, with specific focus on working around API limitations.
+A comprehensive toolkit for building a searchable, AI-enriched archive from multiple article sources (Instapaper, PDFs, Word docs, HTML, TXT files) with an interactive analytics dashboard.
 
-## Background
+## 🎯 What This Does
 
-This project was created to export a large archive (7,000+ articles) from Instapaper to Markdown files for use in Obsidian or other note-taking applications. During development, we discovered significant limitations in the Instapaper API that prevent retrieving more than 500 articles from certain folders, particularly the Archive folder.
+1. **📥 Import** articles from multiple sources:
+   - Instapaper API export
+   - Legacy PDFs, Word documents, HTML, TXT files
+2. **🤖 AI Enrichment** - Extract topics, people, organizations, concepts, sentiment
+3. **📊 Analytics Dashboard** - Visualize 20+ years of reading with interactive charts
+4. **🧠 Spaced Review** - Remember what you've read using spaced repetition
 
-## Key Findings
+## 🚀 Quick Start
 
-After extensive testing with various API approaches, we've confirmed:
-
-1. **500 Article Limit**: The Instapaper API appears to have a hard limit of returning only 500 articles from the Archive folder in a single request.
-
-2. **Pagination Does Not Work**: Standard pagination using the `have` parameter does not work as expected for the Archive folder. The API consistently returns the same 500 most recent articles regardless of what IDs are provided in the `have` parameter.
-
-3. **Date Filtering Does Not Work**: Attempts to filter by date ranges using `from` and `to` parameters also return the same 500 articles from the Archive folder.
-
-4. **Premium Status Not a Factor**: Even with an active premium subscription, the API still enforces these limitations.
-
-5. **Web Interface Access**: The web interface does allow accessing all archived articles (175+ pages with 40 articles per page), suggesting this is an API-specific limitation.
-
-## Scripts
-
-### Main Export Script
-- **export_instapaper_to_obsidian.py**: The main export script that converts Instapaper articles to Markdown files with YAML frontmatter.
-
-### Diagnostic Scripts
-- **get_instapaper_stats.py**: Counts articles in each folder to verify API behavior and limits.
-- **instapaper_api_diagnostic.py**: Performs detailed analysis of API responses and saves them for inspection.
-- **test_premium_instapaper.py**: Tests if premium subscription allows retrieving more than 500 articles using various pagination approaches.
-- **test_premium_instapaper_by_date.py**: Tests date-range based retrieval to see if it can bypass the 500 article limit.
-
-## Setup
-
-1. **Create a .env file** with the following credentials:
-   ```
-   INSTAPAPER_CONSUMER_KEY=your_consumer_key
-   INSTAPAPER_CONSUMER_SECRET=your_consumer_secret
-   INSTAPAPER_USERNAME=your_email@example.com
-   INSTAPAPER_PASSWORD=your_password
-   INSTAPAPER_FOLDER=archive
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## Usage
-
-### Export Articles to Markdown
-```bash
-python export_instapaper_to_obsidian.py
-```
-This will export up to 500 articles from your Archive to the Obsidian vault path defined in the script.
-
-### Check Article Counts
-```bash
-python scripts/diagnostic_scripts/get_instapaper_stats.py
-```
-This will show the number of articles in each folder accessible via the API.
-
-### Run API Diagnostics
-```bash
-python scripts/diagnostic_scripts/instapaper_api_diagnostic.py
-```
-This performs detailed API analysis and saves response data to the `api_responses/` directory.
-
-### Test Premium Features
-```bash
-python scripts/diagnostic_scripts/test_premium_instapaper.py
-```
-Tests pagination with a premium account.
+### 1. Install Dependencies
 
 ```bash
-python scripts/diagnostic_scripts/test_premium_instapaper_by_date.py
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install all dependencies
+pip install -r requirements.txt
 ```
-Tests date range filtering with a premium account.
 
-## Limitations & Recommendations
+### 2. Configure Environment
 
-Based on our findings, if you need to export more than 500 articles from Instapaper:
+```bash
+# Copy example configuration
+cp env.example .env
 
-1. **Web Scraping**: Consider using web scraping approaches rather than the API. Several open-source projects implement this approach:
-   - [instapaper-auto-archiver](https://github.com/cdzombak/instapaper-auto-archiver)
-   - [instapexport](https://github.com/karlicoss/instapexport)
+# Edit .env with your credentials and paths
+# See env.example for all available options
+```
 
-2. **Multiple Exports**: If using the API, you'll only retrieve the 500 most recent articles from your Archive.
+### 3. Export from Instapaper (Optional)
 
-3. **CSV Export**: Instapaper offers a CSV export feature from the web interface that may be more suitable for bulk exports, but the CSV export does not include the full text of your articles.
+```bash
+python scripts/core/export_instapaper_to_obsidian.py
+```
 
-## Requirements
+### 4. Import Legacy Files (Optional)
 
-See `requirements.txt` for a list of dependencies:
-- requests
-- requests-oauthlib
-- python-dotenv
-- markdownify (for HTML to Markdown conversion)
+```bash
+# Import PDFs, Word docs, HTML, TXT files
+python scripts/core/import_legacy_archive.py
+```
+
+### 5. Enrich with AI
+
+```bash
+# Fast (Gemini API, ~30 mins for 10k articles, ~$0.50)
+python scripts/core/enrich_archive_gemini.py
+
+# Or Free (Local Ollama, slower but private)
+python scripts/core/enrich_archive.py
+```
+
+### 6. Build Index & Launch Dashboard
+
+```bash
+# Build searchable index
+python scripts/core/build_index.py
+
+# Launch analytics dashboard
+streamlit run dashboard/app.py
+```
+
+## 📁 Project Structure
+
+```
+├── docs/                      # Documentation
+│   ├── SETUP.md              # Detailed setup guide
+│   ├── LEGACY_IMPORT.md      # PDF/Word/TXT import guide
+│   ├── ENRICHMENT.md         # AI enrichment options
+│   ├── CORRUPTION_HANDLING.md# Data quality management
+│   └── DASHBOARD.md          # Dashboard features
+│
+├── scripts/
+│   ├── core/                 # Main workflow scripts
+│   │   ├── export_instapaper_to_obsidian.py
+│   │   ├── import_legacy_archive.py
+│   │   ├── enrich_archive.py
+│   │   ├── enrich_archive_gemini.py
+│   │   └── build_index.py
+│   │
+│   ├── cleanup/              # Data quality tools
+│   ├── analysis/             # Investigation utilities
+│   └── diagnostic/           # API testing tools
+│
+├── dashboard/                # Analytics dashboard
+│   └── app.py
+│
+└── data/                     # Generated data (gitignored)
+```
+
+## ✨ Features
+
+### 📊 Analytics Dashboard
+- **The Quantified Reader** - Reading statistics, achievements, comparisons
+- **Content Intelligence** - AI insights, word clouds, concept evolution
+- **Network & Entities** - People, organizations, locations mentioned
+- **Trends Over Time** - Track concepts, topics, locations across 20 years
+- **Heatmap Analysis** - Geographic focus, topic popularity, sentiment shifts
+- **Spaced Review** - Flashcard-style review system for retention
+- **Archive Explorer** - Search and filter your entire collection
+
+### 🤖 AI Enrichment
+Automatically extracts from each article:
+- Topics & concepts
+- People & organizations mentioned
+- Locations
+- Sentiment & emotional tone
+- TL;DR summaries
+- Content validation (detects corrupted/sidebar content)
+
+### 📥 Multi-Source Import
+- **Instapaper API** - Direct export via OAuth
+- **PDFs** - Converts to markdown with LibreOffice fallback
+- **Word Documents** - Handles both .doc and .docx
+- **HTML/TXT/RTF** - Direct conversion
+- **Unified format** - Everything becomes markdown with YAML frontmatter
+
+## 📖 Documentation
+
+- **[Setup Guide](docs/SETUP.md)** - Installation and configuration
+- **[Legacy Import](docs/LEGACY_IMPORT.md)** - Import PDFs and other formats
+- **[Enrichment Guide](docs/ENRICHMENT.md)** - AI processing options
+- **[Data Quality](docs/CORRUPTION_HANDLING.md)** - Handling corrupted content
+- **[Dashboard Features](docs/DASHBOARD.md)** - Using the analytics dashboard
+- **[API Limitations](docs/API_LIMITATIONS.md)** - Known Instapaper API issues
+
+## 🔧 Requirements
+
+- Python 3.8+
+- For local enrichment: Ollama with qwen2.5:14b model
+- For fast enrichment: Google Gemini API key (get from [AI Studio](https://aistudio.google.com/apikey))
+- For PDF conversion: LibreOffice (for legacy .doc files)
+
+## 🎓 Use Cases
+
+- **Personal Knowledge Management** - Unified archive of 20 years of reading
+- **Research** - Track trends, people, organizations over time
+- **Learning** - Spaced repetition review system
+- **Analysis** - Visualize reading patterns and content insights
+- **Migration** - Move from Instapaper/web clipping to markdown
+
+## 📝 License
+
+See LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+Built with:
+- [Streamlit](https://streamlit.io/) - Dashboard framework
+- [Gemini API](https://ai.google.dev/gemini-api) - AI enrichment
+- [MarkItDown](https://github.com/microsoft/markitdown) - Document conversion
+- [Ollama](https://ollama.ai/) - Local LLM option

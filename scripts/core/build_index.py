@@ -54,8 +54,19 @@ def parse_article(file_path):
         instapaper_id = fm.get("instapaper_id", None)
         author = fm.get("author", "Unknown")
 
-        # Date Handling
+        # Date Handling - support both Instapaper and legacy formats
+        # Instapaper articles use "date_saved"
+        # Legacy articles use "date_published"
         date_saved = fm.get("date_saved", None)
+
+        if date_saved is None:
+            # Fallback to date_published for legacy articles
+            date_saved = fm.get("date_published", None)
+
+        if date_saved is None:
+            # Last fallback to date_imported
+            date_saved = fm.get("date_imported", None)
+
         if isinstance(date_saved, str):
             try:
                 date_saved = datetime.strptime(date_saved, "%Y-%m-%d").date()
@@ -120,7 +131,9 @@ def build_index():
         return
 
     records = []
-    files = list(VAULT_PATH.rglob("*.md"))
+    # Scan for markdown files, excluding macOS resource fork files (._*)
+    all_md_files = VAULT_PATH.rglob("*.md")
+    files = [f for f in all_md_files if not f.name.startswith("._")]
     print(f"Found {len(files)} Markdown files.")
 
     for i, file_path in enumerate(files):

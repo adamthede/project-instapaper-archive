@@ -1,0 +1,37 @@
+# Cursor Ignore File
+# Prevents Cursor from indexing these directories/files
+# Files are still accessible via direct file operations
+
+# Large source directories (legacy content to import)
+# External volume with legacy articles
+/Volumes/AST/Library/Articles/
+legacy_pdfs/
+legacy_docs/
+legacy_html/
+legacy_txt/
+legacy_archive/
+import_source/
+
+# Python virtual environment
+venv/
+.venv/
+env/
+.env/
+
+# Data files
+data/
+*.parquet
+
+# Large output directories
+api_responses/
+premium_api_results/
+date_range_results/
+
+# Logs (allow import_failures.log for review)
+*.log
+!import_failures.log
+dashboard.log
+
+# OS files
+.DS_Store
+

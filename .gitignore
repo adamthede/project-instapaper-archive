@@ -7,6 +7,19 @@
 
 # Log files
 *.log
+dashboard.log
+
+# Failure logs (contain file paths)
+import_failures.log
+enrichment_failures.log
+
+# Problem tracking files
+problems.txt
+yahoo_problems.txt
+
+# Manifest files (contain local file paths)
+.legacy_import_manifest.json
+.instapaper_manifest.json
 
 # Data files / Output files
 *.csv
@@ -14,6 +27,7 @@ api_responses/
 premium_api_results/
 date_range_results/
 data/archive_index.parquet
+data/review_history.parquet
 
 # Local chat/export artifacts
 chats/cursor_expanding_article_archive_analys.md
@@ -68,3 +82,8 @@ env.bak
 venv.bak
 # SpecStory explanation file
 .specstory/.what-is-this.md
+
+# works in process
+BLOG_POST_PROJECT_NARRATIVE.md
+
+/screenshots
