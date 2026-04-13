@@ -138,9 +138,16 @@ def main():
     if df.empty:
         return
 
+    # Composite date_read column: prefer date_archived (when article was read)
+    # with fallback to date_saved (when clipped) for articles without archive date
+    if "date_archived" in df.columns:
+        df["date_read"] = df["date_archived"].fillna(df["date_saved"])
+    else:
+        df["date_read"] = df["date_saved"]
+
     # Debug info
     st.sidebar.caption(f"📊 Loaded: {len(df)} articles")
-    st.sidebar.caption(f"📅 Date range: {df['date_saved'].min().date()} to {df['date_saved'].max().date()}")
+    st.sidebar.caption(f"📅 Date range: {df['date_read'].min().date()} to {df['date_read'].max().date()}")
 
     # Sidebar Navigation
     page = st.sidebar.radio(
@@ -169,8 +176,8 @@ def main():
     absolute_max_date = date(2030, 12, 31)
 
     # Get actual dates from current data
-    actual_min_date = df["date_saved"].min().date() if not df.empty else absolute_min_date
-    actual_max_date = df["date_saved"].max().date() if not df.empty else absolute_max_date
+    actual_min_date = df["date_read"].min().date() if not df.empty else absolute_min_date
+    actual_max_date = df["date_read"].max().date() if not df.empty else absolute_max_date
 
     date_range = st.sidebar.date_input(
         "Date Range",
@@ -181,7 +188,7 @@ def main():
 
     # Filter Data based on Date
     if len(date_range) == 2:
-        mask = (df["date_saved"].dt.date >= date_range[0]) & (df["date_saved"].dt.date <= date_range[1])
+        mask = (df["date_read"].dt.date >= date_range[0]) & (df["date_read"].dt.date <= date_range[1])
         df_filtered = df.loc[mask]
     else:
         df_filtered = df
@@ -311,7 +318,7 @@ def render_overview(df):
         """)
 
         # Calculate reading pace
-        date_span = (df["date_saved"].max() - df["date_saved"].min()).days
+        date_span = (df["date_read"].max() - df["date_read"].min()).days
         if date_span > 0:
             years_span = date_span / 365.25
             words_per_day = total_words / date_span
@@ -389,41 +396,43 @@ def render_overview(df):
 
     # Timeline
     st.subheader("Reading Activity Over Time")
+    st.caption("📖 Shows when you read articles (based on archive date, with save date as fallback)")
     # Resample by month-end
-    timeline = df.set_index("date_saved").resample("ME").size().reset_index(name="count")
+    timeline = df.set_index("date_read").resample("ME").size().reset_index(name="count")
 
     fig = px.bar(
         timeline,
-        x="date_saved",
+        x="date_read",
         y="count",
-        title="Articles Saved per Month",
-        labels={"date_saved": "Date", "count": "Articles"},
+        title="Articles Read per Month",
+        labels={"date_read": "Date", "count": "Articles Read"},
         template="plotly_dark",
     )
     fig.update_traces(marker_color="#FF4B4B")
     st.plotly_chart(fig, use_container_width=True)
 
     # Reading Rhythms
-    st.subheader("Reading Rhythms")
+    st.subheader("Reading Patterns")
+    st.caption("⏰ Based on when articles were read (archive date, with save date as fallback)")
     c1, c2 = st.columns(2)
 
     with c1:
         # Day of Week Analysis
-        df["day_of_week"] = df["date_saved"].dt.day_name()
+        df["day_of_week"] = df["date_read"].dt.day_name()
         days_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         day_counts = df["day_of_week"].value_counts().reindex(days_order).reset_index()
         day_counts.columns = ["Day", "Count"]
 
-        fig_day = px.bar(day_counts, x="Day", y="Count", title="Activity by Day of Week", template="plotly_dark")
+        fig_day = px.bar(day_counts, x="Day", y="Count", title="Reading by Day of Week", template="plotly_dark")
         st.plotly_chart(fig_day, use_container_width=True)
 
     with c2:
         # Complexity over Time
         if "grade_level" in df.columns:
-            complexity = df.set_index("date_saved")["grade_level"].resample("ME").mean().reset_index()
+            complexity = df.set_index("date_read")["grade_level"].resample("ME").mean().reset_index()
             fig_comp = px.line(
                 complexity,
-                x="date_saved",
+                x="date_read",
                 y="grade_level",
                 title="Reading Complexity (Flesch-Kincaid Grade)",
                 template="plotly_dark",
@@ -537,7 +546,7 @@ def render_intelligence(df):
             # Note: concepts are stored as numpy arrays from parquet
             df_with_concepts = df[
                 df["concepts"].notna() &
-                df["date_saved"].notna() &
+                df["date_read"].notna() &
                 df["concepts"].apply(lambda x: hasattr(x, '__len__') and len(x) > 0)
             ].copy()
 
@@ -545,7 +554,7 @@ def render_intelligence(df):
                 # Build concept data more efficiently
                 concept_data = []
                 for _, row in df_with_concepts.iterrows():
-                    date = row["date_saved"]
+                    date = row["date_read"]
                     for concept in row["concepts"]:
                         concept_data.append({
                             "concept": _titleize_concept(concept),
@@ -1010,6 +1019,7 @@ def render_explorer(df):
 
 def render_trends(df):
     st.header("📈 Trends Over Time")
+    st.caption("📖 Based on when articles were read (archive date, with save date as fallback)")
 
     # Check if we have enrichment data
     if "topics" not in df.columns or df["topics"].isna().all():
@@ -1017,11 +1027,11 @@ def render_trends(df):
         return
 
     # Date range info
-    min_date = df["date_saved"].min()
-    max_date = df["date_saved"].max()
+    min_date = df["date_read"].min()
+    max_date = df["date_read"].max()
     years_span = (max_date - min_date).days / 365.25
 
-    st.info(f"📅 Archive spans **{years_span:.1f} years** from {min_date.date()} to {max_date.date()}")
+    st.info(f"📅 Reading period spans **{years_span:.1f} years** from {min_date.date()} to {max_date.date()}")
 
     # Helper function for concept normalization
     def _titleize_concept(text: str) -> str:
@@ -1041,14 +1051,109 @@ def render_trends(df):
     st.caption("Most frequently mentioned entities across your archive, tracked over time")
 
     # Tabs for different entity types
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📍 Locations", "🏢 Organizations", "👥 People", "💡 Concepts", "📚 Topics"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📰 Sources", "📍 Locations", "🏢 Organizations", "👥 People", "💡 Concepts", "📚 Topics"])
+
+    # Helper function to extract domain from URL
+    def extract_domain(url):
+        """Extract domain from URL, handling various formats."""
+        if not isinstance(url, str) or not url:
+            return "Unknown"
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            domain = parsed.netloc or parsed.path
+            # Remove www. prefix
+            if domain.startswith('www.'):
+                domain = domain[4:]
+            # Remove port if present
+            if ':' in domain:
+                domain = domain.split(':')[0]
+            return domain if domain else "Unknown"
+        except:
+            return "Unknown"
+
+    # SOURCES TAB
+    with tab1:
+        st.subheader("📰 Top Publication Sources Over Time")
+        st.caption("Tracking where your articles come from")
+
+        # Extract domains from URLs
+        df_with_sources = df[df["url"].notna()].copy()
+        df_with_sources["source"] = df_with_sources["url"].apply(extract_domain)
+
+        # Filter out "Unknown" sources
+        df_with_sources = df_with_sources[df_with_sources["source"] != "Unknown"]
+
+        if not df_with_sources.empty:
+            # Get top 10 sources
+            source_counts = df_with_sources["source"].value_counts()
+            top_10_sources = source_counts.head(10).index.tolist()
+
+            # Build time series for top 10 sources
+            time_series_data = []
+
+            for source in top_10_sources:
+                source_df = df_with_sources[df_with_sources["source"] == source].copy()
+
+                if source_df.empty:
+                    continue
+
+                # Resample by quarter (good balance for overview)
+                source_df = source_df.set_index("date_read")
+                resampled = source_df.resample("QE").size()
+
+                for date, count in resampled.items():
+                    time_series_data.append({
+                        "Date": date,
+                        "Source": source,
+                        "Articles": count
+                    })
+
+            if time_series_data:
+                ts_df = pd.DataFrame(time_series_data)
+
+                # Create line chart
+                fig = px.line(
+                    ts_df,
+                    x="Date",
+                    y="Articles",
+                    color="Source",
+                    title="Top 10 Publication Sources - Articles Over Time (Quarterly)",
+                    labels={"Articles": "Articles per Quarter", "Date": "Time Period"},
+                    template="plotly_dark",
+                    markers=True
+                )
+
+                fig.update_layout(
+                    hovermode="x unified",
+                    height=500,
+                    legend=dict(
+                        orientation="v",
+                        yanchor="top",
+                        y=1,
+                        xanchor="left",
+                        x=1.02
+                    )
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
+
+                # Interactive legend tip
+                st.info("💡 **Tip:** Click on any source in the legend to show/hide that line. Double-click to isolate a single source.")
+
+                # Show the top 10 list with counts
+                st.caption(f"**Top 10 Sources:** {', '.join([f'{src} ({source_counts[src]})' for src in top_10_sources])}")
+            else:
+                st.warning("No time series data available for sources.")
+        else:
+            st.info("No source data available. Make sure articles have valid URLs.")
 
     entity_configs = [
-        ("locations", "Locations", "Location", tab1),
-        ("orgs", "Organizations", "Organization", tab2),
-        ("people", "People", "Person", tab3),
-        ("concepts", "Concepts", "Concept", tab4),
-        ("topics", "Topics", "Topic", tab5),
+        ("locations", "Locations", "Location", tab2),
+        ("orgs", "Organizations", "Organization", tab3),
+        ("people", "People", "Person", tab4),
+        ("concepts", "Concepts", "Concept", tab5),
+        ("topics", "Topics", "Topic", tab6),
     ]
 
     for column_name, entity_label, singular_label, tab in entity_configs:
@@ -1095,7 +1200,7 @@ def render_trends(df):
                     continue
 
                 # Resample by quarter (good balance for overview)
-                entity_df = entity_df.set_index("date_saved")
+                entity_df = entity_df.set_index("date_read")
                 resampled = entity_df.resample("QE").size()
 
                 for date, count in resampled.items():
@@ -1133,6 +1238,9 @@ def render_trends(df):
                 )
 
                 st.plotly_chart(fig, use_container_width=True)
+
+                # Interactive legend tip
+                st.info("💡 **Tip:** Click on any item in the legend to show/hide that line. Double-click to isolate a single entity.")
 
                 # Show the top 10 list
                 st.caption(f"**Top 10 {entity_label}:** {', '.join(top_10)}")
@@ -1263,7 +1371,7 @@ def render_trends(df):
                 continue
 
             # Resample by time granularity
-            entity_df = entity_df.set_index("date_saved")
+            entity_df = entity_df.set_index("date_read")
 
             if time_granularity == "Month":
                 resampled = entity_df.resample("ME").size()
@@ -1317,7 +1425,7 @@ def render_trends(df):
 
         # Get recent articles
         six_months_ago = max_date - pd.Timedelta(days=180)
-        recent_df = df[df["date_saved"] >= six_months_ago]
+        recent_df = df[df["date_read"] >= six_months_ago]
 
         recent_entities = []
         for entities in recent_df[column_name]:
@@ -1341,8 +1449,8 @@ def render_trends(df):
 
         # Compare first vs second half of archive
         midpoint = min_date + (max_date - min_date) / 2
-        first_half = df[df["date_saved"] < midpoint]
-        second_half = df[df["date_saved"] >= midpoint]
+        first_half = df[df["date_read"] < midpoint]
+        second_half = df[df["date_read"] >= midpoint]
 
         def get_entity_counts(subset_df):
             entities_list = []
@@ -1399,11 +1507,11 @@ def render_heatmaps(df):
         return
 
     # Date range info
-    min_date = df["date_saved"].min()
-    max_date = df["date_saved"].max()
+    min_date = df["date_read"].min()
+    max_date = df["date_read"].max()
     years_span = (max_date - min_date).days / 365.25
 
-    st.info(f"📅 Archive spans **{years_span:.1f} years** from {min_date.date()} to {max_date.date()}")
+    st.info(f"📅 Reading history spans **{years_span:.1f} years** from {min_date.date()} to {max_date.date()}")
 
     # Helper for concept normalization
     def _titleize_concept(text: str) -> str:
@@ -1436,7 +1544,7 @@ def render_heatmaps(df):
                 topic_df = df[df["topics"].apply(lambda x: x is not None and topic in x)].copy()
 
                 if not topic_df.empty:
-                    topic_df = topic_df.set_index("date_saved")
+                    topic_df = topic_df.set_index("date_read")
                     # Resample by year for cleaner heatmap
                     yearly = topic_df.resample("YE").size()
 
@@ -1498,7 +1606,7 @@ def render_heatmaps(df):
                 )].copy()
 
                 if not loc_df.empty:
-                    loc_df = loc_df.set_index("date_saved")
+                    loc_df = loc_df.set_index("date_read")
                     # Resample by year
                     yearly = loc_df.resample("YE").size()
 
@@ -1565,7 +1673,7 @@ def render_heatmaps(df):
                 topic_df = df[df["topics"].apply(lambda x: x is not None and topic in x)].copy()
 
                 if not topic_df.empty:
-                    topic_df = topic_df.set_index("date_saved")
+                    topic_df = topic_df.set_index("date_read")
 
                     # Group by year and calculate average sentiment
                     for year in topic_df.index.year.unique():

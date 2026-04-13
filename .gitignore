@@ -26,8 +26,10 @@ yahoo_problems.txt
 api_responses/
 premium_api_results/
 date_range_results/
-data/archive_index.parquet
-data/review_history.parquet
+data/
+scripts/data/
+**/archive_index.parquet
+**/review_history.parquet
 
 # Local chat/export artifacts
 chats/cursor_expanding_article_archive_analys.md

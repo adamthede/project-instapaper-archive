@@ -338,7 +338,7 @@ def main():
             if url == "URL_MISSING":
                 log.warning(f"Bookmark {bid} ('{title}') is missing 'url'.")
 
-            # Handle potentially missing/differently named timestamp
+            # Handle potentially missing/differently named timestamp for SAVED date
             saved_dt = None
             saved_date_source = "unknown"
             time_saved_val = bm.get("time_saved")
@@ -374,6 +374,22 @@ def main():
 
             saved = saved_dt.strftime("%Y-%m-%d")
 
+            # Handle ARCHIVED date (when article was read/archived)
+            archived_dt = None
+            archived_time_val = bm.get("time_archived")
+
+            if archived_time_val:
+                try:
+                    archived_dt = datetime.fromtimestamp(int(archived_time_val))
+                    log.debug(f"Using 'time_archived' ({archived_time_val}) for bookmark {bid}")
+                except (ValueError, TypeError):
+                    log.warning(f"Invalid archived timestamp format ('{archived_time_val}') for bookmark {bid}.")
+                    archived_dt = None
+
+            # Only set archived dates if we have a valid timestamp
+            archived_date = archived_dt.strftime("%Y-%m-%d") if archived_dt else None
+            archived_time = archived_dt.strftime("%Y-%m-%d %H:%M:%S") if archived_dt else None
+
             safe  = sanitize_title(title)[:80]
             fname = f"{saved} – {safe}.md"
             out   = VAULT_PATH/fname
@@ -396,8 +412,15 @@ def main():
                   f"original_url: \"{url}\"",
                   f"instapaper_id: {bid}",
                   f"date_saved: {saved}",
-                  f"date_saved_source: {saved_date_source}", # Indicate if date is original or fallback
-                  "---", ""]
+                  f"date_saved_source: {saved_date_source}"] # Indicate if date is original or fallback
+
+            # Add archived date fields if available
+            if archived_date:
+                fm.append(f"date_archived: {archived_date}")
+            if archived_time:
+                fm.append(f"archived_time: {archived_time}")
+
+            fm.extend(["---", ""])
             log.info(f"Writing Markdown to: {out}")
             try:
                 with open(out, "w", encoding="utf-8") as f:

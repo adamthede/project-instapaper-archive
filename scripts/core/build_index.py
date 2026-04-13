@@ -55,7 +55,7 @@ def parse_article(file_path):
         author = fm.get("author", "Unknown")
 
         # Date Handling - support both Instapaper and legacy formats
-        # Instapaper articles use "date_saved"
+        # Instapaper articles use "date_saved" and "date_archived"
         # Legacy articles use "date_published"
         date_saved = fm.get("date_saved", None)
 
@@ -74,6 +74,17 @@ def parse_article(file_path):
                 date_saved = None
         elif isinstance(date_saved, datetime):
             date_saved = date_saved.date()
+
+        # Date Archived - when the article was actually read/archived
+        date_archived = fm.get("date_archived", None)
+
+        if isinstance(date_archived, str):
+            try:
+                date_archived = datetime.strptime(date_archived, "%Y-%m-%d").date()
+            except ValueError:
+                date_archived = None
+        elif isinstance(date_archived, datetime):
+            date_archived = date_archived.date()
 
         # Metrics
         word_count = fm.get("word_count", len(content.split()))
@@ -104,6 +115,7 @@ def parse_article(file_path):
             "url": url,
             "author": author,
             "date_saved": date_saved,
+            "date_archived": date_archived,
             "word_count": word_count,
             "reading_time_min": reading_time_min,
             "grade_level": grade_level,
@@ -154,6 +166,7 @@ def build_index():
 
     # Ensure data types
     df["date_saved"] = pd.to_datetime(df["date_saved"])
+    df["date_archived"] = pd.to_datetime(df["date_archived"])
 
     # Save
     DATA_DIR.mkdir(exist_ok=True)
