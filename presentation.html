@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instapaper Archive Analysis - Building with New Tech</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/black.min.css">
+    <style>
+        .reveal h1 { font-size: 2.5em; text-transform: none; margin-bottom: 0.5em; }
+        .reveal h2 { font-size: 1.8em; text-transform: none; margin-bottom: 0.5em; }
+        .reveal h3 { font-size: 1.3em; text-transform: none; margin-bottom: 0.3em; }
+        .reveal .big-number { font-size: 3.5em; color: #42affa; font-weight: bold; margin: 15px 0; }
+        .reveal .medium-number { font-size: 2.5em; color: #42affa; font-weight: bold; margin: 10px 0; }
+        .reveal .highlight { color: #42affa; }
+        .reveal .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin: 30px 0; }
+        .reveal .stat-box { background: rgba(66, 175, 250, 0.1); padding: 25px; border-radius: 10px; }
+        .reveal .stat-box h3 { margin-top: 0; margin-bottom: 10px; color: #42affa; font-size: 1.3em; }
+        .reveal .stat-box p { font-size: 1.1em; margin: 8px 0; }
+        .reveal ul { text-align: left; margin: 20px 0; }
+        .reveal ol { text-align: left; margin: 20px 0; }
+        .reveal li { margin: 12px 0; font-size: 1.05em; line-height: 1.4; }
+        .reveal .emoji { font-size: 1.2em; }
+        .reveal .small-text { font-size: 0.75em; color: #888; margin-top: 5px; }
+        .reveal .top-list { text-align: left; max-width: 800px; margin: 0 auto; }
+        .reveal .top-list li { font-size: 0.85em; margin: 6px 0; }
+        .reveal .tech-badge { display: inline-block; background: rgba(66, 175, 250, 0.2); padding: 8px 16px; border-radius: 5px; margin: 5px; font-size: 0.75em; }
+        .reveal .slides { overflow: hidden; }
+        .reveal section { height: 100%; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- Slide 1: Title -->
+            <section>
+                <h1>📚 Building a Reading Archive</h1>
+                <h3>Learning Python, AI APIs, and Streamlit</h3>
+                <p>A side project in exploring new technologies</p>
+                <p class="small-text">Adam Thede</p>
+            </section>
+
+            <!-- Slide 2: The Challenge -->
+            <section>
+                <h2>🎯 The Challenge</h2>
+                <p>I've been saving articles for 20 years</p>
+                <div class="stat-grid">
+                    <div class="stat-box">
+                        <h3>The Problem</h3>
+                        <p>17,000+ articles</p>
+                        <p>Trapped in Instapaper</p>
+                        <p>No way to explore patterns</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>The Goal</h3>
+                        <p>Own my data</p>
+                        <p>Extract insights with AI</p>
+                        <p>Build a visual dashboard</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 3: Tech Stack -->
+            <section>
+                <h2>🛠️ Tech Stack (Some New to Me)</h2>
+                <div style="margin: 40px 0;">
+                    <span class="tech-badge">Python 3</span>
+                    <span class="tech-badge">Pandas</span>
+                    <span class="tech-badge">Streamlit</span>
+                    <span class="tech-badge">Google Gemini API</span>
+                    <span class="tech-badge">Parquet</span>
+                    <span class="tech-badge">OAuth 1.0</span>
+                    <span class="tech-badge">MarkItDown</span>
+                </div>
+                <p class="small-text">Coming from Ruby on Rails, this was a learning opportunity</p>
+            </section>
+
+            <!-- Slide 4: The Architecture -->
+            <section>
+                <h2>🏗️ System Architecture</h2>
+                <ol class="top-list">
+                    <li><span class="highlight">Export Layer</span>
+                        <ul><li>OAuth 1.0 integration with Instapaper API</li></ul>
+                    </li>
+                    <li><span class="highlight">Import Layer</span>
+                        <ul><li>Multi-format processing (PDF, Word, HTML, TXT)</li></ul>
+                    </li>
+                    <li><span class="highlight">Enrichment Pipeline</span>
+                        <ul><li>Batch AI processing with rate limiting</li></ul>
+                    </li>
+                    <li><span class="highlight">Analytics Layer</span>
+                        <ul><li>Parquet for efficient columnar storage</li></ul>
+                    </li>
+                    <li><span class="highlight">Visualization</span>
+                        <ul><li>Interactive Streamlit dashboard</li></ul>
+                    </li>
+                </ol>
+            </section>
+
+            <!-- Slide 5: The AI Magic -->
+            <section>
+                <h2>🤖 AI Enrichment Pipeline</h2>
+                <p>Structured extraction from unstructured text</p>
+                <ul class="top-list">
+                    <li><span class="highlight">Topics & Concepts</span> - Categorization at scale</li>
+                    <li><span class="highlight">Named Entity Recognition</span> - People, orgs, locations</li>
+                    <li><span class="highlight">Sentiment Analysis</span> - Tone & emotion classification</li>
+                    <li><span class="highlight">Summarization</span> - TL;DR generation</li>
+                    <li><span class="highlight">Quality Detection</span> - Corrupt content filtering</li>
+                </ul>
+                <div class="medium-number">17,612</div>
+                <p>Articles processed for <span class="highlight">$0.50</span> with Gemini</p>
+            </section>
+
+            <!-- Slide 6: LLM vs Traditional ML -->
+            <section>
+                <h2>💡 Technical Decision: LLMs over Traditional ML</h2>
+                <div class="stat-grid">
+                    <div class="stat-box">
+                        <h3>Traditional Approach</h3>
+                        <p style="font-size: 0.9em;">❌ Train separate models for:</p>
+                        <p style="font-size: 0.85em;">• Text classification</p>
+                        <p style="font-size: 0.85em;">• NER (spaCy, BERT)</p>
+                        <p style="font-size: 0.85em;">• Sentiment (custom models)</p>
+                        <p style="font-size: 0.85em;">• Summarization</p>
+                        <p class="small-text">Weeks of training, GPU costs, model maintenance</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>LLM Approach (Chosen)</h3>
+                        <p style="font-size: 0.9em;">✅ One API for everything:</p>
+                        <p style="font-size: 0.85em;">• Gemini 1.5 Flash</p>
+                        <p style="font-size: 0.85em;">• Structured JSON output</p>
+                        <p style="font-size: 0.85em;">• Prompt engineering</p>
+                        <p style="font-size: 0.85em;">• Zero training required</p>
+                        <p class="small-text">$0.50 total, 30 minutes processing time</p>
+                    </div>
+                </div>
+                <p style="margin-top: 20px; font-size: 0.9em;">Leveraged modern LLMs for tasks that would've required multiple ML pipelines</p>
+            </section>
+
+            <!-- Slide 7: Technical Challenges Solved - Part 1 -->
+            <section>
+                <h2>⚡ Technical Challenges (1/2)</h2>
+                <div class="stat-grid">
+                    <div class="stat-box">
+                        <h3>Rate Limiting</h3>
+                        <p>Batch processing with exponential backoff</p>
+                        <p class="small-text">Gemini: 15 requests/min limit</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Data Quality</h3>
+                        <p>Corrupt content detection</p>
+                        <p class="small-text">AI-powered validation & filtering</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 7: Technical Challenges Solved - Part 2 -->
+            <section>
+                <h2>⚡ Technical Challenges (2/2)</h2>
+                <div class="stat-grid">
+                    <div class="stat-box">
+                        <h3>Format Conversion</h3>
+                        <p>Multi-stage conversion pipeline</p>
+                        <p class="small-text">See next slide for details</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Performance</h3>
+                        <p>Parquet for fast analytics</p>
+                        <p class="small-text">17k rows, 18 columns, instant queries</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 8: Document Conversion Pipeline -->
+            <section>
+                <h2>📄 Document Conversion Pipeline</h2>
+                <p class="small-text">Multi-format → Unified Markdown</p>
+                <div style="text-align: left; max-width: 900px; margin: 30px auto;">
+                    <div style="background: rgba(66, 175, 250, 0.1); padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+                        <h3 style="color: #42affa; margin: 0 0 10px 0; font-size: 1.2em;">Primary Path</h3>
+                        <p style="margin: 5px 0; font-size: 0.95em;">
+                            <span class="highlight">MarkItDown</span> (Microsoft's open-source tool)
+                        </p>
+                        <p style="margin: 5px 0; font-size: 0.85em; color: #888;">
+                            PDF, DOCX, HTML, TXT, RTF → Markdown
+                        </p>
+                    </div>
+                    <div style="background: rgba(66, 175, 250, 0.1); padding: 20px; border-radius: 10px;">
+                        <h3 style="color: #42affa; margin: 0 0 10px 0; font-size: 1.2em;">Fallback Path (Legacy .doc)</h3>
+                        <p style="margin: 5px 0; font-size: 0.95em;">
+                            <span class="highlight">LibreOffice</span> (headless CLI) → DOCX
+                        </p>
+                        <p style="margin: 5px 0; font-size: 0.95em;">
+                            Then: <span class="highlight">MarkItDown</span> → Markdown
+                        </p>
+                        <p style="margin: 5px 0; font-size: 0.85em; color: #888;">
+                            Subprocess management, timeout handling, temp file cleanup
+                        </p>
+                    </div>
+                </div>
+                <p class="small-text" style="margin-top: 20px;">All outputs: Markdown + YAML frontmatter with metadata</p>
+            </section>
+
+            <!-- Slide 9: Transition to Results -->
+            <section>
+                <h2>📊 The Results</h2>
+                <p>What did I learn from 20 years of reading?</p>
+                <div class="big-number">18.2M</div>
+                <p>Words analyzed</p>
+                <p class="small-text">Let me show you the insights...</p>
+            </section>
+
+            <!-- Slide 8: The Numbers -->
+            <section>
+                <h2>By The Numbers</h2>
+                <div class="big-number">17,612</div>
+                <p>Articles Saved</p>
+                <div class="stat-grid">
+                    <div class="stat-box">
+                        <h3>18.2M Words</h3>
+                        <p>= 16.8x Harry Potter series</p>
+                        <p>= 31x War and Peace</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>1,273 Hours</h3>
+                        <p>= 159 full work days</p>
+                        <p>= 53 days straight</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 9: The Peak Year -->
+            <section>
+                <h2>🔥 2011: Peak Reading Year</h2>
+                <div class="big-number">2,715</div>
+                <p>Articles in one year</p>
+                <div class="medium-number">7.4</div>
+                <p>Articles per day!</p>
+                <p class="small-text">(The year tech journalism exploded)</p>
+            </section>
+
+            <!-- Slide 10: What I Read About -->
+            <section>
+                <h2>🏷️ Content Analysis: Topics</h2>
+                <div class="top-list">
+                    <ul>
+                        <li><span class="highlight">Technology</span> - 875 articles</li>
+                        <li><span class="highlight">Entrepreneurship</span> - 686 articles</li>
+                        <li><span class="highlight">Business Strategy</span> - 640 articles</li>
+                        <li><span class="highlight">Social Media</span> - 464 articles (peaked 2011)</li>
+                        <li><span class="highlight">Venture Capital</span> - 456 articles</li>
+                        <li><span class="highlight">Innovation</span> - 447 articles</li>
+                        <li><span class="highlight">Artificial Intelligence</span> - 220 articles</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Slide 11: Steve Jobs Effect -->
+            <section>
+                <h2>🍎 Entity Analysis: People</h2>
+                <div class="big-number">666</div>
+                <p>Articles mentioning Steve Jobs</p>
+                <p>More than any other person</p>
+                <div class="stat-grid">
+                    <div class="stat-box">
+                        <p>Barack Obama: 500</p>
+                        <p>Mark Zuckerberg: 442</p>
+                        <p>Bill Gates: 233</p>
+                    </div>
+                    <div class="stat-box">
+                        <p>Donald Trump: 217</p>
+                        <p>Warren Buffett: 164</p>
+                        <p>Elon Musk: 99</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 12: Tech Giants -->
+            <section>
+                <h2>🏢 Entity Analysis: Organizations</h2>
+                <div class="top-list">
+                    <ul>
+                        <li><span class="highlight">Google</span> - 2,218 articles</li>
+                        <li><span class="highlight">Apple</span> - 1,946 articles</li>
+                        <li><span class="highlight">Facebook</span> - 1,624 articles</li>
+                        <li><span class="highlight">Microsoft</span> - 1,033 articles</li>
+                        <li><span class="highlight">Amazon</span> - 466 articles</li>
+                    </ul>
+                </div>
+                <p class="small-text">All peaked in 2011 - same year as my peak reading</p>
+            </section>
+
+            <!-- Slide 13: Trusted Sources -->
+            <section>
+                <h2>📰 Source Analysis</h2>
+                <div class="top-list">
+                    <ul>
+                        <li><span class="highlight">NY Times</span> - 1,034 articles</li>
+                        <li><span class="highlight">Business Insider</span> - 897 articles</li>
+                        <li><span class="highlight">Kurzweilai.net</span> - 318 articles</li>
+                        <li><span class="highlight">Fast Company</span> - 290 articles</li>
+                        <li><span class="highlight">Medium</span> - 284 articles</li>
+                        <li><span class="highlight">The Atlantic</span> - 162 articles</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Slide 14: Event Tracking -->
+            <section>
+                <h2>📊 Temporal Analysis: Events</h2>
+                <div class="stat-grid">
+                    <div class="stat-box">
+                        <h3>Financial Crisis</h3>
+                        <p>99 articles in 2008</p>
+                        <p class="small-text">Peak year of the crisis</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Social Media Era</h3>
+                        <p>159 articles in 2011</p>
+                        <p class="small-text">Platform explosion</p>
+                    </div>
+                </div>
+                <div class="stat-grid">
+                    <div class="stat-box">
+                        <h3>AI Interest</h3>
+                        <p>Steady from 2012-2023</p>
+                        <p class="small-text">44 articles in 2012</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Climate Change</h3>
+                        <p>27 articles in 2009</p>
+                        <p class="small-text">Copenhagen Summit</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 15: Geographic Focus -->
+            <section>
+                <h2>🌍 Geographic Analysis</h2>
+                <div class="top-list">
+                    <ul>
+                        <li><span class="highlight">New York</span> - 2,989 mentions</li>
+                        <li><span class="highlight">China</span> - 1,372 mentions</li>
+                        <li><span class="highlight">California</span> - 1,182 mentions</li>
+                        <li><span class="highlight">San Francisco</span> - 1,077 mentions</li>
+                        <li><span class="highlight">Silicon Valley</span> - 573 mentions</li>
+                        <li><span class="highlight">Nashville</span> - 459 mentions</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Slide 16: Sentiment Analysis -->
+            <section>
+                <h2>📖 Sentiment & Tone Analysis</h2>
+                <div class="stat-grid">
+                    <div class="stat-box">
+                        <h3>Sentiment</h3>
+                        <p>66% Neutral</p>
+                        <p>16% Negative</p>
+                        <p>16% Positive</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Emotion</h3>
+                        <p>63% Analytical</p>
+                        <p>10% Alarming</p>
+                        <p>8% Informative</p>
+                    </div>
+                </div>
+                <p class="small-text">Preference for data-driven, analytical content</p>
+            </section>
+
+            <!-- Slide 17: Dashboard Demo -->
+            <section>
+                <h2>📊 Interactive Dashboard</h2>
+                <p>Built with Streamlit</p>
+                <ul class="top-list">
+                    <li><span class="highlight">The Quantified Reader</span> - Personal stats & achievements</li>
+                    <li><span class="highlight">Content Intelligence</span> - Word clouds & AI insights</li>
+                    <li><span class="highlight">Network & Entities</span> - People & organizations graph</li>
+                    <li><span class="highlight">Trends Over Time</span> - Topic evolution charts</li>
+                    <li><span class="highlight">Heatmap Analysis</span> - Geographic & temporal patterns</li>
+                    <li><span class="highlight">Archive Explorer</span> - Full-text search interface</li>
+                </ul>
+                <p class="small-text">Let me show you the live dashboard...</p>
+            </section>
+
+            <!-- Slide 18: Key Learnings -->
+            <section>
+                <h2>💡 What I Learned (Technical)</h2>
+                <ul class="top-list">
+                    <li><span class="highlight">Python ecosystems</span> - Pandas, Streamlit, modern tooling</li>
+                    <li><span class="highlight">AI/LLM integration</span> - API design, prompt engineering, batch processing</li>
+                    <li><span class="highlight">Data engineering</span> - Parquet, columnar storage, query optimization</li>
+                    <li><span class="highlight">Product development</span> - Solo project from concept to deployment</li>
+                </ul>
+            </section>
+
+            <!-- Slide 19: Key Insights -->
+            <section>
+                <h2>🎯 What I Learned (About Me)</h2>
+                <ul class="top-list">
+                    <li>2011 was my peak tech journalism year (2,715 articles)</li>
+                    <li>I'm drawn to analytical, data-driven content</li>
+                    <li>Tech entrepreneurship is a consistent theme</li>
+                    <li>I tracked major events in real-time (2008 crisis, social media boom, China's rise at pandemic start)</li>
+                    <li>I've invested 1,273 hours in continuous learning</li>
+                </ul>
+            </section>
+
+            <!-- Slide 20: The Bigger Picture -->
+            <section>
+                <h2>🚀 Why This Matters</h2>
+                <div class="stat-grid">
+                    <div class="stat-box">
+                        <h3>Adaptability</h3>
+                        <p>Picked up a new stack quickly</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Execution</h3>
+                        <p>Shipped a complete product</p>
+                    </div>
+                </div>
+                <div class="stat-grid">
+                    <div class="stat-box">
+                        <h3>Problem Solving</h3>
+                        <p>Solved real technical challenges</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Curiosity</h3>
+                        <p>Built this to learn, not because I had to</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 21: End -->
+            <section>
+                <h1>Questions?</h1>
+                <p>📂 All code available on GitHub</p>
+                <p>🤖 Python + Gemini + Streamlit + Pandas</p>
+                <p>📊 17,612 articles • 18.2M words • $0.50 AI cost</p>
+                <br>
+                <p class="small-text">Use ← → arrow keys to navigate | ESC for overview | F for fullscreen</p>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            transition: 'slide',
+            backgroundTransition: 'fade',
+            center: true,
+            controls: true,
+            progress: true,
+            slideNumber: true,
+            keyboard: true,
+            overview: true,
+            touch: true,
+            loop: false,
+            mouseWheel: false,
+            // Auto-scaling configuration
+            width: 1280,
+            height: 720,
+            margin: 0.1,
+            minScale: 0.2,
+            maxScale: 2.0
+        });
+    </script>
+</body>
+</html>
