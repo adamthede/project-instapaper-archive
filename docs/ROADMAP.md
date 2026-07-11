@@ -12,7 +12,7 @@ This file follows the Command Center roadmap convention (`## Now / Next / Later 
 ## Now
 
 - **Matter CLI integration — second read-it-later source** — the one active queued plan (P1). Adam reads in two apps: Instapaper (since ~2008) and Matter (recent years), and Matter content is currently stranded — no local copies, no enrichment, not in the dashboard. Matter shipped an official API + CLI in April 2026, making integration possible for the first time. Build `scripts/core/export_matter_to_archive.py` mirroring the Instapaper export (bearer-token API, `?include=markdown`, manifest idempotency), normalize to the same Markdown + YAML frontmatter, and the proven enrich → index → dashboard pipeline picks it up with no new code. `effort: ~half day (plan Phases 1-3, ~3-4h)` `next: Phase 1 explore — install the CLI, authenticate, count archived vs queued items and content types` `depends: an active Matter Pro subscription (required for API/CLI access)`
-- **Instapaper catch-up** — re-run the proven CSV bulk-import for any articles saved/archived since the last export (~November 2025): fresh CSV export from the web UI → `bulk_import_instapaper_from_csv.py` → enrich → rebuild the Parquet index. `effort: ~30min` (plan Phase 5, but stands on its own)
+- **Instapaper catch-up** — re-run the proven CSV bulk-import for any articles saved/archived since the last export (~November 2025): fresh CSV export from the web UI → `scripts/core/bulk_import_instapaper_from_csv.py` → enrich → rebuild the Parquet index. `effort: ~30min` (plan Phase 5, but stands on its own)
 
 ## Next
 
@@ -24,12 +24,12 @@ This file follows the Command Center roadmap convention (`## Now / Next / Later 
 
 - **Matter MCP server** — wrap the Matter CLI (or API) as an MCP server for direct Claude Code queries against reading history ("what did I read about X recently?"). Low priority, from the Matter plan's open questions. `next: only after the sync pipeline is stable`
 - **Shared orchestration across the local-agent trio** — the article-sync daemon, the PKM Vault enrichment daemon, and the Command Center session digest are all the same always-on launchd pattern; eventually they could share one orchestration layer rather than three parallel plists.
-- **Vault organization decision** — whether Matter content lives in a `matter/` subdirectory vs the current flat vault (`build_index.py` already scans recursively). A small cleanliness call flagged in the plan's open questions; defer until volume warrants it.
+- **Vault organization decision** — whether Matter content lives in a `matter/` subdirectory vs the current flat vault (`scripts/core/build_index.py` already scans recursively). A small cleanliness call flagged in the plan's open questions; defer until volume warrants it.
 
 ## Shipped
 
 - **Full Instapaper archive export** — defeated the Instapaper API's hard 500-item-per-folder cap via a two-step solution: CSV export for article discovery + the per-article `/bookmarks/get_text` endpoint (not subject to the 500 limit) for full content, with manifest-file idempotency. ~7,000+ Instapaper articles exported to Markdown + YAML. Documented in `docs/SUMMARY.md` and the published "Navigating the Limits of the Instapaper API" blog post.
-- **Legacy multi-format import** — `import_legacy_archive.py` (via `markitdown`) unified ~10,000+ older articles saved since 2007 — PDFs, Word docs, HTML, RTF, TXT — into the same Markdown + YAML format, with careful date/format handling.
+- **Legacy multi-format import** — `scripts/core/import_legacy_archive.py` (via `markitdown`) unified ~10,000+ older articles saved since 2007 — PDFs, Word docs, HTML, RTF, TXT — into the same Markdown + YAML format, with careful date/format handling.
 - **AI enrichment pipeline** — per-article extraction of topics, concepts, people, organizations, locations, sentiment, and TL;DR summaries, plus corrupted/sidebar-content detection — via Gemini API (fast, ~$0.50 for 10k) or local Ollama (private), normalized into a Parquet index.
-- **Analytics dashboard (Streamlit) — live** — seven surfaces across 17,000+ enriched articles: The Quantified Reader, Content Intelligence, Network & Entities, Trends Over Time, Heatmap Analysis, Spaced Review, and Archive Explorer. Includes the temporal-analysis correction (`date_saved` → `date_read`) and env-var-driven configuration.
+- **Analytics dashboard (Streamlit) — live** — eight surfaces across 17,000+ enriched articles: The Quantified Reader, Content Intelligence, Network & Entities, Concept Explorer, Archive Explorer, Trends Over Time, Heatmap Analysis, and Spaced Review. Includes the temporal-analysis correction (`date_saved` → `date_read`) and env-var-driven configuration.
 - **Narrative artifacts** — the published project blog post ("Building a Personal Knowledge Observatory: Lessons from 17,000 Articles," Nov 2025) and a reveal.js presentation on building the reading archive.
