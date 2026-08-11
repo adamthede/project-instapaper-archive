@@ -89,3 +89,11 @@ venv.bak
 BLOG_POST_PROJECT_NARRATIVE.md
 
 /screenshots
+
+# Git worktrees used for feature branches
+.worktrees/
+
+# Matter sync state lives in the vault (gitignored data/), never the repo,
+# but guard against a stray copy landing here.
+.matter_manifest.json
+.matter_url_index.json

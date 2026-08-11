@@ -48,6 +48,64 @@ def load_data():
 
     return pd.read_parquet(INDEX_PATH)
 
+# Reading eras, in the order they should appear. The archive spans three
+# ingestion sources and the dashboard reads better when they are named the way
+# Adam thinks about them rather than by their frontmatter value.
+ERA_LABELS = {
+    "instapaper": "Instapaper",
+    "matter": "Matter",
+    "unknown": "Unknown",
+}
+ERA_ORDER = ["Legacy files", "Instapaper", "Matter", "Unknown"]
+
+
+def derive_era(df):
+    """Label each row with the reading era it came from.
+
+    Tolerates an index built before the `source` column existed: without it,
+    every row is attributed by whether it has an instapaper_id, which is exactly
+    what build_index.py now does at parse time.
+    """
+    if "source" in df.columns:
+        source = df["source"].fillna("unknown").astype(str)
+    elif "instapaper_id" in df.columns:
+        source = df["instapaper_id"].notna().map({True: "instapaper", False: "unknown"})
+    else:
+        return pd.Series(["Unknown"] * len(df), index=df.index)
+
+    return source.map(
+        lambda value: "Legacy files" if value.startswith("legacy")
+        else ERA_LABELS.get(value, value.title() if value else "Unknown")
+    )
+
+
+def review_id(article):
+    """A stable identity for the spaced-review system.
+
+    Reviews were originally keyed on instapaper_id, which only the Instapaper
+    era has -- the legacy import (about 10,560 rows) and now Matter both leave
+    it null, so their review records were written against NaN and could never be
+    matched back to an article. Falling back to matter_id and then file_path
+    fixes both. Instapaper articles keep returning instapaper_id, so review
+    history recorded before this change still matches.
+    """
+    value = article.get("instapaper_id")
+    if value is not None and not (isinstance(value, float) and pd.isna(value)):
+        return value
+    for key in ("matter_id", "file_path"):
+        alternative = article.get(key)
+        if isinstance(alternative, str) and alternative:
+            return alternative
+    return None
+
+
+def review_id_series(df):
+    """review_id() for every row, for matching against saved review history."""
+    if df.empty:
+        return pd.Series(dtype=object, index=df.index)
+    return df.apply(review_id, axis=1)
+
+
 def load_review_history():
     """Load review history or create empty dataframe."""
     if REVIEW_HISTORY_PATH.exists():
@@ -145,6 +203,8 @@ def main():
     else:
         df["date_read"] = df["date_saved"]
 
+    df["era"] = derive_era(df)
+
     # Debug info
     st.sidebar.caption(f"📊 Loaded: {len(df)} articles")
     st.sidebar.caption(f"📅 Date range: {df['date_read'].min().date()} to {df['date_read'].max().date()}")
@@ -193,6 +253,15 @@ def main():
     else:
         df_filtered = df
 
+    # Reading era. Only offered when the archive actually holds more than one,
+    # so a single-source archive does not grow a filter that does nothing.
+    present_eras = [era for era in ERA_ORDER if era in set(df["era"])]
+    present_eras += sorted(set(df["era"]) - set(ERA_ORDER))
+    if len(present_eras) > 1:
+        chosen_eras = st.sidebar.multiselect("Reading Era", present_eras, default=present_eras)
+        if chosen_eras:
+            df_filtered = df_filtered[df_filtered["era"].isin(chosen_eras)]
+
     if page == "The Quantified Reader":
         render_overview(df_filtered)
     elif page == "Content Intelligence":
@@ -225,6 +294,18 @@ def render_overview(df):
     c2.metric("Words Read", f"{total_words/1000000:.2f}M")
     c3.metric("Reading Time (Hours)", f"{hours_read:,}")
     c4.metric("Avg. Grade Level", f"{avg_complexity:.1f}")
+
+    # Where the corpus came from. One continuous reading history, three
+    # ingestion eras - worth showing, because the shape of what the archive
+    # knows about an article differs by era.
+    if "era" in df.columns and df["era"].nunique() > 1:
+        counts = df["era"].value_counts()
+        ordered = [era for era in ERA_ORDER if era in counts.index]
+        ordered += [era for era in counts.index if era not in ordered]
+        era_cols = st.columns(len(ordered))
+        for column, era in zip(era_cols, ordered):
+            share = counts[era] / total_articles * 100 if total_articles else 0
+            column.metric(era, f"{counts[era]:,}", f"{share:.0f}% of archive")
 
     # Reading Achievements - Contextualize the word count
     st.markdown("---")
@@ -1779,10 +1860,22 @@ def render_review(df):
             # No review history yet - suggest starting fresh
             st.info("👋 Welcome! You haven't reviewed any articles yet. Let's start with some random articles from your archive.")
 
-            # Sample 10 random articles with summaries
-            candidates = df[df["summary"].notna()].sample(min(10, len(df)))
+            # Sample up to 10 random articles that actually have a summary.
+            # The sample size has to come from the summarised population, not
+            # from len(df): Matter-era articles arrive before enrichment runs,
+            # so the pool of reviewable cards is routinely smaller than the
+            # archive, and asking for more cards than exist raises.
+            summarised = df[df["summary"].notna()]
+            candidates = summarised.sample(min(10, len(summarised))) if not summarised.empty else summarised
 
-            if st.button("Start First Review Session (10 cards)", type="primary"):
+            if candidates.empty:
+                st.warning(
+                    "No articles with AI summaries in the current selection, so there is "
+                    "nothing to review yet. Run the enrichment pass "
+                    "(`scripts/core/enrich_archive_gemini.py`), or widen the era and date "
+                    "filters in the sidebar."
+                )
+            elif st.button(f"Start First Review Session ({len(candidates)} cards)", type="primary"):
                 st.session_state.review_deck = candidates.to_dict('records')
                 st.session_state.review_index = 0
                 st.session_state.session_complete = False
@@ -1800,7 +1893,7 @@ def render_review(df):
                     st.subheader("Upcoming Reviews")
                     upcoming = df_history.sort_values("next_review").head(10)
                     for _, row in upcoming.iterrows():
-                        article = df[df["instapaper_id"] == row["article_id"]]
+                        article = df[review_id_series(df) == row["article_id"]]
                         if not article.empty:
                             title = article.iloc[0]["title"]
                             days_until = (row["next_review"] - now).days
@@ -1810,7 +1903,7 @@ def render_review(df):
 
                 # Limit to 10 cards per session
                 due_ids_session = due_ids[:10]
-                candidates = df[df["instapaper_id"].isin(due_ids_session)]
+                candidates = df[review_id_series(df).isin(due_ids_session)]
 
                 if st.button(f"Start Review Session ({len(candidates)} cards)", type="primary"):
                     st.session_state.review_deck = candidates.to_dict('records')
@@ -1943,7 +2036,7 @@ def render_review(df):
             if st.button("😰 Hard", use_container_width=True, type="secondary"):
                 # Record review
                 df_history = load_review_history()
-                article_id = article.get("instapaper_id")
+                article_id = review_id(article)
                 df_history = update_review_record(article_id, 0, df_history)
                 save_review_history(df_history)
 
@@ -1955,7 +2048,7 @@ def render_review(df):
             if st.button("🤔 Good", use_container_width=True, type="secondary"):
                 # Record review
                 df_history = load_review_history()
-                article_id = article.get("instapaper_id")
+                article_id = review_id(article)
                 df_history = update_review_record(article_id, 1, df_history)
                 save_review_history(df_history)
 
@@ -1967,7 +2060,7 @@ def render_review(df):
             if st.button("✅ Easy", use_container_width=True, type="primary"):
                 # Record review
                 df_history = load_review_history()
-                article_id = article.get("instapaper_id")
+                article_id = review_id(article)
                 df_history = update_review_record(article_id, 2, df_history)
                 save_review_history(df_history)
 

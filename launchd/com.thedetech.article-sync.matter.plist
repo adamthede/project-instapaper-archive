@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Matter -> Article Archive sync - nightly at 04:45 local.
+
+  Pulls anything read, highlighted, or saved in Matter since the last watermark,
+  writes it into the vault as Markdown + YAML frontmatter, and rebuilds the
+  Parquet index so the Streamlit dashboard reflects it the next morning.
+
+  Fleet conventions honoured:
+    * ProgramArguments[0] is /opt/homebrew/bin/python3, because launchd
+      attributes the TCC ~/Documents grant to that specific interpreter. The
+      sync path deliberately imports nothing beyond the standard library,
+      `requests` and `PyYAML`, all of which that interpreter already has -- so
+      no virtualenv is needed to run it. (--rebuild-index shells out to the
+      repo's .venv separately, since build_index.py needs pandas + pyarrow +
+      python-frontmatter, which homebrew python3 does not have. Override that
+      interpreter with MATTER_INDEX_PYTHON if the venv moves.)
+    * Log paths live OUTSIDE ~/Documents, or the spawn dies silently with
+      EX_CONFIG.
+    * RunAtLoad is false: this reads an API on a schedule, and firing it on
+      every login would burn rate limit for nothing.
+
+  Note: a brew upgrade of python3 can silently revoke the TCC grant. If this job
+  starts failing with EPERM on ~/Documents, that is the first thing to check.
+
+  Prerequisites:
+    * ~/.secrets/matter.token exists, mode 0600 (see docs/MATTER_SYNC.md).
+    * The vault drive is mounted. If it is not, the job exits 2 with a clear
+      message rather than creating an empty archive.
+
+  Verify before installing:
+    python3 scripts/core/export_matter_to_archive.py --check-auth
+    python3 scripts/core/export_matter_to_archive.py --dry-run
+
+  Install (Adam's one-liner - the mkdir matters, launchd will not create the log
+  directory itself and dies with EX_CONFIG if it is missing):
+    mkdir -p ~/Library/Logs/MatterSync && cp launchd/com.thedetech.article-sync.matter.plist ~/Library/LaunchAgents/ && launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.thedetech.article-sync.matter.plist
+
+  Run it once by hand:
+    launchctl kickstart -k gui/$(id -u)/com.thedetech.article-sync.matter
+
+  Uninstall:
+    launchctl bootout gui/$(id -u)/com.thedetech.article-sync.matter && rm ~/Library/LaunchAgents/com.thedetech.article-sync.matter.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.thedetech.article-sync.matter</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/python3</string>
+        <string>/Users/adam_thede/Documents/Code/Project - Instapaper Archive/scripts/core/export_matter_to_archive.py</string>
+        <string>--sync</string>
+        <string>--rebuild-index</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/adam_thede/Documents/Code/Project - Instapaper Archive</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/adam_thede</string>
+        <!-- Where the Markdown archive lives. Must match the value used by
+             build_index.py and the rest of the pipeline. -->
+        <key>INSTAPAPER_VAULT_PATH</key>
+        <string>/Volumes/Extreme SSD/Instapaper-Archive</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>4</integer>
+        <key>Minute</key>
+        <integer>45</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/adam_thede/Library/Logs/MatterSync/matter-sync.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/adam_thede/Library/Logs/MatterSync/matter-sync.err.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+</dict>
+</plist>

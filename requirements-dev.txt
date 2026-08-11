@@ -1,0 +1,12 @@
+# Development / test dependencies.
+#
+# The test suite needs pytest plus the runtime packages already in
+# requirements.txt (streamlit is used headlessly by the dashboard smoke tests
+# via streamlit.testing.v1.AppTest).
+#
+#   .venv/bin/pip install -r requirements-dev.txt
+#   .venv/bin/python -m pytest tests/ -q
+
+-r requirements.txt
+
+pytest>=8.0.0
