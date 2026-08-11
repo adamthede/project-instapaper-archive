@@ -16,6 +16,7 @@ Leaving it put costs a few redundant reads on the next run and nothing else.
 
 import logging
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -105,6 +106,7 @@ class SyncResult:
             "dedupe_source": self.dedupe_source,
             "dedupe_degraded": self.dedupe_degraded,
             "error": self.error_message,
+            "error_examples": self.error_examples,
         }
 
 
@@ -164,22 +166,34 @@ def _unique_path(directory: Path, filename: str, matter_id: str, owned_paths: se
 def _load_existing(path: Path) -> tuple[dict, str, str]:
     """Read an existing article, reporting whether its frontmatter was readable."""
     try:
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text = path.read_text(encoding="utf-8-sig", errors="replace")
     except OSError as exc:
         raise MatterError(f"Could not read existing article {path}: {exc}") from exc
     return mapping.parse_document(text)
 
 
+_MATTER_ID_LINE = re.compile(r"^matter_id:\s*[\"']?(itm_[A-Za-z0-9_-]+)", re.MULTILINE)
+
+
 def _matter_id_of(path: Path) -> str | None:
-    """The matter_id recorded in a file's frontmatter, if it has one."""
+    """The matter_id recorded in a file's frontmatter, if it has one.
+
+    Falls back to a regex when the YAML will not parse: a file with broken
+    frontmatter still needs to be recognised as ours, or the sync would write a
+    second copy beside it instead of refusing to touch it.
+    """
     try:
         metadata, _, status = _load_existing(path)
     except MatterError:
         return None
-    if status != mapping.PARSE_OK:
+    if status == mapping.PARSE_OK:
+        value = metadata.get("matter_id")
+        return value if isinstance(value, str) else None
+    try:
+        match = _MATTER_ID_LINE.search(path.read_text(encoding="utf-8-sig", errors="replace")[:4096])
+    except OSError:
         return None
-    value = metadata.get("matter_id")
-    return value if isinstance(value, str) else None
+    return match.group(1) if match else None
 
 
 class OrphanIndex:
@@ -212,8 +226,20 @@ class OrphanIndex:
             if path.name.startswith("._"):
                 continue
             existing_id = _matter_id_of(path)
-            if existing_id:
-                found.setdefault(existing_id, path)
+            if not existing_id:
+                continue
+            previous = found.get(existing_id)
+            if previous is None:
+                found[existing_id] = path
+                continue
+            # Two files claiming one item: the older is the one enrichment more
+            # likely ran against, so adopt that and leave the newer alone.
+            log.warning(
+                "Two files carry matter_id %s (%s and %s); adopting the older one",
+                existing_id, previous.name, path.name,
+            )
+            if path.stat().st_mtime < previous.stat().st_mtime:
+                found[existing_id] = path
         if found:
             log.debug("Indexed %s existing Matter files for orphan adoption", len(found))
         return found
@@ -328,9 +354,26 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
         result.throttled_seconds = client.throttled_seconds
         # Save unconditionally: files may already be on disk, and a manifest
         # that does not know about them would have the next run write duplicates.
-        # This runs even when the loop raised.
-        if not config.dry_run:
-            state.save()
+        # This runs even when the loop raised -- so it is wrapped, because an
+        # exception escaping a finally would replace the real failure with a
+        # confusing one and cost the run its exit code and failure heartbeat.
+        if not config.dry_run and config.vault_path.is_dir():
+            try:
+                state.save()
+            except Exception as exc:
+                log.error("Could not save the sync manifest to %s: %s", state.path, exc)
+
+    # The vault can disappear mid-run (the drive is external). If it has, every
+    # per-item write already failed, so this is a failed run whatever the
+    # counters say -- and there is nowhere to record it.
+    vault_present = config.vault_path.is_dir()
+    if not vault_present:
+        result.errors = max(result.errors, 1)
+        result.error_message = (
+            f"The vault {config.vault_path} disappeared during the run; the drive was "
+            "probably unmounted. Nothing was written and the watermark was not advanced."
+        )
+        log.error("%s", result.error_message)
 
     if result.errors == 0 and not truncated and not config.dry_run:
         state.advance_watermark(checkpoint)
@@ -341,9 +384,12 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
             result.errors, state.watermark or "the beginning",
         )
 
-    if not config.dry_run:
+    if not config.dry_run and vault_present:
         state.last_run = result.as_dict()
-        state.save()  # second save: records the run summary and the new watermark
+        try:
+            state.save()  # second save: records the run summary and the new watermark
+        except Exception as exc:
+            log.error("Could not save the sync manifest to %s: %s", state.path, exc)
 
     result.finished_at = utcnow()
     result.outcome = "ok" if result.errors == 0 else "fail"
@@ -365,7 +411,34 @@ def _sync_one(item, config, state, url_index, client, owned_paths, orphans, resu
         result.unchanged += 1
         return "unchanged"
 
-    # 2. Cross-era duplicate: this article is already in the archive from the
+    # 2. A file we wrote on an earlier run that the manifest has since lost --
+    #    the run was killed before its state was saved, or the manifest was
+    #    corrupt and got reset. This is checked BEFORE the duplicate check,
+    #    because the URL index can legitimately contain our own files (the
+    #    Parquet index is built from the whole vault, and --subdir '' puts our
+    #    files in the scanned tree). Checked the other way round, an item would
+    #    be filed as a duplicate of itself, get no `path` recorded, and be
+    #    re-skipped that way every night thereafter -- silently frozen.
+    adopted_metadata = None
+    if not recorded_path:
+        orphan = orphans.lookup(matter_id)
+        if orphan is not None:
+            log.info("Adopting %s, which this sync wrote before losing its manifest record", orphan.name)
+            existing_file = orphan
+            recorded_path = str(orphan.relative_to(config.vault_path))
+            # The manifest is gone, so the file itself is the only record of the
+            # sticky dates. Without this the dates would be recomputed from the
+            # current updated_at and the article would jump forward in every
+            # timeline -- exactly what stickiness exists to prevent.
+            adopted_metadata, _, adopted_status = _load_existing(orphan)
+            if adopted_status == mapping.PARSE_OK:
+                previous = {
+                    key: adopted_metadata[key]
+                    for key in ("date_saved", "date_saved_source", "date_archived")
+                    if key in adopted_metadata
+                } | previous
+
+    # 3. Cross-era duplicate: this article is already in the archive from the
     #    Instapaper or legacy era. Skip rather than write a second copy.
     if not recorded_path:
         duplicate_of = url_index.lookup(item.get("url"))
@@ -389,16 +462,6 @@ def _sync_one(item, config, state, url_index, client, owned_paths, orphans, resu
 
     is_update = bool(existing_file and existing_file.exists())
 
-    # A file we wrote on an earlier run that the manifest has since lost -- the
-    # run was killed before its state was saved, or the manifest was corrupt and
-    # got reset. Adopt it rather than writing a second copy alongside it.
-    if not is_update:
-        orphan = orphans.lookup(matter_id)
-        if orphan is not None:
-            log.info("Adopting %s, which this sync wrote before losing its manifest record", orphan.name)
-            existing_file = orphan
-            is_update = True
-
     if config.dry_run:
         result.updated += 1 if is_update else 0
         result.new += 0 if is_update else 1
@@ -407,16 +470,16 @@ def _sync_one(item, config, state, url_index, client, owned_paths, orphans, resu
 
     if is_update:
         existing_metadata, existing_body, parse_status = _load_existing(existing_file)
-        if parse_status == mapping.PARSE_UNREADABLE:
+        if parse_status != mapping.PARSE_OK:
             # Rewriting would discard whatever is in there -- including the ai_*
             # enrichment, which costs real money to regenerate. Refuse, and say
             # which file needs a human. Counted as an error, so the watermark
             # stays put and the item is retried once the file is fixed.
             raise MatterError(
-                f"Refusing to update {existing_file}: its YAML frontmatter could not be parsed, "
-                f"so preserving the ai_* enrichment already in it is impossible. Fix the "
-                f"frontmatter (an unquoted colon in a value is the usual cause), or delete the "
-                f"file to have it re-synced from scratch."
+                f"Refusing to update {existing_file}: its YAML frontmatter could not be read "
+                f"({parse_status}), so preserving the ai_* enrichment already in it is "
+                f"impossible. Fix the frontmatter (an unquoted colon in a value is the usual "
+                f"cause), or delete the file to have it re-synced from scratch."
             )
     else:
         existing_metadata, existing_body = {}, ""
@@ -510,7 +573,10 @@ def write_heartbeat(path: Path, result: SyncResult) -> None:
     """
     import json
     try:
-        atomic_write_text(Path(path).expanduser(), json.dumps(result.as_dict(), indent=2))
+        # create_parents: the heartbeat lives under ~/Library/Logs, where
+        # making the directory is correct -- unlike the vault.
+        atomic_write_text(Path(path).expanduser(), json.dumps(result.as_dict(), indent=2),
+                          create_parents=True)
     except OSError as exc:
         log.warning("Could not write heartbeat to %s: %s", path, exc)
 
@@ -526,6 +592,17 @@ def rebuild_index(repo_root: Path) -> bool:
     script = repo_root / "scripts" / "core" / "build_index.py"
     if not script.exists():
         log.error("Cannot rebuild index: %s not found", script)
+        return False
+
+    # Rebuilding against a vault that is not there would compile an empty index
+    # over the real one and make 17,637 articles look deleted.
+    vault = resolve_vault_path()
+    if not vault.is_dir():
+        log.error(
+            "Refusing to rebuild the index: the vault %s is not available. "
+            "The Markdown files are safe; re-run build_index.py once the drive is mounted.",
+            vault,
+        )
         return False
 
     candidates = []

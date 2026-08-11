@@ -60,8 +60,14 @@ class UrlIndex:
             self.urls.setdefault(normalized, location)
 
 
-def _from_parquet(parquet_path: Path) -> dict[str, str] | None:
-    """Read just the `url` column out of the built index."""
+def _from_parquet(parquet_path: Path, skip_dirs: set[str]) -> dict[str, str] | None:
+    """Read the `url` column out of the built index, minus our own files.
+
+    build_index.py walks the entire vault, so the Parquet index includes the
+    Matter subdirectory. Those rows must be excluded here for the same reason
+    the vault scan skips that directory: they are this sync's own output, and
+    letting an item match itself would file it as a cross-era duplicate.
+    """
     if not parquet_path.exists():
         return None
     try:
@@ -70,12 +76,21 @@ def _from_parquet(parquet_path: Path) -> dict[str, str] | None:
         return None
 
     try:
-        table = pq.read_table(str(parquet_path), columns=["url"])
+        table = pq.read_table(str(parquet_path), columns=["url", "file_path"])
     except (OSError, ValueError, KeyError):
-        return None
+        try:
+            table = pq.read_table(str(parquet_path), columns=["url"])
+        except (OSError, ValueError, KeyError):
+            return None
+
+    urls = table.column("url").to_pylist()
+    paths = table.column("file_path").to_pylist() if "file_path" in table.column_names else [None] * len(urls)
+    skip_fragments = {f"/{name}/" for name in skip_dirs if name}
 
     out: dict[str, str] = {}
-    for value in table.column("url").to_pylist():
+    for value, file_path in zip(urls, paths):
+        if file_path and any(fragment in str(file_path) for fragment in skip_fragments):
+            continue
         normalized = normalize_url(value)
         if normalized:
             out.setdefault(normalized, "archive_index.parquet")
@@ -136,7 +151,7 @@ def build_url_index(
     skip_dirs = skip_dirs or set()
 
     if parquet_path:
-        urls = _from_parquet(Path(parquet_path))
+        urls = _from_parquet(Path(parquet_path), skip_dirs)
         if urls:
             return UrlIndex(urls, source=f"parquet ({len(urls)} urls)")
 

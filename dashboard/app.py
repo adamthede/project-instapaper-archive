@@ -106,8 +106,16 @@ def review_id(article):
 
 def normalize_review_key(value):
     """Render a review key in the string form review_id() produces."""
-    if value is None or (isinstance(value, float) and pd.isna(value)):
+    # pd.NA and pd.NaT are not floats, and str() would render them as the
+    # literal "<NA>"/"NaT" -- a key that can never match an article and would
+    # occupy a due-review slot forever.
+    if value is None or value is pd.NA or value is pd.NaT:
         return None
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass  # arrays and the like are not NA scalars
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value)

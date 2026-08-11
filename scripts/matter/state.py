@@ -41,7 +41,7 @@ def to_iso(moment: datetime) -> str:
     return moment.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def atomic_write_text(path: Path, text: str) -> None:
+def atomic_write_text(path: Path, text: str, *, create_parents: bool = False) -> None:
     """Write a file such that a crash leaves either the old content or the new.
 
     Same-directory temp file, flushed and fsynced, then os.replace (atomic on
@@ -49,19 +49,39 @@ def atomic_write_text(path: Path, text: str) -> None:
     is the record of what has already been pulled: a torn write there would
     either re-download the whole library or, worse, convince the next run that
     articles had already been saved when they had not.
+
+    `create_parents` defaults to False, and that default is load-bearing. The
+    vault lives on an external SSD. If the drive disappears mid-run, a write
+    that helpfully created its parent directories would rebuild the vault tree
+    on the boot volume at the mount point -- and a following `--rebuild-index`
+    would then compile that near-empty stub over the real 17,637-row index.
+    Only the heartbeat, which lives under ~/Library/Logs, opts in.
     """
-    path.parent.mkdir(parents=True, exist_ok=True)
+    if create_parents:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    elif not path.parent.is_dir():
+        raise OSError(
+            f"Refusing to write {path}: its directory does not exist. If this is the vault, "
+            "the drive holding it has probably been unmounted mid-run."
+        )
     handle, temp_name = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
     temp_path = Path(temp_name)
     try:
         # mkstemp creates 0600, which os.replace would then impose on an
-        # existing file. Article files in the vault are ordinary 0644 documents
-        # Adam opens in Obsidian; silently tightening them on every update
-        # would be a surprising side effect of a sync.
+        # existing file. Article files in the vault are ordinary documents Adam
+        # opens in Obsidian; silently tightening them on every update -- or
+        # leaving new ones stricter than their neighbours -- would give the
+        # vault two permission regimes for no reason.
         try:
-            os.chmod(temp_path, stat.S_IMODE(path.stat().st_mode))
+            mode = stat.S_IMODE(path.stat().st_mode)
         except OSError:
-            pass  # new file: keep mkstemp's conservative default
+            umask = os.umask(0)       # no way to read it without setting it
+            os.umask(umask)
+            mode = 0o666 & ~umask
+        try:
+            os.chmod(temp_path, mode)
+        except OSError:
+            pass  # keep mkstemp's conservative default rather than fail the write
 
         with os.fdopen(handle, "w", encoding="utf-8") as stream:
             stream.write(text)

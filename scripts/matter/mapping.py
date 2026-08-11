@@ -59,6 +59,16 @@ def parse_document(text: str) -> tuple[dict, str, str]:
     runs under an interpreter that does not have that package installed, and a
     sync that cannot read its own output would be unable to preserve enrichment.
     """
+    # A UTF-8 BOM or a leading blank line still means the file HAS frontmatter.
+    # Reporting those as "no frontmatter" would let the caller conclude there was
+    # nothing to preserve and rewrite the file, destroying the ai_* enrichment --
+    # which is the exact failure this status exists to prevent. Note that
+    # read_text(encoding="utf-8") does not strip a BOM.
+    text = text.lstrip("\ufeff")
+    stripped = text.lstrip("\n\r \t")
+    if stripped.startswith(_FRONTMATTER_FENCE):
+        text = stripped
+
     if not text.startswith(_FRONTMATTER_FENCE):
         return {}, text, PARSE_NO_FRONTMATTER
 

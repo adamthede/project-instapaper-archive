@@ -77,7 +77,7 @@ python3 scripts/core/export_matter_to_archive.py --dry-run
 | `--dry-run` | Verify auth, then report what would be created, updated, or skipped. No writes. |
 | `--sync` | Incremental pull since the last watermark. The default, and what the nightly job runs. |
 | `--full` | Ignore the watermark and walk the whole library. For the first backfill. |
-| `--max-items N` | Stop after N items. The watermark does not advance, so the next run resumes. |
+| `--max-items N` | Stop after N items have been *written, updated, or skipped as duplicates* — unchanged items do not count, so each run makes real progress. The watermark does not advance, so the next run resumes. |
 | `--rebuild-index` | Run `build_index.py` afterwards so the dashboard sees the new articles. |
 | `--refetch-content` | Re-download article bodies for items already on disk. |
 | `--status` | Which Matter statuses to pull (default `archive,queue`). |
@@ -93,7 +93,9 @@ safe:
 python3 scripts/core/export_matter_to_archive.py --full --max-items 200
 ```
 
-Repeat until it reports no new items. Then enrich and rebuild:
+Repeat until it reports no new items. The budget counts work done rather than
+items looked at, so each run gets through another 200 articles instead of
+spending its allowance re-skipping the ones already on disk. Then enrich and rebuild:
 
 ```bash
 python3 scripts/core/enrich_archive_gemini.py

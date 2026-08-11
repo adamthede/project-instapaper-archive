@@ -446,3 +446,119 @@ def test_the_inbox_is_excluded_by_default(vault):
 def test_files_can_be_written_flat_alongside_the_instapaper_articles(vault):
     run_sync(config_for(vault, subdir=""), client=FakeClient([make_item()]))
     assert (vault / "2026-03-30 – How to Do Great Work.md").exists()
+
+
+# ---- second-round review regressions --------------------------------------
+
+def test_adoption_wins_over_the_duplicate_check(vault):
+    """The URL index can legitimately contain our own files.
+
+    build_index.py walks the whole vault, so the Parquet index includes the
+    matter/ subdir, and --subdir '' puts our files in the scanned tree. If the
+    duplicate check ran first, an item with a lost manifest record would be
+    filed as a duplicate of itself, get no `path`, and be re-skipped that way
+    every night -- silently frozen, never syncing another highlight.
+    """
+    items = [make_item(item_id=f"itm_{n}", url=f"https://e.com/{n}", title=f"A{n}") for n in range(3)]
+    run_sync(config_for(vault, subdir=""), client=FakeClient(items))
+    (vault / ".matter_manifest.json").unlink()
+
+    result = run_sync(config_for(vault, subdir="", full=True), client=FakeClient(items))
+
+    assert result.updated == 3
+    assert result.duplicates == 0, "an item must never be a duplicate of itself"
+    assert len(list(vault.glob("*.md"))) == 3
+
+
+def test_adopted_files_keep_their_original_dates(vault):
+    """The manifest is gone, so the file itself is the only record of them."""
+    run_sync(config_for(vault), client=FakeClient([make_item()]))
+    written = next(iter((vault / "matter").glob("*.md")))
+    before, _ = mapping.parse_markdown(written.read_text(encoding="utf-8"))
+
+    (vault / ".matter_manifest.json").unlink()
+    run_sync(config_for(vault, full=True),
+             client=FakeClient([make_item(updated_at="2026-08-01T00:00:00Z")]))
+
+    after, _ = mapping.parse_markdown(written.read_text(encoding="utf-8"))
+    assert after["date_saved"] == before["date_saved"]
+    assert after["date_archived"] == before["date_archived"]
+    assert written.name.startswith(before["date_saved"]), "filename and frontmatter agree"
+
+
+def test_a_vault_that_vanishes_mid_run_is_not_recreated(vault, tmp_path):
+    """The vault is on an external drive. Recreating it at the mount point
+    would leave a near-empty archive that a later index rebuild would compile
+    over the real 17,637-row index."""
+    import shutil
+
+    mount = tmp_path / "Volumes" / "Extreme SSD"
+    vault_on_drive = mount / "Instapaper-Archive"
+    vault_on_drive.mkdir(parents=True)
+
+    class Unplugged(FakeClient):
+        def iter_annotations(self, item_id, *, page_size=100):
+            if item_id == "itm_1":
+                shutil.rmtree(mount)
+            return super().iter_annotations(item_id, page_size=page_size)
+
+    items = [make_item(item_id=f"itm_{n}", url=f"https://e.com/{n}") for n in range(3)]
+    result = run_sync(config_for(vault_on_drive), client=Unplugged(items))
+
+    assert not mount.exists(), "the mount point must not be recreated on the boot volume"
+    assert result.errors > 0
+    assert result.watermark_after is None
+
+
+@pytest.mark.parametrize("prefix, label", [("﻿", "utf-8 BOM"), ("\n\n", "leading blank lines")])
+def test_frontmatter_is_still_found_past_a_bom_or_blank_lines(vault, prefix, label):
+    """Otherwise the file reads as having no frontmatter, and the enrichment in
+    it is treated as nothing to preserve."""
+    run_sync(config_for(vault), client=FakeClient([make_item()]))
+    written = next(iter((vault / "matter").glob("*.md")))
+
+    metadata, body = mapping.parse_markdown(written.read_text(encoding="utf-8"))
+    metadata["ai_summary"] = "expensive to regenerate"
+    written.write_text(prefix + mapping.dump_markdown(metadata, body), encoding="utf-8")
+
+    result = run_sync(config_for(vault),
+                      client=FakeClient([make_item(updated_at="2026-05-01T00:00:00Z")]))
+
+    after, _ = mapping.parse_markdown(written.read_text(encoding="utf-8"))
+    assert after["ai_summary"] == "expensive to regenerate", label
+    assert result.errors == 0
+
+
+def test_a_file_with_no_frontmatter_at_all_is_refused_not_overwritten(vault):
+    """We wrote frontmatter into it; its absence means someone else changed it."""
+    run_sync(config_for(vault), client=FakeClient([make_item()]))
+    written = next(iter((vault / "matter").glob("*.md")))
+    written.write_text("Just prose that replaced the whole file.\n", encoding="utf-8")
+
+    result = run_sync(config_for(vault),
+                      client=FakeClient([make_item(updated_at="2026-05-01T00:00:00Z")]))
+
+    assert written.read_text(encoding="utf-8") == "Just prose that replaced the whole file.\n"
+    assert result.errors == 1
+
+
+def test_new_article_files_match_the_permissions_of_the_rest_of_the_vault(vault):
+    run_sync(config_for(vault), client=FakeClient([make_item()]))
+    written = next(iter((vault / "matter").glob("*.md")))
+    assert written.stat().st_mode & 0o077, "0600 would leave the vault with two permission regimes"
+
+
+def test_a_broken_file_is_still_recognised_as_ours_rather_than_duplicated(vault):
+    """Manifest lost AND frontmatter broken: refuse, do not write a second copy."""
+    run_sync(config_for(vault), client=FakeClient([make_item()]))
+    written = next(iter((vault / "matter").glob("*.md")))
+    written.write_text(
+        '---\ntitle: "T"\nmatter_id: itm_abc123\nai_summary: Rails 8: the reckoning\n---\n\nBody.\n',
+        encoding="utf-8",
+    )
+    (vault / ".matter_manifest.json").unlink()
+
+    result = run_sync(config_for(vault, full=True), client=FakeClient([make_item()]))
+
+    assert len(list((vault / "matter").glob("*.md"))) == 1, "no second copy"
+    assert result.errors == 1
