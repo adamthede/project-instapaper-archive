@@ -284,6 +284,7 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
         config.vault_path,
         parquet_path=config.parquet_path,
         skip_dirs={config.subdir} if config.subdir else set(),
+        write_cache=not config.dry_run,
     )
     result.dedupe_source = url_index.source
     result.dedupe_degraded = url_index.degraded

@@ -562,3 +562,18 @@ def test_a_broken_file_is_still_recognised_as_ours_rather_than_duplicated(vault)
 
     assert len(list((vault / "matter").glob("*.md"))) == 1, "no second copy"
     assert result.errors == 1
+
+
+def test_dry_run_leaves_no_trace_in_the_vault_at_all(vault):
+    """Not even the URL-index cache.
+
+    Caching the vault scan is a pure win in a normal run, but --dry-run is what
+    Adam runs to inspect before committing to anything, and a promise to write
+    nothing has to be literal or it is not a promise he can act on.
+    """
+    write_instapaper_article(vault, "https://example.com/already-here")
+
+    run_sync(config_for(vault, dry_run=True), client=FakeClient([make_item()]))
+
+    leftovers = [p.name for p in vault.rglob("*") if p.name != "2019-04-01 – Same Article.md"]
+    assert leftovers == [], f"a dry run left files behind: {leftovers}"

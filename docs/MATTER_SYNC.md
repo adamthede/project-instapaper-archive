@@ -74,7 +74,7 @@ python3 scripts/core/export_matter_to_archive.py --dry-run
 | Command | What it does |
 |---|---|
 | `--check-auth` | Verify the token, print the account and its rate limits. Two API calls, no writes. |
-| `--dry-run` | Verify auth, then report what would be created, updated, or skipped. No writes. |
+| `--dry-run` | Verify auth, then report what would be created, updated, or skipped. Writes nothing at all - not even the URL-index cache. |
 | `--sync` | Incremental pull since the last watermark. The default, and what the nightly job runs. |
 | `--full` | Ignore the watermark and walk the whole library. For the first backfill. |
 | `--max-items N` | Stop after N items have been *written, updated, or skipped as duplicates* — unchanged items do not count, so each run makes real progress. The watermark does not advance, so the next run resumes. |
@@ -85,17 +85,27 @@ python3 scripts/core/export_matter_to_archive.py --dry-run
 
 ### First backfill
 
-The markdown endpoint allows 20 requests per minute, so a large library takes a
-while. Do it in chunks - the manifest makes it resumable, and interrupting is
-safe:
+Measured against the real library on 2026-08-11: **1,751 items, of which 1,016
+are already in the archive from the Instapaper era and 735 are new.** The
+markdown endpoint allows 20 requests per minute and duplicates cost no markdown
+fetch, so the backfill is about **37 minutes** of wall time.
+
+Use the venv interpreter here, so dedupe reads the Parquet index directly - see
+[Which interpreter to run](#which-interpreter-to-run):
 
 ```bash
-python3 scripts/core/export_matter_to_archive.py --full --max-items 200
+.venv/bin/python scripts/core/export_matter_to_archive.py --full --max-items 200
 ```
 
-Repeat until it reports no new items. The budget counts work done rather than
-items looked at, so each run gets through another 200 articles instead of
-spending its allowance re-skipping the ones already on disk. Then enrich and rebuild:
+That is roughly four chunks of about ten minutes. The manifest makes it
+resumable and interrupting is safe. Repeat until it reports no new items; the
+budget counts work done rather than items looked at, so each run gets through
+another 200 articles instead of spending its allowance re-skipping the ones
+already on disk.
+
+Then enrich and rebuild. 735 new articles is a real enrichment run, and podcasts
+and PDFs arrive with full text (tens of thousands of characters each), so they
+are not free:
 
 ```bash
 python3 scripts/core/enrich_archive_gemini.py
@@ -326,20 +336,85 @@ to confirm.
   The client therefore branches on **HTTP status only**, never on error-code
   strings.
 
-**Assumed, pending a real token:**
+### Verified against the real account (2026-08-11)
 
-- That the account has active Matter Pro. Without it the API returns 403, and
-  the sync says so explicitly.
-- Field *presence and nullability under real data* - `site_name`, `excerpt` and
-  `author` are described as nullable in the spec but have not been seen
-  populated. The mapper treats all three as optional.
-- That `content_type` values stay within the spec's enum (`article, podcast,
-  pdf, tweet`). The prose docs also mention `video` and `newsletter`, so the
-  value is passed through rather than validated.
-- Whether `markdown` is reliably present for podcasts and PDFs. When it is
-  absent the sync falls back to `excerpt` and records
-  `matter_content_source: excerpt`.
-- Real-world library size and how long the first backfill takes.
+Every assumption that previously sat here was checked with a read-only probe and
+a `--dry-run` against the live library. Figures are aggregate counts and
+percentages only.
+
+| Assumption | Outcome |
+|---|---|
+| Account has active Matter Pro | **Verified.** Authenticates, and `/v1/me` returns the documented `rate_limit` object with exactly the documented ceilings (read 120, markdown 20, burst 5, write 30, save 10, search 30). |
+| Item schema matches the spec | **Verified across the whole library:** zero fields outside the spec, zero missing required fields, and `author` is an object or `null` exactly as declared. |
+| `site_name` nullable | **Refuted in practice** - present on 100% of items. Still treated as optional. |
+| `excerpt` nullable | **Confirmed nullable** - present on 98.0%. |
+| `author` nullable | **Confirmed nullable** - present on 90.7%. The rest are `null` and map to `"Unknown"`, which is what `build_index.py` already writes for authorless articles. |
+| `word_count` null for non-text | **Refuted** - present on 100%, including every podcast and PDF. The "omit `word_count` and let `build_index.py` count the body" path is dormant, not wrong. |
+| `content_type` may exceed the spec enum | **Not observed.** Only `article` (99.7%), `podcast` and `pdf` appear; no `video` or `newsletter`. Still passed through unvalidated. |
+| `markdown` reliably present for podcasts/PDFs | **Verified** on a sample of every content type present. Markdown came back for all of them, and is substantial for podcasts and PDFs (tens of thousands of characters), so the `excerpt` fallback is a genuine edge case rather than the norm for non-articles. |
+| Real library size | **1,751 items** in scope (70.2% `archive`, 29.8% `queue`). The inbox, excluded by default, is empty. |
+| Backfill duration | **~37 minutes**, markdown-bound, for the 735 items that are actually new. |
+| Pagination at real scale | **Verified.** 18 cursor pages, zero duplicate ids across pages, no cursor loop. |
+
+Two findings worth knowing beyond the assumption list:
+
+**58% of the Matter library is already in the archive.** 1,016 of 1,751 items
+match an article saved in the Instapaper era, so cross-era dedupe does the
+majority of the work on the first run rather than acting as a safety net. It is
+not an artifact of aggressive normalization: 976 of those are **exact raw-URL
+matches** and only 40 more are found by normalizing, and running the same
+normalization over all 6,508 archive URLs collapses **zero** of them - the
+strongest available evidence that it does not over-merge. Without this check the
+first backfill would have put a thousand duplicate articles into a 22-year
+archive.
+
+**The library currently contains no highlights.** A 250-item sample spread evenly
+across the library found zero annotations (95% confidence puts the library-wide
+figure under roughly 1.5%). The highlight code is correct and tested, but there
+is nothing for it to sync today; it starts earning its place whenever Adam begins
+highlighting in Matter. Three items also carry an empty `url` - they are written
+normally and, correctly, never dedupe against each other.
+
+### Still unverified
+
+- **That a vault scan finds the same URLs the Parquet index does.** See
+  [Which interpreter to run](#which-interpreter-to-run) - this is the one open
+  question with real consequences, and it has a simple mitigation.
+- **A real write.** Everything so far is `--check-auth`, a read-only probe, and
+  `--dry-run`. No article has been written to the vault yet.
+
+---
+
+## Which interpreter to run
+
+The two interpreters on this machine see different things, and it matters
+exactly once:
+
+| | `/opt/homebrew/bin/python3` (the nightly job) | `.venv/bin/python` |
+|---|---|---|
+| Runs the sync | yes | yes |
+| Has pyarrow | **no** | yes |
+| Cross-era dedupe source | vault scan of `original_url` frontmatter | `data/archive_index.parquet`, exact |
+
+The nightly job must use the homebrew interpreter, because launchd attributes
+the TCC grant for `~/Documents` to it. That interpreter cannot read the Parquet
+index, so it scans the vault instead. Both read the same `original_url` field
+out of the same files, so they should agree - but that was not confirmable while
+the archive drive was unmounted.
+
+**Run the first backfill with the venv interpreter**, where dedupe is exact and
+measured:
+
+```bash
+.venv/bin/python scripts/core/export_matter_to_archive.py --full --max-items 200
+```
+
+That is the run where dedupe carries real stakes: it is deciding about 1,016
+articles at once. Afterwards every Matter item is in the manifest, so the nightly
+delta only consults cross-era dedupe for genuinely new saves - a handful a night,
+where a mistake is visible and cheap. The `dedupe_source` field in the run
+summary and the heartbeat always records which path was taken, and the sync warns
+loudly if a scan of a non-empty vault turns up no URLs at all.
 
 ---
 

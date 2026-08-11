@@ -145,8 +145,14 @@ def build_url_index(
     cache_path: Path | None = None,
     skip_dirs: set[str] | None = None,
     allow_vault_scan: bool = True,
+    write_cache: bool = True,
 ) -> UrlIndex:
-    """Build (or reuse a cached) index of URLs already in the archive."""
+    """Build (or reuse a cached) index of URLs already in the archive.
+
+    `write_cache` exists for --dry-run. Caching the scan is a pure performance
+    win in a normal run, but a dry run promises to leave the vault untouched,
+    and a promise with an exception in it is not one Adam can act on.
+    """
     vault_path = Path(vault_path)
     skip_dirs = skip_dirs or set()
 
@@ -177,15 +183,16 @@ def build_url_index(
             pass
 
     urls = _from_vault_scan(vault_path, skip_dirs)
-    try:
-        from .state import atomic_write_text
-        atomic_write_text(cache_path, json.dumps({
-            "version": CACHE_VERSION,
-            "fingerprint": list(fingerprint),
-            "urls": urls,
-        }))
-    except OSError:
-        pass  # a cache we cannot write is a slow next run, not a failed one
+    if write_cache:
+        try:
+            from .state import atomic_write_text
+            atomic_write_text(cache_path, json.dumps({
+                "version": CACHE_VERSION,
+                "fingerprint": list(fingerprint),
+                "urls": urls,
+            }))
+        except OSError:
+            pass  # a cache we cannot write is a slow next run, not a failed one
 
     # An empty index over a non-empty vault is not a clean "no duplicates"; it
     # means the scan found no URLs where there should be thousands, so every
