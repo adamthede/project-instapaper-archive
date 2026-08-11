@@ -37,6 +37,35 @@ Two independent locks, because one default is not a guarantee:
    Matter row without `date_archived` gets no `date_read` at all and is held out
    of every timeline surface - see [How `date_read` works](#how-date_read-works).
 
+### Does `archive` really mean read?
+
+It is the only read signal Matter offers, so it is worth checking rather than
+assuming. `reading_progress` gives an independent cross-check, and the two
+distributions are near mirror images:
+
+| `reading_progress` | `archive` (n=1,230) | `queue` (n=521) |
+|---|---|---|
+| 1.00 (finished) | **83.1%** | 5.6% |
+| 0.90-1.00 | 3.9% | 0.8% |
+| below 0.90 | 4.6% | 10.7% |
+| 0.00 (never opened) | 8.4% | **82.9%** |
+
+`archive` means finished 87% of the time; `queue` means never opened 83% of the
+time. The mapping is sound.
+
+Two error bars, both small, both left alone deliberately:
+
+- **103 archived articles sit at 0.00 progress** (8.4%). Some were probably
+  filed without being read; others were read elsewhere and archived afterwards,
+  or simply failed to track. Nothing distinguishes them, and dropping them on a
+  heuristic would discard genuinely-read articles. They are synced, and
+  `matter_progress` is written to the frontmatter so a later pass can filter on
+  it.
+- **29 finished articles sit in the queue** (progress 1.00, not archived).
+  Archive-only misses these. That is the right trade: acting on progress instead
+  of status would mean guessing at what "read" means, when Matter already asks
+  Adam directly.
+
 ### The nightly job makes this better over time
 
 When Adam finishes an article and Matter moves it to `archive`, a nightly sync
@@ -318,6 +347,18 @@ match, in every case:
 | Matched file's frontmatter will not parse | Counted and logged, file untouched. Not an error. |
 | Matched file cannot be located on disk | Counted and logged, nothing written. |
 | Dry run | Counted, never written. |
+
+**Known limitation: only cross-era re-reads are recorded.** If Adam re-reads a
+*Matter-era* article — one this sync itself wrote — by moving it back to the
+queue and archiving it again, that second read is not recorded. The sticky
+`date_archived` correctly preserves the first read, but nothing marks the
+second. Detecting it would need a signal Matter does not provide: with
+`--status archive` the sync never observes the article sitting in the queue in
+between, and `updated_at` alone cannot distinguish a re-read from a highlight or
+a progress tick. Recording it on a guess would be worse than not recording it.
+Related: an article that leaves `archive` status disappears from the delta
+entirely, so its `matter_status` field goes stale. The read date it carries
+stays true, which is what the archive is actually for.
 
 **What a re-read may change on a matched file: only those two keys.** It never
 modifies or removes an existing key, so `date_archived` and `date_saved` keep
