@@ -38,6 +38,12 @@ MATTER_OWNED_KEYS = frozenset({
 DATE_SOURCE_UPDATED_AT = "fallback - matter updated_at (API v1 exposes no created_at)"
 DATE_SOURCE_STICKY = "original - first matter sync"
 
+# Written onto an article the archive ALREADY has, when Matter records that it
+# was read again. Deliberately not `date_archived`: the first read is the
+# historical record and a re-read does not revise it.
+REREAD_DATES_KEY = "matter_reread_at"
+REREAD_COUNT_KEY = "matter_reread_count"
+
 _ILLEGAL_FILENAME_CHARS = r'<>:"/\|?*'
 _FRONTMATTER_FENCE = "---"
 
@@ -223,6 +229,41 @@ def format_highlights(annotations: list[dict]) -> str:
             lines.extend(note_lines[1:])
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
+
+
+def annotate_reread(metadata: dict, read_date: str) -> tuple[dict, bool]:
+    """Record that Matter read an article the archive already holds.
+
+    Returns (new_metadata, changed).
+
+    This is the only place the sync modifies a file it did not create, so the
+    rules are narrow and absolute:
+
+      * It ADDS keys and never modifies or removes an existing one. In
+        particular `date_archived` and `date_saved` are untouched -- the first
+        read is the historical record, and reading something again does not
+        revise when it was first read.
+      * It never writes `matter_id` onto a foreign file. That key is what marks
+        a file as this sync's own (see sync.OrphanIndex); stamping it on an
+        Instapaper-era article would eventually invite the sync to take
+        ownership of it.
+      * It is idempotent: one date is recorded once, however often it is seen.
+    """
+    existing = metadata.get(REREAD_DATES_KEY)
+    if isinstance(existing, str):
+        dates = [existing]
+    elif isinstance(existing, list):
+        dates = [d for d in existing if isinstance(d, str)]
+    else:
+        dates = []
+
+    if not read_date or read_date in dates:
+        return metadata, False
+
+    updated = dict(metadata)
+    updated[REREAD_DATES_KEY] = sorted(dates + [read_date])
+    updated[REREAD_COUNT_KEY] = len(updated[REREAD_DATES_KEY])
+    return updated, True
 
 
 def strip_highlights(body: str) -> str:

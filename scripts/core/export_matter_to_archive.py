@@ -81,6 +81,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Stop after N items. The watermark does not advance on a truncated run.")
     parser.add_argument("--refetch-content", action="store_true",
                         help="Re-download article bodies for items already on disk.")
+    parser.add_argument("--no-record-rereads", action="store_true",
+                        help="Do not annotate an existing archive article when Matter reports "
+                             "reading it again; just count it.")
     parser.add_argument("--rebuild-index", action="store_true",
                         help="Run build_index.py afterwards so the dashboard sees the new articles.")
     parser.add_argument("--heartbeat", default=str(DEFAULT_HEARTBEAT),
@@ -172,6 +175,7 @@ def main(argv=None) -> int:
             full=args.full,
             dry_run=args.dry_run,
             refetch_content=args.refetch_content,
+            annotate_rereads=not args.no_record_rereads,
             require_secure_perms=not args.allow_insecure_token,
         )
 
@@ -194,12 +198,15 @@ def main(argv=None) -> int:
         print(
             f"\n{'[dry run] ' if args.dry_run else ''}"
             f"{result.new} new, {result.updated} updated, {result.unchanged} unchanged, "
-            f"{result.duplicates} duplicate, {result.errors} failed "
+            f"{result.duplicates} already in the archive "
+            f"({result.reread_candidates} of them read again in Matter"
+            f"{'' if args.dry_run else f', {result.rereads_recorded} newly recorded'}), "
+            f"{result.errors} failed "
             f"({result.seen} items seen, {result.highlights} highlights, "
             f"{result.requests} API calls)"
         )
         if result.duplicate_examples:
-            print("\nAlready in the archive from an earlier era (skipped):")
+            print("\nAlready in the archive (no second file written):")
             for example in result.duplicate_examples:
                 print(f"  - {example['title']}\n      already at {example['existing']}")
         if result.error_examples:

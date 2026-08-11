@@ -1,5 +1,32 @@
 """The sync itself: Matter's library -> Markdown files in the vault.
 
+WHAT THIS ARCHIVE IS, and why the default status is `archive` alone
+------------------------------------------------------------------
+The Article Archive is a timestamped record of what Adam has ACTUALLY READ and
+when. It is not a record of what he meant to read. Matter's statuses map onto
+that distinction directly:
+
+    archive  -> he read it. This is reading history.
+    queue    -> he saved it and has not read it yet. This is intent.
+    inbox    -> unsaved discovery feed. Not even intent.
+
+So DEFAULT_STATUS is `archive` alone. Pulling `queue` would put unread articles
+into a corpus whose whole value is that everything in it was read -- and worse
+than merely being present, they would be *dated*: the dashboard derives
+`date_read` from `date_archived` and falls back to `date_saved`, so an unread
+article would enter the read timeline on the day it was saved. `--status` still
+accepts `queue` for deliberate use, and the dashboard defends against that case
+independently rather than trusting this default (see derive_date_read in
+dashboard/app.py).
+
+The pleasant consequence of syncing nightly: when Adam finishes an article and
+Matter moves it to `archive`, the transition is observed within ~24 hours, so
+`date_archived` lands within a day of the true reading date. That is a far
+better record than any backfill can produce -- items pulled in the initial
+backfill can only carry Matter's `updated_at` and say so in `date_saved_source`.
+The archive gets more accurate from the day this starts running, which is the
+opposite of the usual direction of travel.
+
 Order of operations, and why:
 
   1. Capture the checkpoint timestamp BEFORE fetching anything.
@@ -35,9 +62,9 @@ log = logging.getLogger("matter.sync")
 DEFAULT_VAULT_ENV = "INSTAPAPER_VAULT_PATH"
 DEFAULT_VAULT = Path("~/Obsidian/Vault/Instapaper")
 DEFAULT_SUBDIR = "matter"
-# Saved reading only. `inbox` is Matter's unsaved discovery feed; pulling it
-# would fill a 22-year reading history with things Adam never chose to read.
-DEFAULT_STATUS = "archive,queue"
+# Read articles only -- see the module docstring. `queue` is saved-not-read and
+# `inbox` is not even saved; neither belongs in a record of what was read.
+DEFAULT_STATUS = "archive"
 DEFAULT_HEARTBEAT = Path("~/Library/Logs/MatterSync/nightly-heartbeat.json")
 
 
@@ -54,6 +81,7 @@ class SyncConfig:
     dry_run: bool = False
     refetch_content: bool = False
     require_secure_perms: bool = True
+    annotate_rereads: bool = True
     save_every: int = 20
 
     @property
@@ -74,6 +102,8 @@ class SyncResult:
     updated: int = 0
     unchanged: int = 0
     duplicates: int = 0
+    reread_candidates: int = 0
+    rereads_recorded: int = 0
     errors: int = 0
     seen: int = 0
     highlights: int = 0
@@ -96,6 +126,8 @@ class SyncResult:
             "updated": self.updated,
             "unchanged": self.unchanged,
             "duplicates": self.duplicates,
+            "reread_candidates": self.reread_candidates,
+            "rereads_recorded": self.rereads_recorded,
             "errors": self.errors,
             "items_seen": self.seen,
             "highlights": self.highlights,
@@ -397,6 +429,46 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
     return result
 
 
+def _record_reread(config, location: str, read_date: str) -> bool:
+    """Add a re-read date to an article the archive already holds.
+
+    Returns whether the file was actually changed.
+
+    This writes to a file the sync did not create, so it is deliberately timid:
+    it refuses unless it can locate the file, parse its frontmatter cleanly, and
+    add keys without touching anything already there. Any doubt and it declines
+    and says so -- the re-read is still counted and recorded in the manifest, so
+    nothing is lost except the annotation.
+    """
+    candidates = [Path(location), config.vault_path / location]
+    target = next((c for c in candidates if c.is_file()), None)
+    if target is None:
+        log.warning(
+            "Matter read an article the archive already has, but %s could not be located, "
+            "so the re-read was counted and not written to the file.", location,
+        )
+        return False
+
+    try:
+        metadata, body, status = _load_existing(target)
+    except MatterError as exc:
+        log.warning("Could not read %s to record a re-read: %s", target, exc)
+        return False
+    if status != mapping.PARSE_OK:
+        log.warning(
+            "Not recording a re-read on %s: its frontmatter could not be parsed (%s). "
+            "Touching it would risk the enrichment already in it.", target, status,
+        )
+        return False
+
+    updated, changed = mapping.annotate_reread(metadata, read_date)
+    if not changed:
+        return False
+
+    atomic_write_text(target, mapping.dump_markdown(updated, body))
+    return True
+
+
 def _sync_one(item, config, state, url_index, client, owned_paths, orphans, result) -> str:
     matter_id = item.get("id")
     if not matter_id:
@@ -439,8 +511,10 @@ def _sync_one(item, config, state, url_index, client, owned_paths, orphans, resu
                     if key in adopted_metadata
                 } | previous
 
-    # 3. Cross-era duplicate: this article is already in the archive from the
-    #    Instapaper or legacy era. Skip rather than write a second copy.
+    # 3. The archive already has this article, from the Instapaper or legacy
+    #    era. Never a second file. If Matter says it was READ again, that is a
+    #    genuine reading event and gets recorded on the existing file -- as an
+    #    addition, never as a revision of the original read date.
     if not recorded_path:
         duplicate_of = url_index.lookup(item.get("url"))
         if duplicate_of:
@@ -449,6 +523,24 @@ def _sync_one(item, config, state, url_index, client, owned_paths, orphans, resu
                 result.duplicate_examples.append({
                     "title": item.get("title"), "url": item.get("url"), "existing": duplicate_of,
                 })
+
+            reread_date = None
+            if item.get("status") == "archive":
+                # Only an archived item is a read. A queued one is just the same
+                # article sitting unread in a second app.
+                reread_date = mapping._date_string(updated_at)
+                # Counted even on a dry run, and even when annotation is off:
+                # this is the number that answers "how much re-reading is in
+                # here", and a dry run that reported zero would understate the
+                # very thing it is being run to find out.
+                result.reread_candidates += 1
+
+            recorded = False
+            if reread_date and config.annotate_rereads and not config.dry_run:
+                recorded = _record_reread(config, duplicate_of, reread_date)
+                if recorded:
+                    result.rereads_recorded += 1
+
             if not config.dry_run:
                 state.record_item(
                     matter_id,
@@ -456,9 +548,12 @@ def _sync_one(item, config, state, url_index, client, owned_paths, orphans, resu
                     duplicate_of=duplicate_of,
                     url=item.get("url"),
                     updated_at=updated_at,
+                    reread_date=reread_date,
+                    reread_recorded=recorded,
                     checked_at=to_iso(utcnow()),
                 )
-            log.info("Duplicate, already in archive as %s: %s", duplicate_of, item.get("title"))
+            log.info("Already in the archive as %s%s", duplicate_of,
+                     f"; recorded a re-read on {reread_date}" if recorded else "")
             return "duplicate"
 
     is_update = bool(existing_file and existing_file.exists())

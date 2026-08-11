@@ -11,6 +11,61 @@ Parquet index, and the Streamlit dashboard reads it.
 
 ---
 
+## What belongs in the archive: read, not saved
+
+The archive is a timestamped record of what Adam has **actually read** and when.
+Not what he meant to read. Matter's statuses map onto that distinction exactly:
+
+| Matter status | Meaning | Synced? |
+|---|---|---|
+| `archive` | He read it. | **Yes** - this is reading history. |
+| `queue` | Saved, not yet read. | No - that is intent, not history. |
+| `inbox` | Unsaved discovery feed. | No - not even intent. |
+
+So the default is `--status archive`. Pulling the queue would not merely add
+unread articles to the corpus; it would **date** them, because the dashboard
+derives `date_read` from `date_archived` and falls back to `date_saved`. An
+article he saved and never opened would enter the reading timeline on the day he
+saved it. Measured against the real library, the old `archive,queue` default
+would have written **503 unread articles** into the read record.
+
+Two independent locks, because one default is not a guarantee:
+
+1. **The sync** pulls `archive` only. `--status` still accepts `queue` for
+   deliberate use.
+2. **The dashboard** never dates a Matter row it has no read evidence for. A
+   Matter row without `date_archived` gets no `date_read` at all and is held out
+   of every timeline surface - see [How `date_read` works](#how-date_read-works).
+
+### The nightly job makes this better over time
+
+When Adam finishes an article and Matter moves it to `archive`, a nightly sync
+observes the transition within ~24 hours, so `date_archived` lands within a day
+of the real reading date. That is a far truer record than any backfill can
+manage: items pulled in the initial backfill can only carry Matter's
+`updated_at`, and they say so in `date_saved_source`. **The archive gets more
+accurate from the day this starts running**, which is the opposite of how
+archives usually age.
+
+---
+
+## How `date_read` works
+
+`date_read` is what every timeline, heatmap and trend chart is plotted against.
+It is derived per era, because the two eras carry different evidence:
+
+| Era | Rule | Why |
+|---|---|---|
+| Instapaper, legacy | `date_archived`, falling back to `date_saved` | Load-bearing: 11,326 of the 17,637 rows have no archive date at all - the legacy import had none to record. Dropping the fallback would empty most of the archive out of every chart. |
+| Matter | `date_archived` **only**, no fallback | Matter states whether something was read. A Matter row with no archive date is positive evidence it was *not* read, so dating it by when it was saved would assert a read that never happened. |
+
+Articles with no read date are held out of every surface rather than dated by
+guesswork, and the sidebar says how many - so "held out" never quietly reads as
+"lost". There is currently no saved-not-read surface in the dashboard; unread
+articles live in the vault and the index, and appear in no view.
+
+---
+
 ## Setup
 
 ### 1. Get an API token
@@ -80,15 +135,19 @@ python3 scripts/core/export_matter_to_archive.py --dry-run
 | `--max-items N` | Stop after N items have been *written, updated, or skipped as duplicates* — unchanged items do not count, so each run makes real progress. The watermark does not advance, so the next run resumes. |
 | `--rebuild-index` | Run `build_index.py` afterwards so the dashboard sees the new articles. |
 | `--refetch-content` | Re-download article bodies for items already on disk. |
-| `--status` | Which Matter statuses to pull (default `archive,queue`). |
+| `--no-record-rereads` | Do not annotate an existing archive article when Matter reports reading it again; just count it. |
+| `--status` | Which Matter statuses to pull (default `archive` - read articles only). |
 | `--subdir` | Where in the vault to write (default `matter/`; `''` writes flat). |
 
 ### First backfill
 
-Measured against the real library on 2026-08-11: **1,751 items, of which 1,016
-are already in the archive from the Instapaper era and 735 are new.** The
-markdown endpoint allows 20 requests per minute and duplicates cost no markdown
-fetch, so the backfill is about **37 minutes** of wall time.
+Measured against the real library on 2026-08-11, with the `archive`-only
+default: **1,230 read articles, of which 998 are already in the archive and 232
+are new.** (A further 521 sit unread in the Matter queue and are correctly not
+pulled.) The markdown endpoint allows 20 requests per minute and an
+already-present article costs no markdown fetch, so the backfill is about
+**12 minutes** of wall time - the 998 re-read annotations are local file writes,
+not API calls.
 
 Use the venv interpreter here, so dedupe reads the Parquet index directly - see
 [Which interpreter to run](#which-interpreter-to-run):
@@ -97,15 +156,15 @@ Use the venv interpreter here, so dedupe reads the Parquet index directly - see
 .venv/bin/python scripts/core/export_matter_to_archive.py --full --max-items 200
 ```
 
-That is roughly four chunks of about ten minutes. The manifest makes it
-resumable and interrupting is safe. Repeat until it reports no new items; the
+That is one or two chunks. The manifest makes it resumable and interrupting is
+safe. Repeat until it reports no new items; the
 budget counts work done rather than items looked at, so each run gets through
 another 200 articles instead of spending its allowance re-skipping the ones
 already on disk.
 
-Then enrich and rebuild. 735 new articles is a real enrichment run, and podcasts
-and PDFs arrive with full text (tens of thousands of characters each), so they
-are not free:
+Then enrich and rebuild. 232 new articles is a modest enrichment run, though
+podcasts and PDFs arrive with full text (tens of thousands of characters each),
+so they are not free:
 
 ```bash
 python3 scripts/core/enrich_archive_gemini.py
@@ -234,12 +293,41 @@ refresh with `--refetch-content`.
 
 ---
 
-## Duplicate handling
+## Duplicate handling, and re-reads
 
-The same article can legitimately be in both eras: saved to Instapaper in 2019,
-saved again to Matter last week. Before writing anything new, the sync checks
-the URL against the existing archive and skips a Matter item whose article is
-already there, recording what it matched.
+The same article can legitimately be in both eras: read in Instapaper in 2019,
+read again in Matter last week. Before writing anything new, the sync checks the
+URL against the existing archive. **It never writes a second file for an article
+the archive already has.**
+
+Measured on the real library, this is not a rare edge case: **998 of the 1,230
+read articles in Matter are already in the archive.** And they are genuine
+re-reading rather than a bulk import - their dates spread across 44 months and
+430 distinct days, with the five busiest days accounting for only 9% of them. An
+import would have clustered on one or two days.
+
+That makes each one a real reading event, so it is recorded. What happens on a
+match, in every case:
+
+| Case | Behaviour |
+|---|---|
+| Match, Matter status `archive` (a re-read) | No second file. `matter_reread_at` (a sorted list of dates) and `matter_reread_count` are **added** to the existing file. |
+| Match, Matter status `queue` | No second file, nothing written. Sitting unread in a second app is not a reading event. |
+| Exact raw-URL match | Treated identically to a normalized match - the distinction only matters for measuring, not behaviour. |
+| Drifted URL match (`http`/`https`, `www.`, trailing slash, `utm_*`) | Treated as a match. Ambiguous parameters like `ref` and `source` are *not* stripped, so those stay distinct. |
+| Matched file's frontmatter will not parse | Counted and logged, file untouched. Not an error. |
+| Matched file cannot be located on disk | Counted and logged, nothing written. |
+| Dry run | Counted, never written. |
+
+**What a re-read may change on a matched file: only those two keys.** It never
+modifies or removes an existing key, so `date_archived` and `date_saved` keep
+the original read date - the first read is the historical record, and reading
+something again does not revise when it was first read. It never writes
+`matter_id` onto a foreign file either: that key is what marks a file as this
+sync's own, and stamping it on an Instapaper-era article would eventually invite
+the sync to take ownership of it. Recording is idempotent - the same date is
+stored once however often it is seen. `--no-record-rereads` turns the annotation
+off and leaves only the count.
 
 URLs are normalized first, so `http` vs `https`, `www.` vs not, trailing
 slashes, `#fragments`, and `utm_*`/`fbclid` tracking parameters all compare
@@ -352,21 +440,22 @@ percentages only.
 | `word_count` null for non-text | **Refuted** - present on 100%, including every podcast and PDF. The "omit `word_count` and let `build_index.py` count the body" path is dormant, not wrong. |
 | `content_type` may exceed the spec enum | **Not observed.** Only `article` (99.7%), `podcast` and `pdf` appear; no `video` or `newsletter`. Still passed through unvalidated. |
 | `markdown` reliably present for podcasts/PDFs | **Verified** on a sample of every content type present. Markdown came back for all of them, and is substantial for podcasts and PDFs (tens of thousands of characters), so the `excerpt` fallback is a genuine edge case rather than the norm for non-articles. |
-| Real library size | **1,751 items** in scope (70.2% `archive`, 29.8% `queue`). The inbox, excluded by default, is empty. |
-| Backfill duration | **~37 minutes**, markdown-bound, for the 735 items that are actually new. |
+| Real library size | **1,751 items** total: 1,230 `archive` (70.2%) and 521 `queue` (29.8%). Only the archived ones are synced. The inbox is empty. |
+| Backfill duration | **~12 minutes**, markdown-bound, for the 232 genuinely new read articles. |
 | Pagination at real scale | **Verified.** 18 cursor pages, zero duplicate ids across pages, no cursor loop. |
 
 Two findings worth knowing beyond the assumption list:
 
-**58% of the Matter library is already in the archive.** 1,016 of 1,751 items
-match an article saved in the Instapaper era, so cross-era dedupe does the
-majority of the work on the first run rather than acting as a safety net. It is
-not an artifact of aggressive normalization: 976 of those are **exact raw-URL
-matches** and only 40 more are found by normalizing, and running the same
-normalization over all 6,508 archive URLs collapses **zero** of them - the
-strongest available evidence that it does not over-merge. Without this check the
-first backfill would have put a thousand duplicate articles into a 22-year
-archive.
+**81% of the read articles in Matter are already in the archive.** 998 of the
+1,230 archived items match something read in the Instapaper era, so the
+cross-era check does the majority of the work on the first run rather than
+acting as a safety net. It is not an artifact of aggressive normalization:
+across the whole library 976 matches are **exact raw-URL matches** and only 40
+more are found by normalizing, and running the same normalization over all 6,508
+archive URLs collapses **zero** of them - the strongest available evidence that
+it does not over-merge. Without this check the first backfill would have put a
+thousand duplicate articles into a 22-year archive; with it, each becomes a
+recorded re-read on the article that was already there.
 
 **The library currently contains no highlights.** A 250-item sample spread evenly
 across the library found zero annotations (95% confidence puts the library-wide

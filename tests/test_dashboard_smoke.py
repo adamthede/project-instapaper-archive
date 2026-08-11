@@ -275,3 +275,119 @@ def test_the_era_filter_narrows_the_corpus(merged_index):
     era_filter.set_value(["Matter"]).run()
     assert not harness.exception, f"filtering to Matter alone raised: {harness.exception}"
     assert any("Articles Archived" in str(metric.label) for metric in harness.metric)
+
+
+# ---- read-vs-saved semantics ----------------------------------------------
+
+def _frame(rows):
+    """A minimal index-shaped frame for date_read tests."""
+    return pd.DataFrame([
+        {"source": s, "date_archived": pd.Timestamp(a) if a else pd.NaT,
+         "date_saved": pd.Timestamp(v) if v else pd.NaT}
+        for s, a, v in rows
+    ])
+
+
+def test_instapaper_rows_still_fall_back_to_date_saved(dashboard_module):
+    """Load-bearing: 11,326 of 17,637 rows have no archive date at all.
+
+    The legacy import had none to record, so dropping the fallback would empty
+    most of the archive out of every chart.
+    """
+    df = _frame([
+        ("instapaper", None, "2019-04-01"),
+        ("legacy_pdf", None, "1989-10-22"),
+        ("instapaper", "2019-04-05", "2019-04-01"),
+    ])
+    read = dashboard_module.derive_date_read(df)
+
+    assert str(read.iloc[0].date()) == "2019-04-01", "Instapaper fallback still works"
+    assert str(read.iloc[1].date()) == "1989-10-22", "legacy fallback still works"
+    assert str(read.iloc[2].date()) == "2019-04-05", "an archive date still wins"
+
+
+def test_a_matter_row_with_no_archive_date_never_gets_a_read_date(dashboard_module):
+    """Matter says explicitly whether something was read. An unread article
+    dated by when it was saved would assert a read that never happened."""
+    df = _frame([
+        ("matter", None, "2026-07-02"),       # queued: saved, not read
+        ("matter", "2026-07-01", "2026-07-01"),  # archived: read
+    ])
+    read = dashboard_module.derive_date_read(df)
+
+    assert pd.isna(read.iloc[0]), "a queued Matter article has no read date"
+    assert str(read.iloc[1].date()) == "2026-07-01"
+
+
+def test_the_two_eras_are_handled_differently_in_one_frame(dashboard_module):
+    """Both rules have to hold simultaneously, which is the whole point."""
+    df = _frame([
+        ("instapaper", None, "2019-04-01"),
+        ("matter", None, "2026-07-02"),
+    ])
+    read = dashboard_module.derive_date_read(df)
+
+    assert not pd.isna(read.iloc[0])
+    assert pd.isna(read.iloc[1])
+
+
+def test_date_read_survives_an_index_with_no_source_column(dashboard_module):
+    """Adam's current Parquet has no `source` column until he rebuilds it."""
+    df = pd.DataFrame([{"date_archived": pd.NaT, "date_saved": pd.Timestamp("2019-04-01")}])
+    read = dashboard_module.derive_date_read(df)
+    assert str(read.iloc[0].date()) == "2019-04-01"
+
+
+def test_an_unread_matter_row_appears_in_no_dashboard_surface(merged_vault, tmp_path, monkeypatch):
+    """End to end: a queue-status Matter article must not reach any page.
+
+    Every page renders from the same date-filtered frame, so being held out of
+    that frame is what "appears nowhere" means. The sidebar counts it instead,
+    so held-out never reads as lost.
+    """
+    AppTest = pytest.importorskip("streamlit.testing.v1").AppTest
+    import shutil
+    import subprocess
+
+    # Add an unread Matter article to the merged vault.
+    (merged_vault / "matter" / "2026-07-09 – An Unread Article.md").write_text(
+        "---\n"
+        'title: "An Unread Article"\n'
+        'original_url: "https://example.com/never-read"\n'
+        'matter_id: "itm_unread"\n'
+        'source: "matter"\n'
+        'date_saved: "2026-07-09"\n'
+        'matter_status: "queue"\n'
+        "---\n\n" + ("word " * 100) + "\n",
+        encoding="utf-8",
+    )
+
+    repo = tmp_path / "repo2"
+    (repo / "scripts" / "core").mkdir(parents=True)
+    (repo / "dashboard").mkdir(parents=True)
+    (repo / "data").mkdir(parents=True)
+    shutil.copy(BUILD_INDEX, repo / "scripts" / "core" / "build_index.py")
+    shutil.copy(DASHBOARD_APP, repo / "dashboard" / "app.py")
+    completed = subprocess.run(
+        [sys.executable, str(repo / "scripts" / "core" / "build_index.py")],
+        env={"INSTAPAPER_VAULT_PATH": str(merged_vault), "PATH": "/usr/bin:/bin", "HOME": str(tmp_path)},
+        capture_output=True, text=True, cwd=str(repo),
+    )
+    assert completed.returncode == 0, completed.stderr
+
+    df = pd.read_parquet(repo / "data" / "archive_index.parquet")
+    assert (df["matter_id"] == "itm_unread").sum() == 1, "it is in the index"
+
+    harness = AppTest.from_file(str(repo / "dashboard" / "app.py"), default_timeout=120)
+    harness.run()
+    assert not harness.exception
+
+    captions = " ".join(str(c.value) for c in harness.sidebar.caption)
+    # Two, not one: the merged-corpus fixture already held a queue-status Matter
+    # podcast, and before this change the fillna handed it a read date equal to
+    # its saved date. That is exactly the corruption being fixed here.
+    assert "2 saved but unread" in captions, "the exclusion is stated, not silent"
+    assert "Loaded: 3 read articles" in captions, "5 in the index, 3 of them read"
+
+    # The read timeline no longer ends on an unread article's saved date.
+    assert "2026-07-01" in captions and "2026-07-09" not in captions

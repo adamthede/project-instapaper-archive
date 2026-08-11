@@ -93,7 +93,9 @@ def _from_parquet(parquet_path: Path, skip_dirs: set[str]) -> dict[str, str] | N
             continue
         normalized = normalize_url(value)
         if normalized:
-            out.setdefault(normalized, "archive_index.parquet")
+            # The file's own path, not a constant naming the index: a matched
+            # article has to be locatable so a re-read can be recorded on it.
+            out.setdefault(normalized, str(file_path) if file_path else "archive_index.parquet")
     return out
 
 

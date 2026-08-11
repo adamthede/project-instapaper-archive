@@ -79,6 +79,40 @@ def derive_era(df):
     )
 
 
+def derive_date_read(df):
+    """When each article was READ, or NaT if it has not been.
+
+    The archive's whole value is that it records what was actually read and
+    when, so nothing may enter the read timeline without evidence it was read.
+    The two eras carry different evidence, so the rule differs by era:
+
+      * Instapaper and legacy rows fall back to `date_saved` when there is no
+        `date_archived`. That fallback is load-bearing and must keep working:
+        11,326 of the 17,637 rows have no archive date at all - the legacy
+        import had none to record - and dropping them would empty most of the
+        archive out of every chart.
+
+      * Matter rows do NOT fall back. Matter distinguishes read (`archive`)
+        from saved-but-unread (`queue`) explicitly, so a Matter row with no
+        `date_archived` is positive evidence the article was *not* read, and
+        dating it by when it was saved would assert a read that never happened.
+
+    The sync pulls `archive` only, so unread Matter rows should never reach
+    here. This is the second lock on that door: the flag to pull the queue still
+    exists for deliberate use, and if the two ever disagree the cost is silent
+    corruption of the one thing the archive is for.
+    """
+    if "date_archived" not in df.columns:
+        return df["date_saved"]
+
+    fallback = df["date_archived"].fillna(df["date_saved"])
+    if "source" not in df.columns:
+        return fallback
+
+    is_matter = df["source"].fillna("").astype(str).eq("matter")
+    return fallback.mask(is_matter, df["date_archived"])
+
+
 def review_id(article):
     """A stable identity for the spaced-review system.
 
@@ -231,18 +265,31 @@ def main():
     if df.empty:
         return
 
-    # Composite date_read column: prefer date_archived (when article was read)
-    # with fallback to date_saved (when clipped) for articles without archive date
-    if "date_archived" in df.columns:
-        df["date_read"] = df["date_archived"].fillna(df["date_saved"])
-    else:
-        df["date_read"] = df["date_saved"]
-
+    # When each article was read. Era-aware: see derive_date_read.
+    df["date_read"] = derive_date_read(df)
     df["era"] = derive_era(df)
 
+    # Articles with no read date were saved but never read. They are held out of
+    # every timeline rather than dated by when they were saved -- but they are
+    # counted here, so "held out" never reads as "lost".
+    unread = int(df["date_read"].isna().sum())
+    df_read = df[df["date_read"].notna()]
+
+    if df_read.empty:
+        st.warning(
+            f"None of the {len(df)} articles in the index has a read date, so there is no "
+            "reading timeline to show. If this archive is Matter-only, check that the sync "
+            "pulled `archive` status rather than `queue`."
+        )
+        return
+
     # Debug info
-    st.sidebar.caption(f"📊 Loaded: {len(df)} articles")
-    st.sidebar.caption(f"📅 Date range: {df['date_read'].min().date()} to {df['date_read'].max().date()}")
+    st.sidebar.caption(f"📊 Loaded: {len(df_read)} read articles")
+    if unread:
+        st.sidebar.caption(f"🔖 {unread} saved but unread — excluded from the timeline")
+    st.sidebar.caption(f"📅 Date range: {df_read['date_read'].min().date()} to {df_read['date_read'].max().date()}")
+
+    df = df_read
 
     # Sidebar Navigation
     page = st.sidebar.radio(

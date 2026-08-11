@@ -436,11 +436,175 @@ def test_dry_run_still_reports_cross_era_duplicates(vault):
 
 # ---- configuration --------------------------------------------------------
 
-def test_the_inbox_is_excluded_by_default(vault):
-    """Matter's inbox is unsaved discovery content, not reading history."""
+def test_only_read_articles_are_pulled_by_default(vault):
+    """The archive records what was READ.
+
+    `queue` is saved-but-unread and `inbox` is not even saved; neither belongs
+    in a corpus whose entire value is that everything in it was read.
+    """
     client = FakeClient([make_item()])
     run_sync(config_for(vault), client=client)
+    assert client.list_calls[0]["status"] == "archive"
+
+
+def test_queue_can_still_be_pulled_deliberately(vault):
+    """The flag stays for deliberate use; the dashboard defends itself separately."""
+    client = FakeClient([make_item(status="queue")])
+    run_sync(config_for(vault, status="archive,queue"), client=client)
     assert client.list_calls[0]["status"] == "archive,queue"
+
+
+def test_a_queued_item_is_written_without_an_archive_date(vault):
+    """So nothing downstream can mistake it for something that was read."""
+    run_sync(config_for(vault, status="queue"), client=FakeClient([make_item(status="queue")]))
+
+    written = next(iter((vault / "matter").glob("*.md")))
+    metadata, _ = mapping.parse_markdown(written.read_text(encoding="utf-8"))
+    assert "date_archived" not in metadata
+    assert metadata["matter_status"] == "queue"
+
+
+# ---- re-reads: an article the archive already has, read again in Matter ----
+
+def test_a_reread_is_recorded_on_the_existing_file_not_as_a_second_one(vault):
+    original = write_instapaper_article(vault, "https://paulgraham.com/greatwork.html")
+    before, body_before = mapping.parse_markdown(original.read_text(encoding="utf-8"))
+
+    result = run_sync(config_for(vault), client=FakeClient([
+        make_item(status="archive", updated_at="2026-05-12T09:00:00Z"),
+    ]))
+
+    assert result.duplicates == 1
+    assert result.rereads_recorded == 1
+    assert list((vault / "matter").glob("*.md")) == [], "never a second file"
+
+    after, body_after = mapping.parse_markdown(original.read_text(encoding="utf-8"))
+    assert after["matter_reread_at"] == ["2026-05-12"]
+    assert after["matter_reread_count"] == 1
+    assert body_after == body_before, "the article body is untouched"
+
+
+def test_a_reread_never_revises_the_original_read_date(vault):
+    """The first read is the historical record. Reading it again does not move it."""
+    original = write_instapaper_article(
+        vault, "https://paulgraham.com/greatwork.html", extra="date_archived: 2019-04-05\n",
+    )
+    before, _ = mapping.parse_markdown(original.read_text(encoding="utf-8"))
+
+    run_sync(config_for(vault), client=FakeClient([
+        make_item(status="archive", updated_at="2026-05-12T09:00:00Z"),
+    ]))
+
+    after, _ = mapping.parse_markdown(original.read_text(encoding="utf-8"))
+    assert str(after["date_archived"]) == str(before["date_archived"])
+    assert str(after["date_saved"]) == str(before["date_saved"])
+    assert after["instapaper_id"] == before["instapaper_id"]
+
+
+def test_a_reread_never_stamps_matter_id_on_a_foreign_file(vault):
+    """matter_id is what marks a file as ours; stamping it on an Instapaper
+    article would eventually invite the sync to take ownership of it."""
+    original = write_instapaper_article(vault, "https://paulgraham.com/greatwork.html")
+
+    run_sync(config_for(vault), client=FakeClient([make_item(status="archive")]))
+
+    after, _ = mapping.parse_markdown(original.read_text(encoding="utf-8"))
+    assert "matter_id" not in after
+    assert "source" not in after, "it is still an Instapaper-era file"
+
+
+def test_recording_a_reread_is_idempotent(vault):
+    original = write_instapaper_article(vault, "https://paulgraham.com/greatwork.html")
+    item = make_item(status="archive", updated_at="2026-05-12T09:00:00Z")
+
+    first = run_sync(config_for(vault), client=FakeClient([item]))
+    second = run_sync(config_for(vault, full=True), client=FakeClient([item]))
+
+    after, _ = mapping.parse_markdown(original.read_text(encoding="utf-8"))
+    assert after["matter_reread_at"] == ["2026-05-12"]
+    assert first.rereads_recorded == 1
+    assert second.rereads_recorded == 0, "the same read is not recorded twice"
+
+
+def test_separate_rereads_accumulate(vault):
+    original = write_instapaper_article(vault, "https://paulgraham.com/greatwork.html")
+
+    run_sync(config_for(vault), client=FakeClient([
+        make_item(status="archive", updated_at="2026-05-12T09:00:00Z")]))
+    run_sync(config_for(vault, full=True), client=FakeClient([
+        make_item(status="archive", updated_at="2026-07-04T09:00:00Z")]))
+
+    after, _ = mapping.parse_markdown(original.read_text(encoding="utf-8"))
+    assert after["matter_reread_at"] == ["2026-05-12", "2026-07-04"]
+    assert after["matter_reread_count"] == 2
+
+
+def test_a_queued_duplicate_is_not_recorded_as_a_reread(vault):
+    """Sitting unread in a second app is not a reading event."""
+    original = write_instapaper_article(vault, "https://paulgraham.com/greatwork.html")
+
+    result = run_sync(config_for(vault, status="archive,queue"),
+                      client=FakeClient([make_item(status="queue")]))
+
+    after, _ = mapping.parse_markdown(original.read_text(encoding="utf-8"))
+    assert result.duplicates == 1
+    assert result.rereads_recorded == 0
+    assert "matter_reread_at" not in after
+
+
+def test_enrichment_on_the_matched_file_survives_a_reread(vault):
+    original = write_instapaper_article(
+        vault, "https://paulgraham.com/greatwork.html",
+        extra='ai_summary: "Expensive to regenerate."\nai_topics:\n  - Craft\n',
+    )
+
+    run_sync(config_for(vault), client=FakeClient([make_item(status="archive")]))
+
+    after, _ = mapping.parse_markdown(original.read_text(encoding="utf-8"))
+    assert after["ai_summary"] == "Expensive to regenerate."
+    assert after["ai_topics"] == ["Craft"]
+
+
+def test_a_matched_file_with_broken_frontmatter_is_left_alone(vault):
+    """Counted, logged, not touched -- the same rule as everywhere else."""
+    original = vault / "2019-04-01 – Broken.md"
+    original.write_text(
+        '---\ntitle: "Broken"\noriginal_url: "https://paulgraham.com/greatwork.html"\n'
+        "ai_summary: Rails 8: the reckoning\n---\n\nBody.\n",
+        encoding="utf-8",
+    )
+    before = original.read_text(encoding="utf-8")
+
+    result = run_sync(config_for(vault), client=FakeClient([make_item(status="archive")]))
+
+    assert original.read_text(encoding="utf-8") == before
+    assert result.duplicates == 1
+    assert result.rereads_recorded == 0
+    assert result.errors == 0, "an un-annotatable match is not a failure"
+
+
+def test_rereads_can_be_turned_off(vault):
+    original = write_instapaper_article(vault, "https://paulgraham.com/greatwork.html")
+    before = original.read_text(encoding="utf-8")
+
+    result = run_sync(config_for(vault, annotate_rereads=False),
+                      client=FakeClient([make_item(status="archive")]))
+
+    assert original.read_text(encoding="utf-8") == before
+    assert result.duplicates == 1
+    assert result.rereads_recorded == 0
+
+
+def test_a_dry_run_never_records_a_reread(vault):
+    original = write_instapaper_article(vault, "https://paulgraham.com/greatwork.html")
+    before = original.read_text(encoding="utf-8")
+
+    result = run_sync(config_for(vault, dry_run=True),
+                      client=FakeClient([make_item(status="archive")]))
+
+    assert original.read_text(encoding="utf-8") == before
+    assert result.duplicates == 1
+    assert result.rereads_recorded == 0
 
 
 def test_files_can_be_written_flat_alongside_the_instapaper_articles(vault):
@@ -577,3 +741,25 @@ def test_dry_run_leaves_no_trace_in_the_vault_at_all(vault):
 
     leftovers = [p.name for p in vault.rglob("*") if p.name != "2019-04-01 – Same Article.md"]
     assert leftovers == [], f"a dry run left files behind: {leftovers}"
+
+
+def test_a_dry_run_still_reports_how_much_re_reading_it_found(vault):
+    """A dry run that reported zero re-reads would understate the very thing it
+    is being run to measure."""
+    write_instapaper_article(vault, "https://paulgraham.com/greatwork.html")
+
+    result = run_sync(config_for(vault, dry_run=True),
+                      client=FakeClient([make_item(status="archive")]))
+
+    assert result.reread_candidates == 1
+    assert result.rereads_recorded == 0, "counted, not written"
+
+
+def test_re_read_candidates_are_counted_even_with_annotation_off(vault):
+    write_instapaper_article(vault, "https://paulgraham.com/greatwork.html")
+
+    result = run_sync(config_for(vault, annotate_rereads=False),
+                      client=FakeClient([make_item(status="archive")]))
+
+    assert result.reread_candidates == 1
+    assert result.rereads_recorded == 0

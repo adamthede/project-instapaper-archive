@@ -73,6 +73,11 @@ def parse_article(file_path):
         content_type = fm.get("content_type", "article")
         matter_id = fm.get("matter_id", None)
 
+        # Times Matter saw this article read again after it was already in the
+        # archive. Recorded on the original file; the first read date is never
+        # revised, so this is the only trace a re-read leaves.
+        reread_count = fm.get("matter_reread_count", 0)
+
         # Date Handling - support both Instapaper and legacy formats
         # Instapaper articles use "date_saved" and "date_archived"
         # Legacy articles use "date_published"
@@ -131,6 +136,7 @@ def parse_article(file_path):
         return {
             "instapaper_id": instapaper_id,
             "matter_id": matter_id,
+            "reread_count": reread_count,
             "source": source,
             "content_type": content_type,
             "title": title,
