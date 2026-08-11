@@ -180,7 +180,43 @@ def dashboard_module():
 
 
 def test_review_identity_prefers_instapaper_id_so_old_history_still_matches(dashboard_module):
-    assert dashboard_module.review_id({"instapaper_id": 12345.0, "file_path": "/x.md"}) == 12345.0
+    """Keys are strings, but an Instapaper row still resolves to its own id."""
+    assert dashboard_module.review_id({"instapaper_id": 12345.0, "file_path": "/x.md"}) == "12345"
+    # Saved history holds the float; normalizing on load makes the two meet.
+    assert dashboard_module.normalize_review_key(12345.0) == "12345"
+
+
+def test_review_keys_are_all_strings_so_the_history_column_stays_writable(dashboard_module):
+    """Mixing floats and strings gives object dtype, which pyarrow refuses."""
+    keys = [
+        dashboard_module.review_id({"instapaper_id": 12345.0}),
+        dashboard_module.review_id({"instapaper_id": float("nan"), "matter_id": "itm_abc"}),
+        dashboard_module.review_id({"instapaper_id": None, "file_path": "/legacy/x.md"}),
+    ]
+    assert all(isinstance(key, str) for key in keys), keys
+
+
+def test_a_review_of_a_matter_article_can_actually_be_saved(dashboard_module, tmp_path, monkeypatch):
+    """The regression: saving a review used to raise ArrowInvalid on mixed dtypes."""
+    monkeypatch.setattr(dashboard_module, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(dashboard_module, "REVIEW_HISTORY_PATH", tmp_path / "review_history.parquet")
+
+    # History as it exists today: a float article_id from the Instapaper era.
+    pd.DataFrame([{
+        "article_id": 1270847868.0, "last_reviewed": pd.Timestamp("2026-01-01"),
+        "next_review": pd.Timestamp("2026-02-01"), "ease_factor": 2.5,
+        "interval_days": 30, "review_count": 1,
+    }]).to_parquet(tmp_path / "review_history.parquet", index=False)
+
+    history = dashboard_module.load_review_history()
+    assert history["article_id"].iloc[0] == "1270847868", "existing history is migrated, not orphaned"
+
+    matter_key = dashboard_module.review_id({"instapaper_id": float("nan"), "matter_id": "itm_abc"})
+    history = dashboard_module.update_review_record(matter_key, 1, history)
+    dashboard_module.save_review_history(history)  # used to raise
+
+    reloaded = dashboard_module.load_review_history()
+    assert set(reloaded["article_id"]) == {"1270847868", "itm_abc"}
 
 
 def test_review_identity_falls_back_for_rows_with_no_instapaper_id(dashboard_module):

@@ -4,7 +4,7 @@ import pytest
 from conftest import FakeClient, make_annotation, make_item
 
 from matter import mapping
-from matter.errors import VaultNotFoundError
+from matter.errors import MatterAuthError, VaultNotFoundError
 from matter.state import SyncState
 from matter.sync import SyncConfig, ensure_vault, run_sync
 
@@ -288,6 +288,22 @@ def test_a_truncated_run_does_not_advance_the_watermark(vault):
     assert SyncState.load(vault / ".matter_manifest.json").watermark is None
 
 
+def test_a_chunked_backfill_makes_progress_run_after_run(vault):
+    """The budget counts work done, not items looked at.
+
+    Counting every item would make run 2 spend its whole allowance re-skipping
+    the items run 1 already wrote, so a chunked backfill would stall at the
+    first chunk forever -- which is exactly the documented first-run procedure.
+    """
+    items = [make_item(item_id=f"itm_{n}", url=f"https://e.com/{n}", title=f"Article {n}")
+             for n in range(6)]
+
+    for _ in range(3):
+        run_sync(config_for(vault, max_items=2, full=True), client=FakeClient(items))
+
+    assert len(list((vault / "matter").glob("*.md"))) == 6
+
+
 def test_an_item_with_no_id_is_counted_as_an_error_not_written(vault):
     client = FakeClient([{"object": "item", "title": "no id", "url": "https://e.com/x"}])
     result = run_sync(config_for(vault), client=client)
@@ -295,22 +311,109 @@ def test_an_item_with_no_id_is_counted_as_an_error_not_written(vault):
     assert result.new == 0
 
 
-def test_progress_is_saved_as_it_goes_so_a_crash_does_not_lose_the_batch(vault):
+def test_a_crash_still_records_what_was_already_written(vault):
+    """At the production save_every, not a test-only value.
+
+    If the manifest does not learn about files already on disk, the next run has
+    no record of them and writes a second copy of every one.
+    """
     class CrashingClient(FakeClient):
         def iter_annotations(self, item_id, *, page_size=100):
             if item_id == "itm_3":
-                raise KeyboardInterrupt("simulated interruption")
+                raise RuntimeError("connection died mid-run")
             return super().iter_annotations(item_id, page_size=page_size)
 
-    client = CrashingClient([
-        make_item(item_id=f"itm_{n}", url=f"https://e.com/{n}") for n in range(1, 5)
-    ])
-    with pytest.raises(KeyboardInterrupt):
-        run_sync(config_for(vault, save_every=1), client=client)
+    items = [make_item(item_id=f"itm_{n}", url=f"https://e.com/{n}", title=f"Article {n}")
+             for n in range(1, 5)]
+    # Deliberately fewer items than save_every (20), so only the finally-block
+    # save can have persisted anything.
+    run_sync(config_for(vault), client=CrashingClient(items))
 
     state = SyncState.load(vault / ".matter_manifest.json")
     assert state.get_item("itm_1") and state.get_item("itm_1")["path"]
+    assert state.get_item("itm_2") and state.get_item("itm_2")["path"]
     assert state.watermark is None
+
+
+def test_a_killed_run_does_not_lead_to_duplicates_on_the_next_run(vault):
+    """The manifest can be lost entirely; the files on disk are the truth."""
+    items = [make_item(item_id=f"itm_{n}", url=f"https://e.com/{n}", title=f"Article {n}")
+             for n in range(1, 4)]
+    run_sync(config_for(vault), client=FakeClient(items))
+    assert len(list((vault / "matter").glob("*.md"))) == 3
+
+    # Simulate a kill before the save, or a manifest that was corrupt and reset.
+    (vault / ".matter_manifest.json").unlink()
+
+    result = run_sync(config_for(vault, full=True), client=FakeClient(items))
+
+    assert len(list((vault / "matter").glob("*.md"))) == 3, "no second copies"
+    assert result.new == 0
+    assert result.updated == 3, "the orphaned files are adopted, not duplicated"
+
+
+def test_an_unreadable_existing_file_is_refused_rather_than_rewritten(vault):
+    """The enrichment in a file we cannot parse must not be thrown away."""
+    run_sync(config_for(vault), client=FakeClient([make_item()]))
+    written = next(iter((vault / "matter").glob("*.md")))
+
+    # Frontmatter YAML that PyYAML rejects -- an unquoted colon, the classic
+    # result of a hand-edit in Obsidian.
+    written.write_text(
+        "---\n"
+        'title: "How to Do Great Work"\n'
+        "matter_id: itm_abc123\n"
+        "ai_summary: Rails 8: the reckoning\n"
+        "ai_topics: [Craft]\n"
+        "---\n\nThe article body.\n",
+        encoding="utf-8",
+    )
+    before = written.read_text(encoding="utf-8")
+
+    result = run_sync(
+        config_for(vault), client=FakeClient([make_item(updated_at="2026-05-01T00:00:00Z")]),
+    )
+
+    assert written.read_text(encoding="utf-8") == before, "the file is left exactly as it was"
+    assert result.errors == 1
+    assert "frontmatter" in result.error_examples[0]["error"]
+    assert result.watermark_after is None
+
+
+def test_an_indented_yaml_separator_is_not_mistaken_for_the_closing_fence(vault):
+    """A folded YAML value can contain a line that strips to '---'."""
+    run_sync(config_for(vault), client=FakeClient([make_item()]))
+    written = next(iter((vault / "matter").glob("*.md")))
+
+    metadata, body = mapping.parse_markdown(written.read_text(encoding="utf-8"))
+    metadata["ai_summary"] = "A summary whose second line is\n  ---\nand then continues."
+    written.write_text(mapping.dump_markdown(metadata, body), encoding="utf-8")
+
+    result = run_sync(
+        config_for(vault), client=FakeClient([make_item(updated_at="2026-05-01T00:00:00Z")]),
+    )
+
+    assert result.errors == 0
+    after, _ = mapping.parse_markdown(written.read_text(encoding="utf-8"))
+    assert after["ai_summary"] == metadata["ai_summary"]
+
+
+def test_a_revoked_token_stops_the_run_instead_of_failing_every_item(vault):
+    """One 401 means every remaining item will 401; do not hammer a dead token."""
+    class RevokedClient(FakeClient):
+        attempts = 0
+
+        def iter_annotations(self, item_id, *, page_size=100):
+            RevokedClient.attempts += 1
+            raise MatterAuthError("token revoked")
+
+    items = [make_item(item_id=f"itm_{n}", url=f"https://e.com/{n}") for n in range(10)]
+    client = RevokedClient(items)
+
+    with pytest.raises(MatterAuthError):
+        run_sync(config_for(vault), client=client)
+
+    assert RevokedClient.attempts == 1, "stopped at the first rejection, not after all 10"
 
 
 # ---- dry run --------------------------------------------------------------

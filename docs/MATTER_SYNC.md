@@ -117,8 +117,11 @@ launchctl kickstart -k gui/$(id -u)/com.thedetech.article-sync.matter
 ```
 
 Logs land in `~/Library/Logs/MatterSync/`, and a heartbeat JSON
-(`nightly-heartbeat.json`) is written there in the fleet's standard shape, so
-the job appears in Command Center's launchd panel.
+(`nightly-heartbeat.json`) is written there in the fleet's standard shape
+(`started_at` / `finished_at` / `outcome`), on failure as well as success. Note
+that Command Center's launchd panel reads a hardcoded job registry, so showing
+this job there needs a separate entry added in that repo - writing the heartbeat
+is necessary but not sufficient.
 
 ---
 
@@ -239,8 +242,26 @@ into one.
 
 The URL index is built from `data/archive_index.parquet` when pyarrow is
 available, and otherwise from a cached scan of the vault's frontmatter. If
-neither is possible the sync still runs, but says clearly in the log that
+neither produces anything the sync still runs, but says clearly in the log that
 cross-era detection is degraded.
+
+**Known limitation: a skipped duplicate's highlights are not captured.** If Adam
+re-reads an article in Matter that he first saved to Instapaper years ago, and
+highlights it, the Matter item is skipped as a duplicate and those highlights
+land nowhere. The skip is recorded in the manifest, so it stays skipped. Merging
+Matter highlights into an existing Instapaper-era file is the obvious fix, but it
+means writing into files this sync did not create, which is a bigger promise than
+this first version should make. The manifest records every such skip
+(`skipped_reason: duplicate_url` plus `duplicate_of`), so the affected articles
+can be found later.
+
+### Files this sync wrote but lost track of
+
+The manifest is saved as the run goes and again in a `finally` block, so a
+crash or a `kill` still records what reached disk. If the manifest is lost
+anyway - deleted, or corrupt and reset - the sync recovers by reading the
+`matter_id` out of the frontmatter of the files already in `matter/` and
+adopting them, rather than writing a second copy of everything.
 
 ---
 

@@ -25,7 +25,7 @@ from pathlib import Path
 from . import mapping
 from .api import MatterClient
 from .credentials import load_token, looks_like_matter_token, redact, token_path
-from .errors import VaultNotFoundError
+from .errors import MatterAuthError, MatterError, MatterForbiddenError, VaultNotFoundError
 from .state import MANIFEST_FILENAME, SyncState, atomic_write_text, to_iso, utcnow
 from .vaultindex import build_url_index
 
@@ -161,12 +161,62 @@ def _unique_path(directory: Path, filename: str, matter_id: str, owned_paths: se
     raise RuntimeError(f"Could not find a free filename for {filename!r} in {directory}")
 
 
-def _load_existing(path: Path) -> tuple[dict, str]:
+def _load_existing(path: Path) -> tuple[dict, str, str]:
+    """Read an existing article, reporting whether its frontmatter was readable."""
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return {}, ""
-    return mapping.parse_markdown(text)
+    except OSError as exc:
+        raise MatterError(f"Could not read existing article {path}: {exc}") from exc
+    return mapping.parse_document(text)
+
+
+def _matter_id_of(path: Path) -> str | None:
+    """The matter_id recorded in a file's frontmatter, if it has one."""
+    try:
+        metadata, _, status = _load_existing(path)
+    except MatterError:
+        return None
+    if status != mapping.PARSE_OK:
+        return None
+    value = metadata.get("matter_id")
+    return value if isinstance(value, str) else None
+
+
+class OrphanIndex:
+    """Finds files this sync wrote whose manifest record has been lost.
+
+    Built lazily and at most once per run, because the healthy case -- a
+    manifest that knows about every file -- never needs it. It is only consulted
+    when an item with no manifest record is about to be written, which is
+    exactly the situation a killed run or a reset manifest produces.
+    """
+
+    def __init__(self, directory: Path):
+        self._directory = directory
+        self._by_id: dict[str, Path] | None = None
+
+    def lookup(self, matter_id: str) -> Path | None:
+        if self._by_id is None:
+            self._by_id = self._build()
+        return self._by_id.get(matter_id)
+
+    def forget(self, matter_id: str) -> None:
+        if self._by_id is not None:
+            self._by_id.pop(matter_id, None)
+
+    def _build(self) -> dict[str, Path]:
+        found: dict[str, Path] = {}
+        if not self._directory.is_dir():
+            return found
+        for path in sorted(self._directory.glob("*.md")):
+            if path.name.startswith("._"):
+                continue
+            existing_id = _matter_id_of(path)
+            if existing_id:
+                found.setdefault(existing_id, path)
+        if found:
+            log.debug("Indexed %s existing Matter files for orphan adoption", len(found))
+        return found
 
 
 def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncResult:
@@ -235,27 +285,27 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
         if isinstance(record, dict) and record.get("path")
     }
 
+    orphans = OrphanIndex(target_dir)
     pending_saves = 0
     truncated = False
     try:
         for item in client.iter_items(status=config.status, updated_since=updated_since):
-            if config.max_items is not None and result.seen >= config.max_items:
-                log.info("Stopping at --max-items=%s; the watermark will not advance.", config.max_items)
-                # A truncated run has not seen everything, so the watermark must
-                # stay where it is or the unseen remainder is lost forever.
-                truncated = True
-                break
             result.seen += 1
 
             try:
-                outcome = _sync_one(item, config, state, url_index, client, owned_paths, result)
+                outcome = _sync_one(item, config, state, url_index, client, owned_paths, orphans, result)
+            except (MatterAuthError, MatterForbiddenError):
+                # The credential died mid-run. Every remaining item would fail
+                # the same way, so stop rather than logging thousands of
+                # identical failures and hammering a rejecting API.
+                raise
             except Exception as exc:  # one bad item must not end the night
                 result.errors += 1
                 item_id = item.get("id", "?")
                 log.error("Item %s failed: %s", item_id, exc)
                 if len(result.error_examples) < 10:
                     result.error_examples.append({"id": item_id, "title": item.get("title"), "error": str(exc)})
-                continue
+                outcome = "error"
 
             if outcome in ("new", "updated"):
                 pending_saves += 1
@@ -263,9 +313,24 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
                     state.save()
                     pending_saves = 0
 
+            # The budget counts work done, not items looked at. Counting every
+            # item would make a chunked backfill spend its whole allowance
+            # re-skipping the items it already has and never reach new ones.
+            if config.max_items is not None and _work_done(result) >= config.max_items:
+                log.info("Stopping at --max-items=%s; the watermark will not advance.", config.max_items)
+                # A truncated run has not seen everything, so the watermark must
+                # stay where it is or the unseen remainder is lost forever.
+                truncated = True
+                break
+
     finally:
         result.requests = client.request_count
         result.throttled_seconds = client.throttled_seconds
+        # Save unconditionally: files may already be on disk, and a manifest
+        # that does not know about them would have the next run write duplicates.
+        # This runs even when the loop raised.
+        if not config.dry_run:
+            state.save()
 
     if result.errors == 0 and not truncated and not config.dry_run:
         state.advance_watermark(checkpoint)
@@ -278,14 +343,14 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
 
     if not config.dry_run:
         state.last_run = result.as_dict()
-        state.save()
+        state.save()  # second save: records the run summary and the new watermark
 
     result.finished_at = utcnow()
     result.outcome = "ok" if result.errors == 0 else "fail"
     return result
 
 
-def _sync_one(item, config, state, url_index, client, owned_paths, result) -> str:
+def _sync_one(item, config, state, url_index, client, owned_paths, orphans, result) -> str:
     matter_id = item.get("id")
     if not matter_id:
         raise ValueError("item has no id")
@@ -324,13 +389,37 @@ def _sync_one(item, config, state, url_index, client, owned_paths, result) -> st
 
     is_update = bool(existing_file and existing_file.exists())
 
+    # A file we wrote on an earlier run that the manifest has since lost -- the
+    # run was killed before its state was saved, or the manifest was corrupt and
+    # got reset. Adopt it rather than writing a second copy alongside it.
+    if not is_update:
+        orphan = orphans.lookup(matter_id)
+        if orphan is not None:
+            log.info("Adopting %s, which this sync wrote before losing its manifest record", orphan.name)
+            existing_file = orphan
+            is_update = True
+
     if config.dry_run:
         result.updated += 1 if is_update else 0
         result.new += 0 if is_update else 1
         log.info("[dry-run] would %s: %s", "update" if is_update else "create", item.get("title"))
         return "updated" if is_update else "new"
 
-    existing_metadata, existing_body = _load_existing(existing_file) if is_update else ({}, "")
+    if is_update:
+        existing_metadata, existing_body, parse_status = _load_existing(existing_file)
+        if parse_status == mapping.PARSE_UNREADABLE:
+            # Rewriting would discard whatever is in there -- including the ai_*
+            # enrichment, which costs real money to regenerate. Refuse, and say
+            # which file needs a human. Counted as an error, so the watermark
+            # stays put and the item is retried once the file is fixed.
+            raise MatterError(
+                f"Refusing to update {existing_file}: its YAML frontmatter could not be parsed, "
+                f"so preserving the ai_* enrichment already in it is impossible. Fix the "
+                f"frontmatter (an unquoted colon in a value is the usual cause), or delete the "
+                f"file to have it re-synced from scratch."
+            )
+    else:
+        existing_metadata, existing_body = {}, ""
 
     # Re-fetch the article body only when we do not already have it. A nightly
     # delta is dominated by items that reappeared because of a new highlight.
@@ -369,6 +458,7 @@ def _sync_one(item, config, state, url_index, client, owned_paths, result) -> st
 
     atomic_write_text(destination, document)
     owned_paths.add(str(destination))
+    orphans.forget(matter_id)
 
     relative = str(destination.relative_to(config.vault_path))
     state.record_item(
@@ -397,6 +487,11 @@ def _sync_one(item, config, state, url_index, client, owned_paths, result) -> st
     return "new"
 
 
+def _work_done(result) -> int:
+    """Items this run actually acted on, as opposed to merely looked at."""
+    return result.new + result.updated + result.duplicates + result.errors
+
+
 def _normalized(url):
     from .normalize import normalize_url
     return normalize_url(url)
@@ -408,8 +503,10 @@ def write_heartbeat(path: Path, result: SyncResult) -> None:
     """Write the fleet-standard heartbeat JSON.
 
     Keys match what command-center's launchd_stats.py reads (started_at /
-    finished_at / outcome), so this job shows up in the cockpit's launchd panel
-    like the rest of the fleet.
+    finished_at / outcome). Note that writing this file is necessary but not
+    sufficient for the job to appear in the cockpit's launchd panel: that panel
+    reads a hardcoded job registry in command-center, so an entry has to be
+    added there separately.
     """
     import json
     try:

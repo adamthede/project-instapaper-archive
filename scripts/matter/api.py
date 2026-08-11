@@ -36,6 +36,8 @@ DEFAULT_MARKDOWN_PER_MIN = 20
 DEFAULT_BURST_PER_SEC = 5
 
 MAX_PAGE_SIZE = 100
+# Ceiling on a server-provided Retry-After, in seconds.
+MAX_RETRY_AFTER = 300.0
 USER_AGENT = "article-archive-matter-sync/1.0 (+https://github.com/adamthede/project-instapaper-archive)"
 
 
@@ -191,10 +193,14 @@ class MatterClient:
                 raise MatterAPIError(f"GET {url} returned HTTP 404: {self._error_message(response)}")
 
             if status == 429:
-                # Matter's own limiter disagreed with ours. Honour Retry-After.
+                # Matter's own limiter disagreed with ours. Honour Retry-After,
+                # but cap it: launchd will not start the next instance while
+                # this one runs, so an unbounded `Retry-After: 86400` would
+                # park the nightly job for a day.
                 wait = self._retry_after_seconds(response)
                 if wait is None:
                     wait = min(60.0, 2 ** attempt)
+                wait = min(wait, MAX_RETRY_AFTER)
                 last_detail = f"HTTP 429: {self._error_message(response)}"
                 if attempt > self.max_retries:
                     raise MatterAPIError(f"GET {url} still rate-limited after {attempt - 1} retries")
@@ -258,7 +264,7 @@ class MatterClient:
         """GET /v1/me -- the auth check, and the account's real rate limits."""
         return self.get("/me")
 
-    def adopt_account_rate_limits(self, account: dict, *, clock=time.monotonic, sleeper=time.sleep) -> dict:
+    def adopt_account_rate_limits(self, account: dict) -> dict:
         """Tighten our limiters to the account's own values when they are lower.
 
         Never loosens them: if the account reports a higher ceiling than the

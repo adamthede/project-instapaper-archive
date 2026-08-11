@@ -37,11 +37,13 @@ from matter import sync as sync_module  # noqa: E402
 from matter.api import MatterClient  # noqa: E402
 from matter.credentials import load_token, looks_like_matter_token, redact, token_path  # noqa: E402
 from matter.errors import MatterError  # noqa: E402
+from matter.state import utcnow  # noqa: E402
 from matter.sync import (  # noqa: E402
     DEFAULT_HEARTBEAT,
     DEFAULT_STATUS,
     DEFAULT_SUBDIR,
     SyncConfig,
+    SyncResult,
     resolve_vault_path,
     run_sync,
     write_heartbeat,
@@ -136,6 +138,20 @@ def check_auth(args) -> int:
     return 0
 
 
+def _record_failure(args, message: str) -> None:
+    """Write a heartbeat for a run that never produced a SyncResult.
+
+    Without this the heartbeat only ever records successes, which makes it
+    useless for the thing it exists to answer: did last night's job work?
+    """
+    if getattr(args, "no_heartbeat", False) or getattr(args, "dry_run", False):
+        return
+    moment = utcnow()
+    result = SyncResult(started_at=moment, finished_at=moment,
+                        outcome="fail", error_message=message)
+    write_heartbeat(Path(args.heartbeat).expanduser(), result)
+
+
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     configure_logging(args)
@@ -164,9 +180,11 @@ def main(argv=None) -> int:
     except MatterError as exc:
         # These carry their own remediation; a traceback would bury it.
         log.error("%s", exc)
+        _record_failure(args, str(exc))
         return 2
     except KeyboardInterrupt:
         log.error("Interrupted. The watermark was not advanced; re-run to continue.")
+        _record_failure(args, "interrupted")
         return 2
 
     summary = result.as_dict()

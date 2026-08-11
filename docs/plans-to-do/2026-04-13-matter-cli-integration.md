@@ -4,7 +4,7 @@ status: "QA Needed"
 priority: "P1"
 project: "articles"
 created: 2026-04-13
-linked_pr: ""
+linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/2"
 depends_on:
   - "Matter Pro subscription (required for API/CLI access)"
 ---

@@ -172,4 +172,10 @@ def build_url_index(
     except OSError:
         pass  # a cache we cannot write is a slow next run, not a failed one
 
-    return UrlIndex(urls, source=f"vault scan ({len(urls)} urls)")
+    # An empty index over a non-empty vault is not a clean "no duplicates"; it
+    # means the scan found no URLs where there should be thousands, so every
+    # Matter item would look new. Flag it rather than reporting success.
+    files_scanned = fingerprint[0]
+    degraded = not urls and files_scanned > 0
+    return UrlIndex(urls, source=f"vault scan ({len(urls)} urls from {files_scanned} files)",
+                    degraded=degraded)

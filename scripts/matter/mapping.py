@@ -44,24 +44,35 @@ _FRONTMATTER_FENCE = "---"
 
 # ---- frontmatter I/O ------------------------------------------------------
 
-def parse_markdown(text: str) -> tuple[dict, str]:
-    """Split a YAML-frontmatter Markdown file into (metadata, body).
+# Outcomes of parse_document, so callers can tell "this file has no frontmatter"
+# apart from "this file has frontmatter I could not read". The difference decides
+# whether it is safe to rewrite the file.
+PARSE_OK = "ok"
+PARSE_NO_FRONTMATTER = "no_frontmatter"
+PARSE_UNREADABLE = "unreadable"
+
+
+def parse_document(text: str) -> tuple[dict, str, str]:
+    """Split a YAML-frontmatter Markdown file into (metadata, body, status).
 
     Hand-rolled rather than using python-frontmatter because the nightly job
     runs under an interpreter that does not have that package installed, and a
     sync that cannot read its own output would be unable to preserve enrichment.
     """
     if not text.startswith(_FRONTMATTER_FENCE):
-        return {}, text
+        return {}, text, PARSE_NO_FRONTMATTER
 
     lines = text.split("\n")
     closing = None
     for index in range(1, len(lines)):
-        if lines[index].strip() == _FRONTMATTER_FENCE:
+        # rstrip, not strip: a fence is flush left. An *indented* `---` is a
+        # document separator inside a multi-line YAML value, and treating it as
+        # the closing fence truncates the frontmatter into something unparseable.
+        if lines[index].rstrip() == _FRONTMATTER_FENCE:
             closing = index
             break
     if closing is None:
-        return {}, text
+        return {}, text, PARSE_UNREADABLE
 
     raw_yaml = "\n".join(lines[1:closing])
     body = "\n".join(lines[closing + 1:])
@@ -71,11 +82,17 @@ def parse_markdown(text: str) -> tuple[dict, str]:
     try:
         metadata = yaml.safe_load(raw_yaml)
     except yaml.YAMLError:
-        # A file we cannot parse is a file we must not silently rewrite; the
-        # caller decides, but it gets no metadata to merge.
-        return {}, text
+        return {}, text, PARSE_UNREADABLE
+    if metadata is None:
+        return {}, body, PARSE_OK  # an empty frontmatter block is readable
     if not isinstance(metadata, dict):
-        return {}, text
+        return {}, text, PARSE_UNREADABLE
+    return metadata, body, PARSE_OK
+
+
+def parse_markdown(text: str) -> tuple[dict, str]:
+    """parse_document without the status, for callers that only want the data."""
+    metadata, body, _ = parse_document(text)
     return metadata, body
 
 

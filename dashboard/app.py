@@ -86,17 +86,31 @@ def review_id(article):
     era has -- the legacy import (about 10,560 rows) and now Matter both leave
     it null, so their review records were written against NaN and could never be
     matched back to an article. Falling back to matter_id and then file_path
-    fixes both. Instapaper articles keep returning instapaper_id, so review
-    history recorded before this change still matches.
+    fixes both.
+
+    Always returns a string. Mixing the old float ids with string fallbacks in
+    one column would give `article_id` object dtype, which pyarrow refuses to
+    write - so saving a review of any non-Instapaper article would raise. An
+    Instapaper id of 12345.0 becomes "12345", and normalize_review_key() applies
+    the same rule when loading saved history, so pre-existing records match.
     """
     value = article.get("instapaper_id")
     if value is not None and not (isinstance(value, float) and pd.isna(value)):
-        return value
+        return normalize_review_key(value)
     for key in ("matter_id", "file_path"):
         alternative = article.get(key)
         if isinstance(alternative, str) and alternative:
             return alternative
     return None
+
+
+def normalize_review_key(value):
+    """Render a review key in the string form review_id() produces."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
 
 
 def review_id_series(df):
@@ -107,9 +121,17 @@ def review_id_series(df):
 
 
 def load_review_history():
-    """Load review history or create empty dataframe."""
+    """Load review history or create empty dataframe.
+
+    article_id is normalized to string on load, migrating history written before
+    review keys became strings. Done here rather than with a one-off script so
+    the migration happens wherever the file is opened.
+    """
     if REVIEW_HISTORY_PATH.exists():
-        return pd.read_parquet(REVIEW_HISTORY_PATH)
+        df_history = pd.read_parquet(REVIEW_HISTORY_PATH)
+        if "article_id" in df_history.columns:
+            df_history["article_id"] = df_history["article_id"].map(normalize_review_key)
+        return df_history
     else:
         return pd.DataFrame(columns=[
             "article_id", "last_reviewed", "next_review",
@@ -119,6 +141,11 @@ def load_review_history():
 def save_review_history(df_history):
     """Save review history to parquet."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    # Force a single dtype: a column mixing floats and strings is object dtype,
+    # which pyarrow will not write.
+    if "article_id" in df_history.columns:
+        df_history = df_history.copy()
+        df_history["article_id"] = df_history["article_id"].map(normalize_review_key).astype("string")
     df_history.to_parquet(REVIEW_HISTORY_PATH, index=False)
 
 def calculate_next_review(ease_factor, interval_days, quality):
@@ -1892,8 +1919,9 @@ def render_review(df):
                 if not df_history.empty:
                     st.subheader("Upcoming Reviews")
                     upcoming = df_history.sort_values("next_review").head(10)
+                    article_ids = review_id_series(df)
                     for _, row in upcoming.iterrows():
-                        article = df[review_id_series(df) == row["article_id"]]
+                        article = df[article_ids == row["article_id"]]
                         if not article.empty:
                             title = article.iloc[0]["title"]
                             days_until = (row["next_review"] - now).days

@@ -17,6 +17,7 @@ The watermark is Matter's `updated_since` cursor. Two rules keep it honest:
 
 import json
 import os
+import stat
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -53,11 +54,31 @@ def atomic_write_text(path: Path, text: str) -> None:
     handle, temp_name = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
     temp_path = Path(temp_name)
     try:
+        # mkstemp creates 0600, which os.replace would then impose on an
+        # existing file. Article files in the vault are ordinary 0644 documents
+        # Adam opens in Obsidian; silently tightening them on every update
+        # would be a surprising side effect of a sync.
+        try:
+            os.chmod(temp_path, stat.S_IMODE(path.stat().st_mode))
+        except OSError:
+            pass  # new file: keep mkstemp's conservative default
+
         with os.fdopen(handle, "w", encoding="utf-8") as stream:
             stream.write(text)
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temp_path, path)
+
+        # fsync the directory too, so the rename itself survives a power loss
+        # and not just the bytes it points at.
+        try:
+            dir_fd = os.open(str(path.parent), os.O_RDONLY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+        except OSError:
+            pass  # not all filesystems allow this; the replace is still atomic
     except BaseException:
         temp_path.unlink(missing_ok=True)
         raise
@@ -84,10 +105,11 @@ class SyncState:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            # A corrupt manifest must not wedge the nightly job forever. Keep the
-            # damaged file for inspection and start clean: the URL dedupe pass
-            # still prevents duplicate articles, so the cost is re-fetching, not
-            # a mangled archive.
+            # A corrupt manifest must not wedge the nightly job forever. Keep
+            # the damaged file for inspection and start clean. Starting clean is
+            # safe because the sync adopts existing files by their frontmatter
+            # matter_id (see sync.OrphanIndex) rather than trusting this file to
+            # be the only record -- so the cost is re-fetching, not duplicates.
             backup = path.with_suffix(path.suffix + ".corrupt")
             try:
                 path.replace(backup)

@@ -72,6 +72,14 @@ def test_root_url_with_and_without_slash_match():
     assert normalize_url("https://e.com") == normalize_url("https://e.com/")
 
 
-def test_malformed_input_does_not_raise():
-    for value in ["http://", "https://[", "://x", "h ttp://e.com"]:
-        normalize_url(value)  # must not raise
+@pytest.mark.parametrize("value", [
+    "http://", "https://[", "://x", "h ttp://e.com",
+    # urlsplit is lazy: these raise on .port / .hostname, not at split time.
+    # Escaping from build_url_index would kill a whole nightly run.
+    "https://example.com:notaport/x",
+    "https://example.com:99999/x",
+    "https://example.com:-1/x",
+    "http://[::1/x",
+])
+def test_malformed_input_does_not_raise(value):
+    assert normalize_url(value) is None or isinstance(normalize_url(value), str)

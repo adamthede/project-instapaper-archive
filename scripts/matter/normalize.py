@@ -79,25 +79,30 @@ def normalize_url(url) -> str | None:
         else:
             raw = "https://" + raw
 
+    # The whole parse sits inside the try: urlsplit is lazy, so `.hostname` and
+    # especially `.port` raise ValueError on a malformed authority
+    # ("https://e.com:notaport/x", "https://e.com:99999/x") rather than at split
+    # time. Letting that escape would take down a whole nightly run from
+    # build_url_index, or pin the watermark forever from the per-item path.
     try:
         parts = urlsplit(raw)
+
+        scheme = (parts.scheme or "https").lower()
+        if scheme not in ("http", "https"):
+            # mailto:, file:, obsidian:// and friends are not articles we dedupe on.
+            return None
+
+        host = (parts.hostname or "").lower()
+        if not host:
+            return None
+        if host.startswith("www."):
+            host = host[4:]
+
+        netloc = host
+        if parts.port and str(parts.port) != _DEFAULT_PORTS.get(scheme):
+            netloc = f"{host}:{parts.port}"
     except ValueError:
         return None
-
-    scheme = (parts.scheme or "https").lower()
-    if scheme not in ("http", "https"):
-        # mailto:, file:, obsidian:// and friends are not articles we dedupe on.
-        return None
-
-    host = (parts.hostname or "").lower()
-    if not host:
-        return None
-    if host.startswith("www."):
-        host = host[4:]
-
-    netloc = host
-    if parts.port and str(parts.port) != _DEFAULT_PORTS.get(scheme):
-        netloc = f"{host}:{parts.port}"
 
     path = parts.path or ""
     # Trailing slashes are not meaningful for article identity; "/a/b/" == "/a/b".
