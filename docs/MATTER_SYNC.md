@@ -292,13 +292,22 @@ because they have not been read yet.
 article would migrate forward through the timeline every time Adam touched it,
 and its filename would change with it.
 
-**`date_saved` is honest about being a fallback.** Matter's API exposes no
-per-item created/saved timestamp; `updated_at` is the only date on an item. For
-articles synced going forward this is close to the truth, because a newly saved
-item is picked up within a day. For the initial backfill of older items it is
-the date of the last change, which may be much later than when it was saved.
-The `date_saved_source` field records this, mirroring the convention the
-Instapaper exporter already uses.
+**Read dates are estimates, and each one says how good it is.** Matter exposes
+exactly one timestamp per item - verified against the live library, where the
+union of every field across all 1,230 archived items contains one date. So
+`date_saved_source` records which of three estimates produced the date, in
+descending order of confidence:
+
+| Source | Meaning | Accuracy |
+|---|---|---|
+| `observed-transition` | The sync watched the article appear in the archive between two runs. | Within one sync interval - a day, nightly. |
+| `highlight-derived` | Already archived when first seen, but carries highlights, and the newest one is more than a day older than `updated_at`. Highlights are made *while reading*, so that gap is a later touch dragging `updated_at` forward. | As good as the highlight. |
+| `fallback` | Neither applies. `updated_at` is a last-modified date. | Right for recent reads, potentially well late for old ones. |
+
+The estimate is fixed when the article first enters the archive and never
+revised - stickiness outranks accuracy, because a date that moves is worse than
+a date that is approximate. See [Backfill fidelity](#backfill-fidelity) for how
+far off the backfill's estimates actually are.
 
 **`word_count` is omitted when Matter has none** (podcasts, failed extraction),
 so `build_index.py` falls back to counting the body's words.
@@ -539,13 +548,70 @@ is nothing for it to sync today; it starts earning its place whenever Adam begin
 highlighting in Matter. Three items also carry an empty `url` - they are written
 normally and, correctly, never dedupe against each other.
 
+### Backfill fidelity
+
+The backfill's read dates come from `updated_at`, which advances on any later
+touch. Two independent checks on how much that distorts them.
+
+**No migration flattening.** If Matter had ever reset `updated_at` server-side,
+a large share of items would share one narrow window. They do not: across the
+1,230 archived items the busiest single month holds 8.5% and the busiest single
+*day* 2.5%, spread over 44 months and 468 distinct days.
+
+**A modest recency skew, measured.** `/v1/reading_sessions` returns 1,257 dated
+sessions - it carries no item link, so it cannot date individual articles, but
+it is an independent record of *when Adam was reading*. Comparing the two
+distributions by year:
+
+| Year | items by `updated_at` | independent reading sessions |
+|---|---|---|
+| 2022 | 11.8% | 0.0% |
+| 2023 | 17.2% | 0.0% |
+| 2024 | 15.7% | 30.5% |
+| 2025 | 24.6% | 51.9% |
+| 2026 | 30.7% | 17.6% |
+
+The item dates reach back further than the session feed does, which is what you
+want to see - `updated_at` has preserved genuinely old activity rather than
+being reset. But 2026 holds 30.7% of items against 17.6% of sessions, so
+roughly a 13-point excess has been dragged into the current year by later
+touches. That is the distortion, quantified: real, modest, and confined to
+pulling old reads forward rather than scattering them.
+
+Both effects only apply to the backfill. Everything synced from the day the
+nightly job starts carries `observed-transition` dates instead.
+
 ### Still unverified
 
+- **That `updated_at` advances when an item moves queue -> archive.** The spec
+  says it does. The nightly job no longer depends on it (see
+  [Nightly](#nightly)), but it is still worth settling - the one-line check is
+  in the post-install runbook below.
 - **That a vault scan finds the same URLs the Parquet index does.** See
-  [Which interpreter to run](#which-interpreter-to-run) - this is the one open
-  question with real consequences, and it has a simple mitigation.
-- **A real write.** Everything so far is `--check-auth`, a read-only probe, and
+  [Which interpreter to run](#which-interpreter-to-run).
+- **A real write.** Everything so far is `--check-auth`, read-only probes, and
   `--dry-run`. No article has been written to the vault yet.
+
+### Post-install runbook
+
+Once the job is installed, two checks settle what is left:
+
+1. **The transition test.** In Matter, archive one article that is currently in
+   the queue. Then run the sync by hand and confirm it lands:
+
+   ```bash
+   .venv/bin/python scripts/core/export_matter_to_archive.py --full
+   ```
+
+   Expect `1 new`, and the new file's `date_saved_source` should read
+   `observed-transition`. If instead it reports `0 new`, `updated_at` did not
+   move on the status change - the full listing still caught it, which is the
+   point of running `--full`, but say so in the ledger above.
+
+2. **Dedupe under the nightly interpreter.** After the first backfill, run
+   `/opt/homebrew/bin/python3 scripts/core/export_matter_to_archive.py --full
+   --dry-run` and check the reported `dedupe_source` says `vault scan` with a
+   URL count in the same range as the Parquet index (~6,500).
 
 ---
 

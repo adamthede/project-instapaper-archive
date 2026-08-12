@@ -16,7 +16,7 @@ the wrong end of every timeline. Matter's `archive` status maps to
 """
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import yaml
 
@@ -33,10 +33,31 @@ MATTER_OWNED_KEYS = frozenset({
 })
 
 # Matter exposes no per-item "saved" timestamp: the Item schema's only date is
-# `updated_at`. This string goes in `date_saved_source` to record that, mirroring
-# the honesty convention the Instapaper exporter already uses.
+# `updated_at`. Verified against the live library -- across all 1,230 archived
+# items the union of every field returned contains exactly one date. So a read
+# date is always an estimate, and these values say how good an estimate, in
+# descending order of confidence:
+#
+#   observed-transition  The sync watched this article appear in the archive
+#                        between two runs, so `updated_at` is at most one sync
+#                        interval old. Nightly runs make that accurate to a day.
+#   highlight-derived    It was already archived when first seen, but carries
+#                        highlights -- and highlights are made WHILE reading. If
+#                        the newest highlight is materially older than
+#                        `updated_at`, that gap is a later touch (a tag, a
+#                        favourite, re-extraction) dragging `updated_at` forward,
+#                        and the highlight is the better estimate of the read.
+#   fallback             Neither applies. `updated_at` is a last-modified date
+#                        that may fall well after the read it stands for.
+DATE_SOURCE_OBSERVED = "observed-transition - seen entering the archive between syncs"
+DATE_SOURCE_HIGHLIGHT = "highlight-derived - newest annotation predates updated_at"
 DATE_SOURCE_UPDATED_AT = "fallback - matter updated_at (API v1 exposes no created_at)"
 DATE_SOURCE_STICKY = "original - first matter sync"
+
+# How much earlier the newest highlight must be before it is preferred. Below
+# this the two dates agree closely enough that `updated_at` is no worse, and
+# preferring the highlight would only add churn.
+HIGHLIGHT_SLACK = timedelta(days=1)
 
 # Written onto an article the archive ALREADY has, when Matter records that it
 # was read again. Deliberately not `date_archived`: the first read is the
@@ -176,29 +197,69 @@ def tag_names(item: dict) -> list[str]:
     return names
 
 
-def resolve_dates(item: dict, previous: dict | None = None) -> tuple[str | None, str, str | None]:
+def best_read_date(item: dict, annotations: list[dict] | None = None,
+                   observed_transition: bool = False) -> tuple[str | None, str]:
+    """The best available (date, source) for when this article was read.
+
+    See the DATE_SOURCE_* constants for what each source means and why one beats
+    another. The API gives one timestamp per item, so this is always an estimate;
+    the job here is to make it the least-wrong estimate the data supports and to
+    say which kind it is.
+    """
+    updated = parse_timestamp(item.get("updated_at"))
+    updated_date = updated.date().isoformat() if updated else None
+
+    if observed_transition:
+        return updated_date, DATE_SOURCE_OBSERVED
+
+    newest = None
+    for annotation in annotations or []:
+        created = parse_timestamp(annotation.get("created_at"))
+        if created and (newest is None or created > newest):
+            newest = created
+
+    # Only when the highlight is materially EARLIER: a highlight after the last
+    # touch would mean updated_at had not caught up, which cannot happen, so
+    # treat that as noise and keep updated_at.
+    if newest and updated and newest < updated - HIGHLIGHT_SLACK:
+        return newest.date().isoformat(), DATE_SOURCE_HIGHLIGHT
+
+    return updated_date, DATE_SOURCE_UPDATED_AT
+
+
+def resolve_dates(item: dict, previous: dict | None = None,
+                  annotations: list[dict] | None = None,
+                  observed_transition: bool = False) -> tuple[str | None, str, str | None]:
     """Work out (date_saved, date_saved_source, date_archived) for an item.
 
-    Both dates are *sticky*: once an item has been written, the recorded dates
-    are reused verbatim on every later sync. This matters because `updated_at`
-    advances on any change -- a new highlight, a progress update -- and the
-    dates drive both the filename and every temporal chart. Without stickiness
-    an article would migrate forward through the timeline each time Adam touched
-    it, and the file would be rewritten under a new name each time.
+    All of it is *sticky*: once an item has been written, the recorded dates and
+    their source are reused verbatim on every later sync. This matters because
+    `updated_at` advances on any change -- a new highlight, a progress update --
+    and the dates drive both the filename and every temporal chart. Without
+    stickiness an article would migrate forward through the timeline each time
+    Adam touched it, and be rewritten under a new name each time. A better
+    estimate arriving later does not get to rewrite history either; the estimate
+    is fixed when the article first enters the archive.
     """
     previous = previous or {}
-    updated_date = _date_string(item.get("updated_at"))
 
     saved = previous.get("date_saved")
     if saved:
         saved_source = previous.get("date_saved_source") or DATE_SOURCE_STICKY
     else:
-        saved = updated_date
-        saved_source = DATE_SOURCE_UPDATED_AT
+        saved, saved_source = best_read_date(item, annotations, observed_transition)
 
     archived = previous.get("date_archived")
     if not archived and item.get("status") == "archive":
-        archived = updated_date
+        if previous.get("date_saved"):
+            # We already had this article as unread and it is archived now, so
+            # the transition happened between two syncs however it was pulled:
+            # `updated_at` is fresh, whatever the original estimate was.
+            archived, _ = best_read_date(item, annotations, observed_transition=True)
+        else:
+            # First sight, and it is already archived. As far as this API can
+            # distinguish them, saved and read are the same event.
+            archived = saved
 
     return saved, saved_source, archived
 
@@ -345,9 +406,12 @@ def build_filename(date_saved: str | None, title: str, *, suffix: str | None = N
 
 
 def build_frontmatter(item: dict, *, annotations: list[dict], content_source: str,
-                      previous: dict | None = None, synced_at: datetime | None = None) -> dict:
+                      previous: dict | None = None, synced_at: datetime | None = None,
+                      observed_transition: bool = False) -> dict:
     """The frontmatter block for one Matter item."""
-    date_saved, date_saved_source, date_archived = resolve_dates(item, previous)
+    date_saved, date_saved_source, date_archived = resolve_dates(
+        item, previous, annotations=annotations, observed_transition=observed_transition,
+    )
     synced_at = synced_at or datetime.now(timezone.utc)
 
     metadata: dict = {
@@ -396,7 +460,8 @@ def build_frontmatter(item: dict, *, annotations: list[dict], content_source: st
 
 def render_item(item: dict, annotations: list[dict], *, previous: dict | None = None,
                 existing_metadata: dict | None = None, existing_body: str | None = None,
-                synced_at: datetime | None = None) -> tuple[dict, str]:
+                synced_at: datetime | None = None,
+                observed_transition: bool = False) -> tuple[dict, str]:
     """Build the (metadata, document) pair for one item.
 
     `existing_metadata` is the frontmatter already on disk, when updating a file
@@ -405,7 +470,7 @@ def render_item(item: dict, annotations: list[dict], *, previous: dict | None = 
     body, content_source = build_body(item, annotations, existing_body=existing_body)
     metadata = build_frontmatter(
         item, annotations=annotations, content_source=content_source,
-        previous=previous, synced_at=synced_at,
+        previous=previous, synced_at=synced_at, observed_transition=observed_transition,
     )
 
     if existing_metadata:

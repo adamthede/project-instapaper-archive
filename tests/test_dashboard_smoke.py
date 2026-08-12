@@ -117,7 +117,10 @@ def test_matter_rows_carry_the_dates_the_dashboard_charts_on(merged_index):
     df = pd.read_parquet(index_path)
     matter = df[df["source"] == "matter"].set_index("title")
 
-    assert str(matter.loc["A Matter Article", "date_archived"].date()) == "2026-07-01"
+    # This article carries a highlight made on 2026-03-30 while its updated_at
+    # sits at 2026-07-01 -- three months of drift from some later touch. The
+    # highlight is when it was actually being read, so that is the date used.
+    assert str(matter.loc["A Matter Article", "date_archived"].date()) == "2026-03-30"
     assert pd.isna(matter.loc["An Unread Matter Podcast", "date_archived"]), "queued items are unread"
     assert str(matter.loc["An Unread Matter Podcast", "date_saved"].date()) == "2026-07-02"
 
@@ -390,4 +393,5 @@ def test_an_unread_matter_row_appears_in_no_dashboard_surface(merged_vault, tmp_
     assert "Loaded: 3 read articles" in captions, "5 in the index, 3 of them read"
 
     # The read timeline no longer ends on an unread article's saved date.
-    assert "2026-07-01" in captions and "2026-07-09" not in captions
+    assert "2026-07-09" not in captions, "the unread article's saved date is not a read date"
+    assert "2026-03-30" in captions, "the newest read date is the highlight-derived one"

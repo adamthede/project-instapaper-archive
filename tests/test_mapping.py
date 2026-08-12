@@ -199,3 +199,88 @@ def test_synced_at_is_recorded_in_utc():
         make_item(), [], synced_at=datetime(2026, 8, 11, 4, 45, tzinfo=timezone.utc),
     )
     assert metadata["matter_synced_at"].startswith("2026-08-11T04:45:00")
+
+
+# ---- read-date estimation: three paths, in descending confidence ----------
+
+def test_an_observed_transition_uses_updated_at_and_says_so(vault_unused=None):
+    """The sync watched it enter the archive, so updated_at is a day old at most."""
+    date, source = mapping.best_read_date(
+        make_item(updated_at="2026-07-01T12:00:00Z"), [], observed_transition=True,
+    )
+    assert date == "2026-07-01"
+    assert source == mapping.DATE_SOURCE_OBSERVED
+
+
+def test_a_highlight_older_than_updated_at_wins():
+    """Highlights are made WHILE reading; a much later updated_at is drift."""
+    annotations = [
+        make_annotation(created_at="2026-03-30T18:32:00Z"),
+        make_annotation(annotation_id="ann_2", created_at="2026-03-30T19:05:00Z"),
+    ]
+    date, source = mapping.best_read_date(
+        make_item(updated_at="2026-07-01T12:00:00Z"), annotations,
+    )
+    assert date == "2026-03-30", "the NEWEST highlight, not the oldest"
+    assert source == mapping.DATE_SOURCE_HIGHLIGHT
+
+
+def test_a_highlight_close_to_updated_at_does_not_displace_it():
+    """Within the slack the two agree, and churn buys nothing."""
+    date, source = mapping.best_read_date(
+        make_item(updated_at="2026-07-01T12:00:00Z"),
+        [make_annotation(created_at="2026-07-01T11:00:00Z")],
+    )
+    assert date == "2026-07-01"
+    assert source == mapping.DATE_SOURCE_UPDATED_AT
+
+
+def test_a_highlight_later_than_updated_at_is_ignored_as_noise():
+    """Annotations bump updated_at, so this ordering should be impossible."""
+    date, source = mapping.best_read_date(
+        make_item(updated_at="2026-03-30T19:15:00Z"),
+        [make_annotation(created_at="2026-07-01T12:00:00Z")],
+    )
+    assert date == "2026-03-30"
+    assert source == mapping.DATE_SOURCE_UPDATED_AT
+
+
+def test_no_annotations_falls_back_and_admits_it():
+    date, source = mapping.best_read_date(make_item(updated_at="2026-07-01T12:00:00Z"), [])
+    assert date == "2026-07-01"
+    assert source.startswith("fallback")
+
+
+def test_an_observed_transition_beats_a_stale_highlight():
+    """If we watched it happen, that beats inference from an old highlight."""
+    _, source = mapping.best_read_date(
+        make_item(updated_at="2026-07-01T12:00:00Z"),
+        [make_annotation(created_at="2026-01-01T00:00:00Z")],
+        observed_transition=True,
+    )
+    assert source == mapping.DATE_SOURCE_OBSERVED
+
+
+def test_the_estimate_is_recorded_in_the_frontmatter_source_field():
+    metadata, _ = mapping.render_item(
+        make_item(updated_at="2026-07-01T12:00:00Z", markdown="body"),
+        [make_annotation(created_at="2026-03-30T18:32:00Z")],
+    )
+    assert metadata["date_saved"] == "2026-03-30"
+    assert metadata["date_archived"] == "2026-03-30"
+    assert metadata["date_saved_source"] == mapping.DATE_SOURCE_HIGHLIGHT
+
+
+def test_a_better_estimate_arriving_later_does_not_rewrite_history():
+    """Stickiness outranks accuracy: the estimate is fixed on first sight."""
+    previous = {"date_saved": "2026-01-05",
+                "date_saved_source": mapping.DATE_SOURCE_UPDATED_AT,
+                "date_archived": "2026-01-05"}
+    metadata, _ = mapping.render_item(
+        make_item(updated_at="2026-08-01T10:00:00Z", markdown="body"),
+        [make_annotation(created_at="2026-02-02T00:00:00Z")],
+        previous=previous,
+    )
+    assert metadata["date_saved"] == "2026-01-05"
+    assert metadata["date_archived"] == "2026-01-05"
+    assert metadata["date_saved_source"] == mapping.DATE_SOURCE_UPDATED_AT

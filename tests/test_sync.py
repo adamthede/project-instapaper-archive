@@ -875,3 +875,147 @@ def test_reread_dates_carry_their_provenance(vault):
 
     after, _ = mapping.parse_markdown(original.read_text(encoding="utf-8"))
     assert "updated_at" in after["matter_reread_source"]
+
+
+# ---- round-4: the parquet is the real source of match locations ----------
+
+def test_an_absolute_parquet_path_outside_the_vault_is_refused(vault, tmp_path):
+    """The real index stores absolute paths for all 17,637 rows.
+
+    Point --vault at a restored copy or a second drive and those paths still
+    name the ORIGINAL vault, so the containment check is the only thing
+    standing between a backfill and writing into a different archive.
+    """
+    pq = pytest.importorskip("pyarrow")
+    import pyarrow.parquet as pq_write
+
+    other_vault = tmp_path / "a-different-archive"
+    other_vault.mkdir()
+    foreign = other_vault / "2019-04-01 – Same Article.md"
+    foreign.write_text(
+        '---\ntitle: "Same Article"\noriginal_url: "https://paulgraham.com/greatwork.html"\n'
+        "instapaper_id: 12345\ndate_saved: 2019-04-01\n---\n\nThe original body.\n",
+        encoding="utf-8",
+    )
+    before = foreign.read_text(encoding="utf-8")
+
+    index_path = tmp_path / "archive_index.parquet"
+    pq_write.write_table(
+        pq.table({"url": ["https://paulgraham.com/greatwork.html"],
+                  "file_path": [str(foreign)]}),
+        str(index_path),
+    )
+
+    result = run_sync(config_for(vault, parquet_path=index_path),
+                      client=FakeClient([make_item(status="archive")]))
+
+    assert foreign.read_text(encoding="utf-8") == before, "a different archive was written to"
+    assert result.duplicates == 1, "still recognised as already-present"
+    assert result.rereads_recorded == 0
+
+
+def test_a_relative_parquet_path_inside_the_vault_is_annotated(vault, tmp_path):
+    """The containment check must not break the ordinary case."""
+    pq = pytest.importorskip("pyarrow")
+    import pyarrow.parquet as pq_write
+
+    inside = write_instapaper_article(vault, "https://paulgraham.com/greatwork.html")
+    index_path = tmp_path / "archive_index.parquet"
+    pq_write.write_table(
+        pq.table({"url": ["https://paulgraham.com/greatwork.html"],
+                  "file_path": [str(inside)]}),
+        str(index_path),
+    )
+
+    result = run_sync(config_for(vault, parquet_path=index_path),
+                      client=FakeClient([make_item(status="archive")]))
+
+    assert result.rereads_recorded == 1
+    after, _ = mapping.parse_markdown(inside.read_text(encoding="utf-8"))
+    assert after["matter_reread_at"] == ["2026-03-30"]
+
+
+def test_a_refusal_reason_is_recorded_in_the_manifest(vault):
+    """A refusal has to be diagnosable from the data, not just a log line."""
+    damaged = vault / "2019-04-01 – Damaged.md"
+    damaged.write_bytes(
+        b'---\ntitle: "Damaged"\noriginal_url: "https://paulgraham.com/greatwork.html"\n'
+        b"---\n\nBody with a bad byte: \xff\xfe\n"
+    )
+
+    run_sync(config_for(vault), client=FakeClient([make_item(status="archive")]))
+
+    record = SyncState.load(vault / ".matter_manifest.json").get_item("itm_abc123")
+    assert record["reread_status"] == "encoding-damaged"
+    assert record["reread_recorded"] is False
+
+
+# ---- round-4: observed transitions ---------------------------------------
+
+def test_a_first_run_admits_its_dates_are_a_fallback(vault):
+    run_sync(config_for(vault, full=True), client=FakeClient([make_item()]))
+
+    written = next(iter((vault / "matter").glob("*.md")))
+    metadata, _ = mapping.parse_markdown(written.read_text(encoding="utf-8"))
+    assert metadata["date_saved_source"].startswith("fallback")
+
+
+def test_an_article_appearing_after_a_completed_run_is_an_observed_transition(vault):
+    """Steady state: it was not in the archive last night, so it was read since."""
+    first = make_item(item_id="itm_1", url="https://e.com/1", title="Already here")
+    run_sync(config_for(vault, full=True), client=FakeClient([first]))
+
+    fresh = make_item(item_id="itm_2", url="https://e.com/2", title="Newly read",
+                      updated_at="2026-08-11T06:00:00Z")
+    run_sync(config_for(vault, full=True), client=FakeClient([first, fresh]))
+
+    written = vault / "matter" / "2026-08-11 – Newly read.md"
+    metadata, _ = mapping.parse_markdown(written.read_text(encoding="utf-8"))
+    assert metadata["date_saved_source"] == mapping.DATE_SOURCE_OBSERVED
+    assert metadata["date_archived"] == "2026-08-11"
+
+
+def test_sync_mode_does_not_claim_to_have_observed_anything(vault):
+    """--sync filters the listing by updated_since, so absence proves nothing."""
+    first = make_item(item_id="itm_1", url="https://e.com/1")
+    run_sync(config_for(vault, full=True), client=FakeClient([first]))
+
+    fresh = make_item(item_id="itm_2", url="https://e.com/2", title="Newly read",
+                      updated_at="2026-08-11T06:00:00Z")
+    run_sync(config_for(vault), client=FakeClient([fresh]))
+
+    written = vault / "matter" / "2026-08-11 – Newly read.md"
+    metadata, _ = mapping.parse_markdown(written.read_text(encoding="utf-8"))
+    assert metadata["date_saved_source"].startswith("fallback")
+
+
+def test_an_exception_escaping_the_loop_still_saves_what_was_written(vault):
+    """The `finally` save, specifically.
+
+    The other crash test raises inside one ITEM, which the per-item handler
+    catches, so the run finishes normally and the end-of-run save covers it --
+    the finally block is never exercised. This raises out of the item generator
+    instead, which is what a 500-after-retries or a SIGTERM actually looks like.
+    Without the finally save the files are on disk with no manifest record, and
+    the next run writes a second copy of every one.
+    """
+    items = [make_item(item_id=f"itm_{n}", url=f"https://e.com/{n}", title=f"Article {n}")
+             for n in range(1, 6)]
+
+    class DiesMidListing(FakeClient):
+        def iter_items(self, **kwargs):
+            self.list_calls.append(kwargs)
+            for item in items[:2]:
+                yield dict(item)
+            raise RuntimeError("HTTP 500 after retries, on page 2")
+
+    with pytest.raises(RuntimeError):
+        run_sync(config_for(vault), client=DiesMidListing(items))
+
+    written = sorted(p.name for p in (vault / "matter").glob("*.md"))
+    assert len(written) == 2
+
+    state = SyncState.load(vault / ".matter_manifest.json")
+    assert state.get_item("itm_1")["path"], "the manifest knows about what reached disk"
+    assert state.get_item("itm_2")["path"]
+    assert state.watermark is None, "and the watermark did not advance"

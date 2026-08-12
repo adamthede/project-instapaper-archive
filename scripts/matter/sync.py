@@ -345,6 +345,21 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
     }
 
     orphans = OrphanIndex(target_dir)
+
+    # Whether a previous run has completed. In steady state an article showing
+    # up for the first time must have entered the archive since the last run --
+    # that is an OBSERVED transition, and its updated_at is at most one sync
+    # interval old. On a cold start everything is new and nothing was observed,
+    # so the dates fall back to whatever updated_at says. This is only sound
+    # because the run lists the whole archive: with --sync the listing is
+    # filtered by updated_since, so absence from an earlier run proves nothing.
+    steady_state = bool(state.items) and config.full
+    log.info(
+        "Read-date estimates: %s",
+        "observed transitions (a previous run has completed)" if steady_state
+        else "updated_at fallback (cold start, or --sync rather than --full)",
+    )
+
     pending_saves = 0
     truncated = False
     try:
@@ -352,7 +367,8 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
             result.seen += 1
 
             try:
-                outcome = _sync_one(item, config, state, url_index, client, owned_paths, orphans, result)
+                outcome = _sync_one(item, config, state, url_index, client, owned_paths,
+                                    orphans, result, steady_state=steady_state)
             except (MatterAuthError, MatterForbiddenError):
                 # The credential died mid-run. Every remaining item would fail
                 # the same way, so stop rather than logging thousands of
@@ -458,10 +474,12 @@ def _resolve_inside_vault(config, location: str) -> Path | None:
     return resolved
 
 
-def _record_reread(config, location: str, read_date: str, item_url) -> bool:
+def _record_reread(config, location: str, read_date: str, item_url) -> str:
     """Add a re-read date to an article the archive already holds.
 
-    Returns whether the file was actually changed.
+    Returns a reason string: "recorded" when the file changed, otherwise why
+    not. The reason goes into the manifest, so a refusal is diagnosable later
+    from the data rather than only from a log line nobody re-reads.
 
     This is the only write the sync makes to a file it did not create, so it is
     deliberately timid. It refuses unless it can locate the file *inside the
@@ -476,7 +494,7 @@ def _record_reread(config, location: str, read_date: str, item_url) -> bool:
             "Matter read an article the archive already has, but %s could not be located "
             "inside the vault, so the re-read was counted and not written to a file.", location,
         )
-        return False
+        return "not-in-vault"
 
     try:
         # Strict decoding, unlike the rest of the pipeline. build_index and the
@@ -490,10 +508,10 @@ def _record_reread(config, location: str, read_date: str, item_url) -> bool:
             "Not recording a re-read on %s: it is not valid UTF-8, and rewriting it would "
             "replace the undecodable bytes with substitution characters.", target,
         )
-        return False
+        return "encoding-damaged"
     except OSError as exc:
         log.warning("Could not read %s to record a re-read: %s", target, exc)
-        return False
+        return "unreadable"
 
     metadata, body, status = mapping.parse_document(text)
     if status != mapping.PARSE_OK:
@@ -501,7 +519,7 @@ def _record_reread(config, location: str, read_date: str, item_url) -> bool:
             "Not recording a re-read on %s: its frontmatter could not be read (%s). "
             "Touching it would risk the enrichment already in it.", target, status,
         )
-        return False
+        return "frontmatter-unparseable"
 
     # Confirm this really is the article Matter matched: a stale index entry can
     # name a path whose file has since been replaced by a different article.
@@ -511,11 +529,11 @@ def _record_reread(config, location: str, read_date: str, item_url) -> bool:
             "Not recording a re-read on %s: its original_url does not match the Matter item, "
             "so the index entry pointing here is stale.", target,
         )
-        return False
+        return "identity-mismatch"
 
     updated, changed = mapping.annotate_reread(metadata, read_date)
     if not changed:
-        return False
+        return "already-recorded"
 
     try:
         atomic_write_text(target, mapping.dump_markdown(updated, body))
@@ -524,11 +542,12 @@ def _record_reread(config, location: str, read_date: str, item_url) -> bool:
         # Turning it into an item error would pin the watermark over a cosmetic
         # addition to somebody else's file.
         log.warning("Could not write the re-read annotation to %s: %s", target, exc)
-        return False
-    return True
+        return "write-failed"
+    return "recorded"
 
 
-def _sync_one(item, config, state, url_index, client, owned_paths, orphans, result) -> str:
+def _sync_one(item, config, state, url_index, client, owned_paths, orphans, result,
+              steady_state: bool = False) -> str:
     matter_id = item.get("id")
     if not matter_id:
         raise ValueError("item has no id")
@@ -594,9 +613,11 @@ def _sync_one(item, config, state, url_index, client, owned_paths, orphans, resu
                 # very thing it is being run to find out.
                 result.reread_candidates += 1
 
+            reread_status = None
             recorded = False
             if reread_date and config.annotate_rereads and not config.dry_run:
-                recorded = _record_reread(config, duplicate_of, reread_date, item.get("url"))
+                reread_status = _record_reread(config, duplicate_of, reread_date, item.get("url"))
+                recorded = reread_status == "recorded"
                 if recorded:
                     result.rereads_recorded += 1
 
@@ -609,6 +630,7 @@ def _sync_one(item, config, state, url_index, client, owned_paths, orphans, resu
                     updated_at=updated_at,
                     reread_date=reread_date,
                     reread_recorded=recorded,
+                    reread_status=reread_status,
                     checked_at=to_iso(utcnow()),
                 )
             log.info("Already in the archive as %s%s", duplicate_of,
@@ -616,6 +638,9 @@ def _sync_one(item, config, state, url_index, client, owned_paths, orphans, resu
             return "duplicate"
 
     is_update = bool(existing_file and existing_file.exists())
+    # No manifest record + a run that has seen the whole archive before = this
+    # article entered the archive since the last run.
+    observed_transition = steady_state and not previous.get("date_saved")
 
     if config.dry_run:
         result.updated += 1 if is_update else 0
@@ -663,6 +688,7 @@ def _sync_one(item, config, state, url_index, client, owned_paths, orphans, resu
         previous=previous,
         existing_metadata=existing_metadata,
         existing_body=carried_body,
+        observed_transition=observed_transition,
     )
 
     if is_update:
