@@ -763,3 +763,115 @@ def test_re_read_candidates_are_counted_even_with_annotation_off(vault):
 
     assert result.reread_candidates == 1
     assert result.rereads_recorded == 0
+
+
+# ---- round-3: the annotation writes to a foreign file, so it is fenced ----
+
+def test_a_reread_never_writes_outside_the_vault(vault, tmp_path):
+    """The Parquet index stores ABSOLUTE paths from whenever it was last built.
+
+    A stale one can name a different vault, and `vault / "/abs/path"` collapses
+    to the absolute path in pathlib, so a naive join is no protection.
+    """
+    outsider = tmp_path / "somewhere-else" / "2019-04-01 – Same Article.md"
+    outsider.parent.mkdir(parents=True)
+    outsider.write_text(
+        '---\ntitle: "Same Article"\noriginal_url: "https://paulgraham.com/greatwork.html"\n---\n\nBody.\n',
+        encoding="utf-8",
+    )
+    before = outsider.read_text(encoding="utf-8")
+
+    class OutsideIndex(FakeClient):
+        pass
+
+    from matter.vaultindex import UrlIndex
+    import matter.sync as sync_module
+
+    real_build = sync_module.build_url_index
+    try:
+        sync_module.build_url_index = lambda *a, **k: UrlIndex(
+            {"https://paulgraham.com/greatwork.html": str(outsider)}, source="test",
+        )
+        result = run_sync(config_for(vault), client=OutsideIndex([make_item(status="archive")]))
+    finally:
+        sync_module.build_url_index = real_build
+
+    assert outsider.read_text(encoding="utf-8") == before, "a file outside the vault is untouchable"
+    assert result.duplicates == 1
+    assert result.rereads_recorded == 0
+
+
+def test_a_reread_refuses_a_file_that_is_not_valid_utf8(vault):
+    """Rewriting it would replace the undecodable bytes with substitutions.
+
+    build_index and the enrichment pass both read with errors="replace" because
+    they only produce derived data. This writes back, so it must not.
+    """
+    damaged = vault / "2019-04-01 – Damaged.md"
+    damaged.write_bytes(
+        b'---\ntitle: "Damaged"\noriginal_url: "https://paulgraham.com/greatwork.html"\n'
+        b"---\n\nBody with a bad byte: \xff\xfe and more.\n"
+    )
+    before = damaged.read_bytes()
+
+    result = run_sync(config_for(vault), client=FakeClient([make_item(status="archive")]))
+
+    assert damaged.read_bytes() == before, "not one byte changed"
+    assert result.duplicates == 1
+    assert result.rereads_recorded == 0
+    assert result.errors == 0
+
+
+def test_a_reread_checks_the_matched_file_is_really_that_article(vault):
+    """A stale index entry can name a path whose file is now a different article."""
+    impostor = write_instapaper_article(
+        vault, "https://example.com/a-completely-different-article",
+        filename="2019-04-01 – Same Article.md",
+    )
+    before = impostor.read_text(encoding="utf-8")
+
+    from matter.vaultindex import UrlIndex
+    import matter.sync as sync_module
+
+    real_build = sync_module.build_url_index
+    try:
+        # The index claims this path holds greatwork.html; the file disagrees.
+        sync_module.build_url_index = lambda *a, **k: UrlIndex(
+            {"https://paulgraham.com/greatwork.html": str(impostor)}, source="test",
+        )
+        result = run_sync(config_for(vault), client=FakeClient([make_item(status="archive")]))
+    finally:
+        sync_module.build_url_index = real_build
+
+    assert impostor.read_text(encoding="utf-8") == before
+    assert result.rereads_recorded == 0
+
+
+def test_an_annotation_write_failure_is_not_an_item_error(vault, monkeypatch):
+    """A lost note must not pin the watermark over somebody else's file."""
+    write_instapaper_article(vault, "https://paulgraham.com/greatwork.html")
+
+    import matter.sync as sync_module
+
+    def explode(*args, **kwargs):
+        raise OSError("read-only filesystem")
+
+    monkeypatch.setattr(sync_module, "atomic_write_text", explode)
+    # The manifest save uses state.save(), which has its own guard; this only
+    # affects the annotation path.
+    result = run_sync(config_for(vault), client=FakeClient([make_item(status="archive")]))
+
+    assert result.errors == 0, "an annotation failure is a lost note, not a failed sync"
+    assert result.rereads_recorded == 0
+    assert result.duplicates == 1
+
+
+def test_reread_dates_carry_their_provenance(vault):
+    """The same honesty date_saved_source gets: these are updated_at, not an
+    observed reading timestamp."""
+    original = write_instapaper_article(vault, "https://paulgraham.com/greatwork.html")
+
+    run_sync(config_for(vault), client=FakeClient([make_item(status="archive")]))
+
+    after, _ = mapping.parse_markdown(original.read_text(encoding="utf-8"))
+    assert "updated_at" in after["matter_reread_source"]

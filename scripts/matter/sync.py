@@ -429,35 +429,87 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
     return result
 
 
-def _record_reread(config, location: str, read_date: str) -> bool:
+def _resolve_inside_vault(config, location: str) -> Path | None:
+    """Resolve a match location to a real file INSIDE the vault, or None.
+
+    `location` comes from the Parquet index's `file_path` column, which holds
+    absolute paths recorded whenever that index was last built. They can be
+    stale and they can name a different vault entirely -- and note that
+    `vault / "/abs/path"` collapses to the absolute path in pathlib, so a naive
+    join is no protection at all. Containment is therefore checked explicitly:
+    this is the gate on the only writes the sync makes outside its own
+    directory.
+    """
+    raw = Path(location)
+    candidate = raw if raw.is_absolute() else config.vault_path / raw
+    try:
+        resolved = candidate.resolve()
+        vault = config.vault_path.resolve()
+    except OSError:
+        return None
+    if not resolved.is_file():
+        return None
+    if not resolved.is_relative_to(vault):
+        log.warning(
+            "Refusing to record a re-read on %s: it is outside the vault %s. That path came "
+            "from the Parquet index and is probably stale.", resolved, vault,
+        )
+        return None
+    return resolved
+
+
+def _record_reread(config, location: str, read_date: str, item_url) -> bool:
     """Add a re-read date to an article the archive already holds.
 
     Returns whether the file was actually changed.
 
-    This writes to a file the sync did not create, so it is deliberately timid:
-    it refuses unless it can locate the file, parse its frontmatter cleanly, and
-    add keys without touching anything already there. Any doubt and it declines
-    and says so -- the re-read is still counted and recorded in the manifest, so
-    nothing is lost except the annotation.
+    This is the only write the sync makes to a file it did not create, so it is
+    deliberately timid. It refuses unless it can locate the file *inside the
+    vault*, decode it without loss, confirm it really is the article in
+    question, and parse its frontmatter cleanly. Any doubt and it declines and
+    says so -- the re-read is still counted and recorded in the manifest, so the
+    only thing lost is the annotation.
     """
-    candidates = [Path(location), config.vault_path / location]
-    target = next((c for c in candidates if c.is_file()), None)
+    target = _resolve_inside_vault(config, location)
     if target is None:
         log.warning(
-            "Matter read an article the archive already has, but %s could not be located, "
-            "so the re-read was counted and not written to the file.", location,
+            "Matter read an article the archive already has, but %s could not be located "
+            "inside the vault, so the re-read was counted and not written to a file.", location,
         )
         return False
 
     try:
-        metadata, body, status = _load_existing(target)
-    except MatterError as exc:
+        # Strict decoding, unlike the rest of the pipeline. build_index and the
+        # enrichment pass read with errors="replace" because they only produce
+        # derived data; here the replaced text would be written back and
+        # whatever those bytes were would be gone. The corpus is known to hold
+        # damaged files -- there are two cleanup scripts for them.
+        text = target.read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError:
+        log.warning(
+            "Not recording a re-read on %s: it is not valid UTF-8, and rewriting it would "
+            "replace the undecodable bytes with substitution characters.", target,
+        )
+        return False
+    except OSError as exc:
         log.warning("Could not read %s to record a re-read: %s", target, exc)
         return False
+
+    metadata, body, status = mapping.parse_document(text)
     if status != mapping.PARSE_OK:
         log.warning(
-            "Not recording a re-read on %s: its frontmatter could not be parsed (%s). "
+            "Not recording a re-read on %s: its frontmatter could not be read (%s). "
             "Touching it would risk the enrichment already in it.", target, status,
+        )
+        return False
+
+    # Confirm this really is the article Matter matched: a stale index entry can
+    # name a path whose file has since been replaced by a different article.
+    from .normalize import normalize_url
+    if normalize_url(metadata.get("original_url")) != normalize_url(item_url):
+        log.warning(
+            "Not recording a re-read on %s: its original_url does not match the Matter item, "
+            "so the index entry pointing here is stale.", target,
         )
         return False
 
@@ -465,7 +517,14 @@ def _record_reread(config, location: str, read_date: str) -> bool:
     if not changed:
         return False
 
-    atomic_write_text(target, mapping.dump_markdown(updated, body))
+    try:
+        atomic_write_text(target, mapping.dump_markdown(updated, body))
+    except OSError as exc:
+        # Never raises: a failed annotation is a lost note, not a failed sync.
+        # Turning it into an item error would pin the watermark over a cosmetic
+        # addition to somebody else's file.
+        log.warning("Could not write the re-read annotation to %s: %s", target, exc)
+        return False
     return True
 
 
@@ -537,7 +596,7 @@ def _sync_one(item, config, state, url_index, client, owned_paths, orphans, resu
 
             recorded = False
             if reread_date and config.annotate_rereads and not config.dry_run:
-                recorded = _record_reread(config, duplicate_of, reread_date)
+                recorded = _record_reread(config, duplicate_of, reread_date, item.get("url"))
                 if recorded:
                     result.rereads_recorded += 1
 

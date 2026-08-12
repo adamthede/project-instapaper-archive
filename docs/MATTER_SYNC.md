@@ -159,8 +159,8 @@ python3 scripts/core/export_matter_to_archive.py --dry-run
 |---|---|
 | `--check-auth` | Verify the token, print the account and its rate limits. Two API calls, no writes. |
 | `--dry-run` | Verify auth, then report what would be created, updated, or skipped. Writes nothing at all - not even the URL-index cache. |
-| `--sync` | Incremental pull since the last watermark. The default, and what the nightly job runs. |
-| `--full` | Ignore the watermark and walk the whole library. For the first backfill. |
+| `--sync` | Incremental pull since the last watermark, using `updated_since`. |
+| `--full` | Walk the whole library, ignoring the watermark. What the nightly job runs, and the first backfill - see [Nightly](#nightly). |
 | `--max-items N` | Stop after N items have been *written, updated, or skipped as duplicates* — unchanged items do not count, so each run makes real progress. The watermark does not advance, so the next run resumes. |
 | `--rebuild-index` | Run `build_index.py` afterwards so the dashboard sees the new articles. |
 | `--refetch-content` | Re-download article bodies for items already on disk. |
@@ -201,6 +201,20 @@ python3 scripts/core/build_index.py
 ```
 
 ### Nightly
+
+The nightly job runs `--full`, not `--sync`, on purpose. Incremental mode
+filters on `updated_since`, so it only sees a newly-read article if Matter bumps
+`updated_at` when an item moves queue -> archive. The spec says it does -
+`status` is the first thing named in `updated_at`'s description - but if that
+were ever wrong the failure would be silent and permanent: the article would
+never appear, with no error and no count. A full run does not depend on it,
+because a newly archived article has no manifest entry and is written whatever
+its timestamp says.
+
+That costs almost nothing. Measured against the real library with everything
+already synced: **14 API requests, 4.9 seconds** - unchanged items are skipped
+without a single per-item call. `--sync` is there for a library large enough
+that listing it starts to matter.
 
 Install the launchd job (04:45 daily):
 
@@ -345,8 +359,28 @@ match, in every case:
 | Exact raw-URL match | Treated identically to a normalized match - the distinction only matters for measuring, not behaviour. |
 | Drifted URL match (`http`/`https`, `www.`, trailing slash, `utm_*`) | Treated as a match. Ambiguous parameters like `ref` and `source` are *not* stripped, so those stay distinct. |
 | Matched file's frontmatter will not parse | Counted and logged, file untouched. Not an error. |
-| Matched file cannot be located on disk | Counted and logged, nothing written. |
+| Matched file is not inside the vault | Counted and logged, nothing written. |
+| Matched file is not valid UTF-8 | Counted and logged, nothing written. |
+| Matched file's `original_url` disagrees with the item | Counted and logged, nothing written; the index entry is stale. |
+| The write itself fails | Counted and logged. Never an error - a lost note must not pin the watermark. |
 | Dry run | Counted, never written. |
+
+Three fences guard that write, because it is the only one the sync makes to a
+file it did not create:
+
+- **Containment.** The match location comes from the Parquet index's
+  `file_path` column, which holds absolute paths recorded whenever that index
+  was last built. A stale one can name a different vault - and `vault /
+  "/abs/path"` collapses to the absolute path in pathlib, so a naive join is no
+  protection. The resolved path must sit inside the vault or nothing is written.
+- **Strict decoding.** `build_index.py` and the enrichment pass both read with
+  `errors="replace"` because they only produce derived data. This writes back,
+  so a substituted character would permanently destroy whatever those bytes
+  were - and the corpus is known to contain damaged files. Undecodable file, no
+  write.
+- **Identity.** The matched file's `original_url` must normalize to the same URL
+  as the Matter item. A stale index entry can name a path whose file has since
+  been replaced by a different article.
 
 **Known limitation: only cross-era re-reads are recorded.** If Adam re-reads a
 *Matter-era* article — one this sync itself wrote — by moving it back to the

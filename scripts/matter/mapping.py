@@ -43,6 +43,12 @@ DATE_SOURCE_STICKY = "original - first matter sync"
 # historical record and a re-read does not revise it.
 REREAD_DATES_KEY = "matter_reread_at"
 REREAD_COUNT_KEY = "matter_reread_count"
+REREAD_SOURCE_KEY = "matter_reread_source"
+# The same honesty `date_saved_source` carries: these dates are Matter's
+# `updated_at` at the moment it reported the article archived, not an observed
+# reading timestamp. Nightly syncing keeps them within a day of the truth;
+# backfilled ones can be considerably later than the read they stand for.
+REREAD_SOURCE = "matter updated_at when observed archived"
 
 _ILLEGAL_FILENAME_CHARS = r'<>:"/\|?*'
 _FRONTMATTER_FENCE = "---"
@@ -263,6 +269,7 @@ def annotate_reread(metadata: dict, read_date: str) -> tuple[dict, bool]:
     updated = dict(metadata)
     updated[REREAD_DATES_KEY] = sorted(dates + [read_date])
     updated[REREAD_COUNT_KEY] = len(updated[REREAD_DATES_KEY])
+    updated[REREAD_SOURCE_KEY] = REREAD_SOURCE
     return updated, True
 
 
