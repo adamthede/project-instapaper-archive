@@ -137,11 +137,27 @@ run_mutation "highlight preferred even when it is NEWER" "$M" \
   "tests/test_mapping.py::test_a_highlight_later_than_updated_at_is_ignored_as_noise"
 
 run_mutation "observed transitions claimed on a cold start" "$S" \
-  '    steady_state = bool(state.items) and config.full' '    steady_state = True' \
+  '    steady_state = bool(state.full_listing_completed_at) and config.full' '    steady_state = True' \
   "$T::test_a_first_run_admits_its_dates_are_a_fallback"
 
+run_mutation "a non-empty manifest treated as a completed listing" "$S" \
+  '    steady_state = bool(state.full_listing_completed_at) and config.full' \
+  '    steady_state = bool(state.items) and config.full' \
+  "$T::test_a_chunked_backfill_never_claims_to_have_witnessed_a_transition"
+
+run_mutation "a run with errors still licenses the claim" "$S" \
+  '        if config.full:
+            # The whole archive was listed and every item handled, so from here
+            # on a first-time appearance is a witnessed transition.
+            state.full_listing_completed_at = to_iso(checkpoint)' \
+  '        pass
+    if True:
+        if config.full:
+            state.full_listing_completed_at = to_iso(checkpoint)' \
+  "$T::test_a_run_with_errors_does_not_license_the_claim"
+
 run_mutation "observed transitions claimed in --sync mode" "$S" \
-  '    steady_state = bool(state.items) and config.full' '    steady_state = bool(state.items)' \
+  '    steady_state = bool(state.full_listing_completed_at) and config.full' '    steady_state = bool(state.full_listing_completed_at)' \
   "$T::test_sync_mode_does_not_claim_to_have_observed_anything"
 
 run_mutation "a later estimate rewrites a recorded date" "$M" \

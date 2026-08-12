@@ -1019,3 +1019,65 @@ def test_an_exception_escaping_the_loop_still_saves_what_was_written(vault):
     assert state.get_item("itm_1")["path"], "the manifest knows about what reached disk"
     assert state.get_item("itm_2")["path"]
     assert state.watermark is None, "and the watermark did not advance"
+
+
+def test_a_chunked_backfill_never_claims_to_have_witnessed_a_transition(vault):
+    """The documented backfill is `--full --max-items 200`, repeated.
+
+    That leaves the manifest full of items while most of the library has never
+    been listed. Treating a non-empty manifest as proof of a completed listing
+    labelled every not-yet-reached article as a transition nobody witnessed --
+    4 of 6 in the original repro, and it would have been roughly 1,030 of 1,230
+    on the real library.
+    """
+    items = [make_item(item_id=f"itm_{n}", url=f"https://e.com/{n}", title=f"A{n}",
+                       updated_at="2022-08-15T10:00:00Z") for n in range(6)]
+
+    for _ in range(3):
+        run_sync(config_for(vault, full=True, max_items=2), client=FakeClient(items))
+
+    sources = [
+        mapping.parse_markdown(f.read_text(encoding="utf-8"))[0]["date_saved_source"]
+        for f in (vault / "matter").glob("*.md")
+    ]
+    assert len(sources) == 6
+    assert all(s.startswith("fallback") for s in sources), \
+        "an article the run had not reached yet was never observed entering the archive"
+
+
+def test_a_completed_full_run_is_what_licenses_the_claim(vault):
+    """And once one has completed, genuinely new articles are labelled honestly."""
+    old = [make_item(item_id=f"itm_{n}", url=f"https://e.com/{n}", title=f"A{n}",
+                     updated_at="2022-08-15T10:00:00Z") for n in range(3)]
+    run_sync(config_for(vault, full=True), client=FakeClient(old))
+
+    state = SyncState.load(vault / ".matter_manifest.json")
+    assert state.full_listing_completed_at, "a clean full run records that it listed everything"
+
+    fresh = make_item(item_id="itm_new", url="https://e.com/new", title="Newly read",
+                      updated_at="2026-08-11T06:00:00Z")
+    run_sync(config_for(vault, full=True), client=FakeClient(old + [fresh]))
+
+    metadata, _ = mapping.parse_markdown(
+        (vault / "matter" / "2026-08-11 – Newly read.md").read_text(encoding="utf-8"))
+    assert metadata["date_saved_source"] == mapping.DATE_SOURCE_OBSERVED
+
+    # And the backfilled ones keep their honest fallback labels.
+    for n in range(3):
+        older, _ = mapping.parse_markdown(
+            (vault / "matter" / f"2022-08-15 – A{n}.md").read_text(encoding="utf-8"))
+        assert older["date_saved_source"].startswith("fallback")
+
+
+def test_a_run_with_errors_does_not_license_the_claim(vault):
+    """A run that failed on an item did not cleanly list everything either."""
+    class OneBadItem(FakeClient):
+        def iter_annotations(self, item_id, *, page_size=100):
+            if item_id == "itm_1":
+                raise RuntimeError("boom")
+            return super().iter_annotations(item_id, page_size=page_size)
+
+    items = [make_item(item_id=f"itm_{n}", url=f"https://e.com/{n}") for n in range(3)]
+    run_sync(config_for(vault, full=True), client=OneBadItem(items))
+
+    assert SyncState.load(vault / ".matter_manifest.json").full_listing_completed_at is None

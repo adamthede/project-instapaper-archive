@@ -346,14 +346,20 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
 
     orphans = OrphanIndex(target_dir)
 
-    # Whether a previous run has completed. In steady state an article showing
-    # up for the first time must have entered the archive since the last run --
-    # that is an OBSERVED transition, and its updated_at is at most one sync
-    # interval old. On a cold start everything is new and nothing was observed,
-    # so the dates fall back to whatever updated_at says. This is only sound
-    # because the run lists the whole archive: with --sync the listing is
-    # filtered by updated_since, so absence from an earlier run proves nothing.
-    steady_state = bool(state.items) and config.full
+    # Whether a previous run has listed the WHOLE archive. Only then does an
+    # article appearing for the first time prove it entered the archive since --
+    # an OBSERVED transition, whose updated_at is at most one sync interval old.
+    #
+    # The test is a completed full listing, not merely a non-empty manifest. A
+    # chunked backfill (--full --max-items 200) leaves the manifest full of items
+    # while most of the library has never been listed, and every article the run
+    # had not reached yet would then be labelled a transition nobody witnessed.
+    # Verified: under the old test, 4 of 6 articles archived years earlier
+    # claimed observed-transition on the second chunk.
+    #
+    # It also requires --full for this run: --sync filters the listing by
+    # updated_since, so absence from those results proves nothing at all.
+    steady_state = bool(state.full_listing_completed_at) and config.full
     log.info(
         "Read-date estimates: %s",
         "observed transitions (a previous run has completed)" if steady_state
@@ -427,6 +433,10 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
     if result.errors == 0 and not truncated and not config.dry_run:
         state.advance_watermark(checkpoint)
         result.watermark_after = state.watermark
+        if config.full:
+            # The whole archive was listed and every item handled, so from here
+            # on a first-time appearance is a witnessed transition.
+            state.full_listing_completed_at = to_iso(checkpoint)
     elif result.errors:
         log.warning(
             "%s item(s) failed, so the watermark stays at %s -- next run re-reads this window.",

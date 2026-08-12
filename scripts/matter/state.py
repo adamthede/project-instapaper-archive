@@ -114,6 +114,14 @@ class SyncState:
         self.watermark: str | None = data.get("watermark")
         self.last_run: dict = data.get("last_run") or {}
         self.items: dict[str, dict] = data.get("items") or {}
+        # When a --full run last listed the ENTIRE archive without truncating or
+        # erroring. This is what licenses the claim that an article appearing for
+        # the first time must have entered the archive since. A manifest merely
+        # HAVING items does not license it: the documented chunked backfill
+        # (--full --max-items 200) leaves one in exactly that state having never
+        # reached most of the library, and every unreached article would then be
+        # labelled as a transition the sync never witnessed.
+        self.full_listing_completed_at: str | None = data.get("full_listing_completed_at")
 
     # ---- persistence ------------------------------------------------------
 
@@ -144,6 +152,7 @@ class SyncState:
         payload = {
             "version": SCHEMA_VERSION,
             "watermark": self.watermark,
+            "full_listing_completed_at": self.full_listing_completed_at,
             "last_run": self.last_run,
             "items": self.items,
         }

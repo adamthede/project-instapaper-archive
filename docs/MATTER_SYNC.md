@@ -300,7 +300,7 @@ descending order of confidence:
 
 | Source | Meaning | Accuracy |
 |---|---|---|
-| `observed-transition` | The sync watched the article appear in the archive between two runs. | Within one sync interval - a day, nightly. |
+| `observed-transition` | The sync watched the article appear in the archive between two runs. Claimed only once a `--full` run has listed the *entire* archive cleanly - a chunked backfill leaves the manifest full of items while most of the library has never been listed, and every unreached article would otherwise be labelled a transition nobody witnessed. | Within one sync interval - a day, nightly. |
 | `highlight-derived` | Already archived when first seen, but carries highlights, and the newest one is more than a day older than `updated_at`. Highlights are made *while reading*, so that gap is a later touch dragging `updated_at` forward. | As good as the highlight. |
 | `fallback` | Neither applies. `updated_at` is a last-modified date. | Right for recent reads, potentially well late for old ones. |
 
