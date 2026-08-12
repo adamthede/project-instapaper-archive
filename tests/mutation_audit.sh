@@ -148,6 +148,21 @@ run_mutation "the whole steady-state gate removed" "$S" \
   '    steady_state = config.full' \
   "$T::test_a_first_run_admits_its_dates_are_a_fallback"
 
+# Same anchor as the gate-removal mutation above, aimed at a different
+# guarantee: a false observed claim does not merely mislabel, it returns before
+# best_read_date ever consults annotations, so the DATE degrades too.
+run_mutation "false observed claim suppresses the highlight date" "$S" \
+  '    steady_state = (
+        config.full
+        and bool(state.full_listing_completed_at)
+        # Every status being pulled now must have been covered by that listing,
+        # or an article "appearing for the first time" may simply never have
+        # been asked for before.
+        and _statuses(config.status) <= _statuses(state.full_listing_status)
+    )' \
+  '    steady_state = bool(state.items) and config.full' \
+  "$T::test_a_chunked_backfill_still_gets_highlight_derived_dates"
+
 run_mutation "a truncated run records a completed listing" "$S" \
   '            state.full_listing_completed_at = to_iso(checkpoint)
             state.full_listing_status = config.status' \

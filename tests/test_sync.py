@@ -1134,3 +1134,56 @@ def test_an_already_recorded_reread_is_not_re_read_from_disk_every_night(vault):
     assert original.stat().st_mtime_ns == mtime_before, "the file was not rewritten"
     record = SyncState.load(vault / ".matter_manifest.json").get_item("itm_abc123")
     assert record["reread_status"] == "already-recorded", "the manifest short-circuit ran, not a file read"
+
+
+def test_a_chunked_backfill_still_gets_highlight_derived_dates(vault):
+    """The suppression path, which is why the false label mattered beyond honesty.
+
+    `best_read_date` returns on `observed_transition` BEFORE it looks at
+    annotations. So an article wrongly labelled as a witnessed transition also
+    loses its highlight-derived date -- the mislabel degraded the date itself,
+    not just the provenance field. This proves the fix closes both.
+    """
+    items = [
+        make_item(item_id=f"itm_{n}", url=f"https://e.com/{n}", title=f"A{n}",
+                  status="archive", updated_at="2026-08-01T10:00:00Z")
+        for n in range(4)
+    ]
+    # Every one carries a highlight from long before its updated_at.
+    annotations = {
+        f"itm_{n}": [make_annotation(item_id=f"itm_{n}", created_at="2025-01-15T09:00:00Z")]
+        for n in range(4)
+    }
+
+    for _ in range(2):
+        run_sync(config_for(vault, full=True, max_items=2),
+                 client=FakeClient(items, annotations=annotations))
+
+    written = sorted((vault / "matter").glob("*.md"))
+    assert len(written) == 4
+
+    for path in written:
+        metadata, _ = mapping.parse_markdown(path.read_text(encoding="utf-8"))
+        assert metadata["date_saved_source"] == mapping.DATE_SOURCE_HIGHLIGHT, \
+            "a backfilled article with highlights must keep its highlight-derived date"
+        assert metadata["date_saved"] == "2025-01-15"
+        assert metadata["date_archived"] == "2025-01-15"
+
+
+def test_an_observed_transition_still_wins_when_it_is_genuine(vault):
+    """The other half: a real transition is not sacrificed to fix the false ones."""
+    seed = make_item(item_id="itm_seed", url="https://e.com/seed", status="archive")
+    run_sync(config_for(vault, full=True), client=FakeClient([seed]))
+
+    fresh = make_item(item_id="itm_new", url="https://e.com/new", title="Newly read",
+                      status="archive", updated_at="2026-08-11T06:00:00Z")
+    run_sync(config_for(vault, full=True), client=FakeClient(
+        [seed, fresh],
+        annotations={"itm_new": [make_annotation(item_id="itm_new",
+                                                 created_at="2025-01-15T09:00:00Z")]},
+    ))
+
+    metadata, _ = mapping.parse_markdown(
+        (vault / "matter" / "2026-08-11 – Newly read.md").read_text(encoding="utf-8"))
+    assert metadata["date_saved_source"] == mapping.DATE_SOURCE_OBSERVED, \
+        "watching it happen beats inferring from an old highlight"

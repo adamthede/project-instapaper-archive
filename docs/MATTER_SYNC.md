@@ -216,6 +216,30 @@ already synced: **14 API requests, 4.9 seconds** - unchanged items are skipped
 without a single per-item call. `--sync` is there for a library large enough
 that listing it starts to matter.
 
+### Two consequences of running `--full` nightly
+
+**The vault heals itself, which is the point.** Delete a Matter article from the
+vault and the next run writes it back, with its original sticky dates -- the
+file is a projection of what Matter says, and a nightly full listing means the
+projection repairs itself. For a memory system that is the right default: an
+accidental deletion, a bad sync, a half-restored backup all converge back on the
+truth rather than silently losing an article.
+
+The cost is that **deleting from the vault is no longer a way to remove
+something from the archive.** To remove an article, unarchive or delete it in
+Matter and it stops being listed. If Adam ever wants a piece of his own archive
+gone regardless of what Matter holds, this needs a tombstone -- a recorded
+"deliberately removed" marker the sync honours instead of healing over. That is
+real debt, named here rather than discovered later; it is the same shape as a
+kill-list, and nothing in the current design blocks adding one.
+
+**Matched articles are not re-opened every night.** Each of the 998 cross-era
+matches would otherwise be read and parsed nightly just to rediscover that its
+re-read was already recorded -- on an external drive, for nothing. The manifest
+records the re-read date, so a repeat is a dictionary lookup and the file is
+never touched. `already-recorded` in the manifest means the short-circuit ran;
+`already-in-file` means the file had to be opened to find out.
+
 Install the launchd job (04:45 daily):
 
 ```bash
@@ -584,6 +608,28 @@ and the size as indicative.
 
 Both effects apply only to the backfill. Everything synced from the day the
 nightly job starts carries `observed-transition` dates instead.
+
+### What the first backfill will actually produce
+
+Measured against the live library with the corrected semantics:
+
+| | |
+|---|---|
+| Matter library | 1,751 items |
+| Archive-qualifying (read) | **1,230** |
+| Queue excluded (unread) | **521** |
+| Already in the archive | **998** - recorded as re-reads, no new file |
+| New files written | **232** |
+| Provenance of those 232 | **100% `fallback`** |
+
+That last row is the honest headline. A first backfill is a cold start: no
+completed listing has happened yet, so nothing can be an observed transition,
+and the library carries no highlights, so nothing can be highlight-derived.
+Every date in the backfill is an `updated_at` approximation and says so.
+
+`observed-transition` starts paying from the second nightly run onward, for
+articles read after that point - which is the sense in which the archive gets
+more accurate from the day this starts rather than the day it was built.
 
 ### Still unverified
 
