@@ -1081,3 +1081,56 @@ def test_a_run_with_errors_does_not_license_the_claim(vault):
     run_sync(config_for(vault, full=True), client=OneBadItem(items))
 
     assert SyncState.load(vault / ".matter_manifest.json").full_listing_completed_at is None
+
+
+def test_a_queued_item_is_never_labelled_as_having_entered_the_archive(vault):
+    """Under --status archive,queue a new queue item is also appearing for the
+    first time -- but it has not been read, and saying it was witnessed
+    entering the archive is exactly the lie the field exists to prevent."""
+    seed = make_item(item_id="itm_seed", url="https://e.com/seed", status="archive")
+    run_sync(config_for(vault, full=True, status="archive,queue"), client=FakeClient([seed]))
+
+    queued = make_item(item_id="itm_q", url="https://e.com/q", title="Never read",
+                       status="queue", updated_at="2026-08-11T06:00:00Z")
+    run_sync(config_for(vault, full=True, status="archive,queue"),
+             client=FakeClient([seed, queued]))
+
+    metadata, _ = mapping.parse_markdown(
+        (vault / "matter" / "2026-08-11 – Never read.md").read_text(encoding="utf-8"))
+    assert metadata["date_saved_source"].startswith("fallback")
+    assert "date_archived" not in metadata
+
+
+def test_a_queue_only_listing_does_not_license_claims_about_the_archive(vault):
+    """A completed --status queue run says nothing about what is in the archive."""
+    run_sync(config_for(vault, full=True, status="queue"),
+             client=FakeClient([make_item(item_id="itm_q", url="https://e.com/q", status="queue")]))
+
+    state = SyncState.load(vault / ".matter_manifest.json")
+    assert state.full_listing_completed_at and state.full_listing_status == "queue"
+
+    archived = make_item(item_id="itm_a", url="https://e.com/a", title="Long archived",
+                         status="archive", updated_at="2022-08-15T10:00:00Z")
+    run_sync(config_for(vault, full=True), client=FakeClient([archived]))
+
+    metadata, _ = mapping.parse_markdown(
+        (vault / "matter" / "2022-08-15 – Long archived.md").read_text(encoding="utf-8"))
+    assert metadata["date_saved_source"].startswith("fallback"), \
+        "the archive was never listed before, so nothing about it was witnessed"
+
+
+def test_an_already_recorded_reread_is_not_re_read_from_disk_every_night(vault):
+    """998 matched files on an external drive, opened nightly to learn nothing."""
+    original = write_instapaper_article(vault, "https://paulgraham.com/greatwork.html")
+    item = make_item(status="archive", updated_at="2026-05-12T09:00:00Z")
+
+    first = run_sync(config_for(vault, full=True), client=FakeClient([item]))
+    assert first.rereads_recorded == 1
+
+    mtime_before = original.stat().st_mtime_ns
+    second = run_sync(config_for(vault, full=True), client=FakeClient([item]))
+
+    assert second.rereads_recorded == 0
+    assert original.stat().st_mtime_ns == mtime_before, "the file was not rewritten"
+    record = SyncState.load(vault / ".matter_manifest.json").get_item("itm_abc123")
+    assert record["reread_status"] == "already-recorded", "the manifest short-circuit ran, not a file read"

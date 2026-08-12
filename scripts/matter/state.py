@@ -122,6 +122,10 @@ class SyncState:
         # reached most of the library, and every unreached article would then be
         # labelled as a transition the sync never witnessed.
         self.full_listing_completed_at: str | None = data.get("full_listing_completed_at")
+        # And WHICH statuses that listing covered. A completed `--status queue`
+        # run says nothing about the archive, so it must not license
+        # observed-transition claims for archived articles it never listed.
+        self.full_listing_status: str | None = data.get("full_listing_status")
 
     # ---- persistence ------------------------------------------------------
 
@@ -153,6 +157,7 @@ class SyncState:
             "version": SCHEMA_VERSION,
             "watermark": self.watermark,
             "full_listing_completed_at": self.full_listing_completed_at,
+            "full_listing_status": self.full_listing_status,
             "last_run": self.last_run,
             "items": self.items,
         }

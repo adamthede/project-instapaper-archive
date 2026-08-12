@@ -558,27 +558,31 @@ a large share of items would share one narrow window. They do not: across the
 1,230 archived items the busiest single month holds 8.5% and the busiest single
 *day* 2.5%, spread over 44 months and 468 distinct days.
 
-**A modest recency skew, measured.** `/v1/reading_sessions` returns 1,257 dated
-sessions - it carries no item link, so it cannot date individual articles, but
-it is an independent record of *when Adam was reading*. Comparing the two
-distributions by year:
+**A recency skew, directionally clear and deliberately not over-quantified.**
+`/v1/reading_sessions` returns 1,257 dated sessions. It carries no item link, so
+it cannot date individual articles, but it is an independent record of *when*
+Adam was reading. The two feeds only overlap from 2024 on - the session feed has
+no coverage before that, while 29% of archived items carry `updated_at` dates
+from 2022-2023 - so they can only be compared inside that shared window:
 
-| Year | items by `updated_at` | independent reading sessions |
-|---|---|---|
-| 2022 | 11.8% | 0.0% |
-| 2023 | 17.2% | 0.0% |
-| 2024 | 15.7% | 30.5% |
-| 2025 | 24.6% | 51.9% |
-| 2026 | 30.7% | 17.6% |
+| Year | share of item `updated_at` | share of reading sessions | difference |
+|---|---|---|---|
+| 2024 | 22.1% | 30.5% | -8.4 |
+| 2025 | 34.7% | 51.9% | -17.2 |
+| 2026 | 43.2% | 17.6% | **+25.6** |
 
-The item dates reach back further than the session feed does, which is what you
-want to see - `updated_at` has preserved genuinely old activity rather than
-being reset. But 2026 holds 30.7% of items against 17.6% of sessions, so
-roughly a 13-point excess has been dragged into the current year by later
-touches. That is the distortion, quantified: real, modest, and confined to
-pulling old reads forward rather than scattering them.
+Item dates pile into the current year at more than twice the rate the
+independent reading record does, and 2025 is correspondingly thin. That is the
+signature of later touches dragging `updated_at` forward off older reads, which
+is what the fallback source has always claimed about itself.
 
-Both effects only apply to the backfill. Everything synced from the day the
+The magnitude is *not* a clean percentage, and an earlier draft of this document
+overstated it as a single figure. A reading session is not an article, the two
+series have different denominators, and the comparison is blind to the 29% of
+the archive the session feed never covered. Treat the direction as established
+and the size as indicative.
+
+Both effects apply only to the backfill. Everything synced from the day the
 nightly job starts carries `observed-transition` dates instead.
 
 ### Still unverified

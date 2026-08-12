@@ -359,7 +359,17 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
     #
     # It also requires --full for this run: --sync filters the listing by
     # updated_since, so absence from those results proves nothing at all.
-    steady_state = bool(state.full_listing_completed_at) and config.full
+    def _statuses(spec):
+        return {s.strip() for s in (spec or "").split(",") if s.strip()}
+
+    steady_state = (
+        config.full
+        and bool(state.full_listing_completed_at)
+        # Every status being pulled now must have been covered by that listing,
+        # or an article "appearing for the first time" may simply never have
+        # been asked for before.
+        and _statuses(config.status) <= _statuses(state.full_listing_status)
+    )
     log.info(
         "Read-date estimates: %s",
         "observed transitions (a previous run has completed)" if steady_state
@@ -435,8 +445,10 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
         result.watermark_after = state.watermark
         if config.full:
             # The whole archive was listed and every item handled, so from here
-            # on a first-time appearance is a witnessed transition.
+            # on a first-time appearance is a witnessed transition -- for these
+            # statuses, which is why the set is recorded alongside the time.
             state.full_listing_completed_at = to_iso(checkpoint)
+            state.full_listing_status = config.status
     elif result.errors:
         log.warning(
             "%s item(s) failed, so the watermark stays at %s -- next run re-reads this window.",
@@ -543,7 +555,10 @@ def _record_reread(config, location: str, read_date: str, item_url) -> str:
 
     updated, changed = mapping.annotate_reread(metadata, read_date)
     if not changed:
-        return "already-recorded"
+        # Distinct from the manifest's "already-recorded": reaching here means
+        # the file had to be opened to find that out, which is the cost the
+        # manifest short-circuit exists to avoid.
+        return "already-in-file"
 
     try:
         atomic_write_text(target, mapping.dump_markdown(updated, body))
@@ -625,7 +640,14 @@ def _sync_one(item, config, state, url_index, client, owned_paths, orphans, resu
 
             reread_status = None
             recorded = False
-            if reread_date and config.annotate_rereads and not config.dry_run:
+            # Already annotated with this exact date on an earlier run. Skipping
+            # here is what keeps a nightly --full from opening ~998 files on an
+            # external drive to discover there is nothing to add.
+            already = (previous.get("reread_date") == reread_date
+                       and previous.get("reread_recorded"))
+            if already:
+                reread_status = "already-recorded"
+            elif reread_date and config.annotate_rereads and not config.dry_run:
                 reread_status = _record_reread(config, duplicate_of, reread_date, item.get("url"))
                 recorded = reread_status == "recorded"
                 if recorded:

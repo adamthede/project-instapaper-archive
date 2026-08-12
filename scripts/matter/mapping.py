@@ -209,7 +209,11 @@ def best_read_date(item: dict, annotations: list[dict] | None = None,
     updated = parse_timestamp(item.get("updated_at"))
     updated_date = updated.date().isoformat() if updated else None
 
-    if observed_transition:
+    # Only an archived item can have been *seen entering the archive*. Under
+    # --status archive,queue a brand-new queue item is also appearing for the
+    # first time, but it has not been read, and labelling it as a witnessed
+    # read would be exactly the lie this field exists to prevent.
+    if observed_transition and item.get("status") == "archive":
         return updated_date, DATE_SOURCE_OBSERVED
 
     newest = None

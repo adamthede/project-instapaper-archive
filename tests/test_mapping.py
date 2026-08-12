@@ -284,3 +284,26 @@ def test_a_better_estimate_arriving_later_does_not_rewrite_history():
     assert metadata["date_saved"] == "2026-01-05"
     assert metadata["date_archived"] == "2026-01-05"
     assert metadata["date_saved_source"] == mapping.DATE_SOURCE_UPDATED_AT
+
+
+def test_annotate_reread_is_idempotent_on_its_own():
+    """Directly, not through the sync.
+
+    The manifest short-circuit now skips this function entirely on a repeat, so
+    an end-to-end test passes whether or not the function itself is idempotent.
+    This is the guard for the function's own contract.
+    """
+    first, changed = mapping.annotate_reread({"title": "x"}, "2026-05-12")
+    assert changed and first[mapping.REREAD_DATES_KEY] == ["2026-05-12"]
+
+    second, changed_again = mapping.annotate_reread(first, "2026-05-12")
+    assert not changed_again
+    assert second[mapping.REREAD_DATES_KEY] == ["2026-05-12"]
+    assert second[mapping.REREAD_COUNT_KEY] == 1
+
+
+def test_annotate_reread_accumulates_distinct_dates_in_order():
+    metadata, _ = mapping.annotate_reread({"title": "x"}, "2026-07-04")
+    metadata, _ = mapping.annotate_reread(metadata, "2026-05-12")
+    assert metadata[mapping.REREAD_DATES_KEY] == ["2026-05-12", "2026-07-04"]
+    assert metadata[mapping.REREAD_COUNT_KEY] == 2

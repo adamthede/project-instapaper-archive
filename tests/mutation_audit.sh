@@ -110,7 +110,7 @@ run_mutation "re-reads recorded twice (idempotency broken)" "$M" \
         return metadata, False' \
   '    if not read_date:
         return metadata, False' \
-  "$T::test_recording_a_reread_is_idempotent"
+  "tests/test_mapping.py::test_annotate_reread_is_idempotent_on_its_own"
 
 run_mutation "a queued duplicate counts as a re-read" "$S" \
   '            if item.get("status") == "archive":' '            if True:' \
@@ -121,8 +121,8 @@ run_mutation "provenance note dropped" "$M" \
   "$T::test_reread_dates_carry_their_provenance"
 
 run_mutation "dry run records re-reads" "$S" \
-  '            if reread_date and config.annotate_rereads and not config.dry_run:' \
-  '            if reread_date and config.annotate_rereads:' \
+  '            elif reread_date and config.annotate_rereads and not config.dry_run:' \
+  '            elif reread_date and config.annotate_rereads:' \
   "$T::test_a_dry_run_never_records_a_reread"
 
 echo
@@ -136,28 +136,56 @@ run_mutation "highlight preferred even when it is NEWER" "$M" \
   '    if newest and updated:' \
   "tests/test_mapping.py::test_a_highlight_later_than_updated_at_is_ignored_as_noise"
 
-run_mutation "observed transitions claimed on a cold start" "$S" \
-  '    steady_state = bool(state.full_listing_completed_at) and config.full' '    steady_state = True' \
+run_mutation "the whole steady-state gate removed" "$S" \
+  '    steady_state = (
+        config.full
+        and bool(state.full_listing_completed_at)
+        # Every status being pulled now must have been covered by that listing,
+        # or an article "appearing for the first time" may simply never have
+        # been asked for before.
+        and _statuses(config.status) <= _statuses(state.full_listing_status)
+    )' \
+  '    steady_state = config.full' \
   "$T::test_a_first_run_admits_its_dates_are_a_fallback"
 
-run_mutation "a non-empty manifest treated as a completed listing" "$S" \
-  '    steady_state = bool(state.full_listing_completed_at) and config.full' \
-  '    steady_state = bool(state.items) and config.full' \
+run_mutation "a truncated run records a completed listing" "$S" \
+  '            state.full_listing_completed_at = to_iso(checkpoint)
+            state.full_listing_status = config.status' \
+  '            pass
+    if config.full and not config.dry_run:
+            state.full_listing_completed_at = to_iso(checkpoint)
+            state.full_listing_status = config.status' \
   "$T::test_a_chunked_backfill_never_claims_to_have_witnessed_a_transition"
 
+run_mutation "a queued item labelled as entering the archive" "$M" \
+  '    if observed_transition and item.get("status") == "archive":' \
+  '    if observed_transition:' \
+  "$T::test_a_queued_item_is_never_labelled_as_having_entered_the_archive"
+
+run_mutation "listing coverage ignored (queue run licenses archive claims)" "$S" \
+  '        and _statuses(config.status) <= _statuses(state.full_listing_status)' \
+  '        and True' \
+  "$T::test_a_queue_only_listing_does_not_license_claims_about_the_archive"
+
+run_mutation "matched files re-read from disk every night" "$S" \
+  '            if already:
+                reread_status = "already-recorded"
+            elif reread_date' \
+  '            if False:
+                reread_status = "already-recorded"
+            elif reread_date' \
+  "$T::test_an_already_recorded_reread_is_not_re_read_from_disk_every_night"
+
 run_mutation "a run with errors still licenses the claim" "$S" \
-  '        if config.full:
-            # The whole archive was listed and every item handled, so from here
-            # on a first-time appearance is a witnessed transition.
-            state.full_listing_completed_at = to_iso(checkpoint)' \
-  '        pass
-    if True:
-        if config.full:
-            state.full_listing_completed_at = to_iso(checkpoint)' \
+  '    if result.errors == 0 and not truncated and not config.dry_run:' \
+  '    if not truncated and not config.dry_run:' \
   "$T::test_a_run_with_errors_does_not_license_the_claim"
 
 run_mutation "observed transitions claimed in --sync mode" "$S" \
-  '    steady_state = bool(state.full_listing_completed_at) and config.full' '    steady_state = bool(state.full_listing_completed_at)' \
+  '        config.full
+        and bool(state.full_listing_completed_at)' \
+  '        bool(state.full_listing_completed_at)
+        and True' \
   "$T::test_sync_mode_does_not_claim_to_have_observed_anything"
 
 run_mutation "a later estimate rewrites a recorded date" "$M" \
