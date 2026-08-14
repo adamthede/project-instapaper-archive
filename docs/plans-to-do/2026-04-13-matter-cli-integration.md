@@ -1,6 +1,6 @@
 ---
 title: "Matter CLI Integration — Second Read-It-Later Pipeline"
-status: "QA Needed"
+status: "In Progress"
 priority: "P1"
 project: "articles"
 created: 2026-04-13
@@ -9,7 +9,12 @@ depends_on:
   - "Matter Pro subscription (required for API/CLI access)"
 ---
 
-> **Status note (2026-08-11):** Phases 2-4 are built and under review. The sync
+> **Status note (2026-08-14):** PR #2 MERGED — Phases 2-4 are in main.
+> Remaining before Done: Adam's Matter token at `~/.secrets/matter.token`,
+> a real-credential backfill run, plist install, and Phase 5 (Instapaper
+> catch-up).
+>
+> **Prior note (2026-08-11):** Phases 2-4 are built and under review. The sync
 > script, incremental `updated_since` mode, and the nightly launchd job landed
 > together rather than in sequence, because the delta logic is what makes a
 > nightly job worth having. Phase 1 (explore) and Phase 5 (Instapaper catch-up)
