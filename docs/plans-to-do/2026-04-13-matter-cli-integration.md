@@ -1,12 +1,32 @@
 ---
 title: "Matter CLI Integration — Second Read-It-Later Pipeline"
-status: "Queued"
+status: "QA Needed"
 priority: "P1"
 project: "articles"
 created: 2026-04-13
+linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/2"
 depends_on:
   - "Matter Pro subscription (required for API/CLI access)"
 ---
+
+> **Status note (2026-08-11):** Phases 2-4 are built and under review. The sync
+> script, incremental `updated_since` mode, and the nightly launchd job landed
+> together rather than in sequence, because the delta logic is what makes a
+> nightly job worth having. Phase 1 (explore) and Phase 5 (Instapaper catch-up)
+> remain, and Phase 1 needs Adam's credential.
+>
+> Two deliberate deviations from the plan below, both documented in
+> `docs/MATTER_SYNC.md`:
+>
+> - **The token lives at `~/.secrets/matter.token` (mode 0600), not in `.env`.**
+> - **The frontmatter writes `date_archived`, not `date_read`.** `build_index.py`
+>   does not read `date_read`; it reads `date_archived`, and the dashboard derives
+>   `date_read` from it. The plan's spelling would have parsed fine and then put
+>   every Matter article at the wrong end of the timeline.
+>
+> Also note the plan's mapping of `created_at` → `date_saved` is not possible:
+> the v1 `Item` schema has no `created_at`. `updated_at` is the only per-item
+> timestamp, and `date_saved_source` records that it is a fallback.
 
 # Matter CLI Integration
 

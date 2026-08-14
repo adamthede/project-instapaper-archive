@@ -48,10 +48,132 @@ def load_data():
 
     return pd.read_parquet(INDEX_PATH)
 
+# Reading eras, in the order they should appear. The archive spans three
+# ingestion sources and the dashboard reads better when they are named the way
+# Adam thinks about them rather than by their frontmatter value.
+ERA_LABELS = {
+    "instapaper": "Instapaper",
+    "matter": "Matter",
+    "unknown": "Unknown",
+}
+ERA_ORDER = ["Legacy files", "Instapaper", "Matter", "Unknown"]
+
+
+def derive_era(df):
+    """Label each row with the reading era it came from.
+
+    Tolerates an index built before the `source` column existed: without it,
+    every row is attributed by whether it has an instapaper_id, which is exactly
+    what build_index.py now does at parse time.
+    """
+    if "source" in df.columns:
+        source = df["source"].fillna("unknown").astype(str)
+    elif "instapaper_id" in df.columns:
+        source = df["instapaper_id"].notna().map({True: "instapaper", False: "unknown"})
+    else:
+        return pd.Series(["Unknown"] * len(df), index=df.index)
+
+    return source.map(
+        lambda value: "Legacy files" if value.startswith("legacy")
+        else ERA_LABELS.get(value, value.title() if value else "Unknown")
+    )
+
+
+def derive_date_read(df):
+    """When each article was READ, or NaT if it has not been.
+
+    The archive's whole value is that it records what was actually read and
+    when, so nothing may enter the read timeline without evidence it was read.
+    The two eras carry different evidence, so the rule differs by era:
+
+      * Instapaper and legacy rows fall back to `date_saved` when there is no
+        `date_archived`. That fallback is load-bearing and must keep working:
+        11,326 of the 17,637 rows have no archive date at all - the legacy
+        import had none to record - and dropping them would empty most of the
+        archive out of every chart.
+
+      * Matter rows do NOT fall back. Matter distinguishes read (`archive`)
+        from saved-but-unread (`queue`) explicitly, so a Matter row with no
+        `date_archived` is positive evidence the article was *not* read, and
+        dating it by when it was saved would assert a read that never happened.
+
+    The sync pulls `archive` only, so unread Matter rows should never reach
+    here. This is the second lock on that door: the flag to pull the queue still
+    exists for deliberate use, and if the two ever disagree the cost is silent
+    corruption of the one thing the archive is for.
+    """
+    if "date_archived" not in df.columns:
+        return df["date_saved"]
+
+    fallback = df["date_archived"].fillna(df["date_saved"])
+    if "source" not in df.columns:
+        return fallback
+
+    is_matter = df["source"].fillna("").astype(str).eq("matter")
+    return fallback.mask(is_matter, df["date_archived"])
+
+
+def review_id(article):
+    """A stable identity for the spaced-review system.
+
+    Reviews were originally keyed on instapaper_id, which only the Instapaper
+    era has -- the legacy import (about 10,560 rows) and now Matter both leave
+    it null, so their review records were written against NaN and could never be
+    matched back to an article. Falling back to matter_id and then file_path
+    fixes both.
+
+    Always returns a string. Mixing the old float ids with string fallbacks in
+    one column would give `article_id` object dtype, which pyarrow refuses to
+    write - so saving a review of any non-Instapaper article would raise. An
+    Instapaper id of 12345.0 becomes "12345", and normalize_review_key() applies
+    the same rule when loading saved history, so pre-existing records match.
+    """
+    value = article.get("instapaper_id")
+    if value is not None and not (isinstance(value, float) and pd.isna(value)):
+        return normalize_review_key(value)
+    for key in ("matter_id", "file_path"):
+        alternative = article.get(key)
+        if isinstance(alternative, str) and alternative:
+            return alternative
+    return None
+
+
+def normalize_review_key(value):
+    """Render a review key in the string form review_id() produces."""
+    # pd.NA and pd.NaT are not floats, and str() would render them as the
+    # literal "<NA>"/"NaT" -- a key that can never match an article and would
+    # occupy a due-review slot forever.
+    if value is None or value is pd.NA or value is pd.NaT:
+        return None
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass  # arrays and the like are not NA scalars
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+def review_id_series(df):
+    """review_id() for every row, for matching against saved review history."""
+    if df.empty:
+        return pd.Series(dtype=object, index=df.index)
+    return df.apply(review_id, axis=1)
+
+
 def load_review_history():
-    """Load review history or create empty dataframe."""
+    """Load review history or create empty dataframe.
+
+    article_id is normalized to string on load, migrating history written before
+    review keys became strings. Done here rather than with a one-off script so
+    the migration happens wherever the file is opened.
+    """
     if REVIEW_HISTORY_PATH.exists():
-        return pd.read_parquet(REVIEW_HISTORY_PATH)
+        df_history = pd.read_parquet(REVIEW_HISTORY_PATH)
+        if "article_id" in df_history.columns:
+            df_history["article_id"] = df_history["article_id"].map(normalize_review_key)
+        return df_history
     else:
         return pd.DataFrame(columns=[
             "article_id", "last_reviewed", "next_review",
@@ -61,6 +183,11 @@ def load_review_history():
 def save_review_history(df_history):
     """Save review history to parquet."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    # Force a single dtype: a column mixing floats and strings is object dtype,
+    # which pyarrow will not write.
+    if "article_id" in df_history.columns:
+        df_history = df_history.copy()
+        df_history["article_id"] = df_history["article_id"].map(normalize_review_key).astype("string")
     df_history.to_parquet(REVIEW_HISTORY_PATH, index=False)
 
 def calculate_next_review(ease_factor, interval_days, quality):
@@ -138,16 +265,31 @@ def main():
     if df.empty:
         return
 
-    # Composite date_read column: prefer date_archived (when article was read)
-    # with fallback to date_saved (when clipped) for articles without archive date
-    if "date_archived" in df.columns:
-        df["date_read"] = df["date_archived"].fillna(df["date_saved"])
-    else:
-        df["date_read"] = df["date_saved"]
+    # When each article was read. Era-aware: see derive_date_read.
+    df["date_read"] = derive_date_read(df)
+    df["era"] = derive_era(df)
+
+    # Articles with no read date were saved but never read. They are held out of
+    # every timeline rather than dated by when they were saved -- but they are
+    # counted here, so "held out" never reads as "lost".
+    unread = int(df["date_read"].isna().sum())
+    df_read = df[df["date_read"].notna()]
+
+    if df_read.empty:
+        st.warning(
+            f"None of the {len(df)} articles in the index has a read date, so there is no "
+            "reading timeline to show. If this archive is Matter-only, check that the sync "
+            "pulled `archive` status rather than `queue`."
+        )
+        return
 
     # Debug info
-    st.sidebar.caption(f"📊 Loaded: {len(df)} articles")
-    st.sidebar.caption(f"📅 Date range: {df['date_read'].min().date()} to {df['date_read'].max().date()}")
+    st.sidebar.caption(f"📊 Loaded: {len(df_read)} read articles")
+    if unread:
+        st.sidebar.caption(f"🔖 {unread} saved but unread — excluded from the timeline")
+    st.sidebar.caption(f"📅 Date range: {df_read['date_read'].min().date()} to {df_read['date_read'].max().date()}")
+
+    df = df_read
 
     # Sidebar Navigation
     page = st.sidebar.radio(
@@ -193,6 +335,15 @@ def main():
     else:
         df_filtered = df
 
+    # Reading era. Only offered when the archive actually holds more than one,
+    # so a single-source archive does not grow a filter that does nothing.
+    present_eras = [era for era in ERA_ORDER if era in set(df["era"])]
+    present_eras += sorted(set(df["era"]) - set(ERA_ORDER))
+    if len(present_eras) > 1:
+        chosen_eras = st.sidebar.multiselect("Reading Era", present_eras, default=present_eras)
+        if chosen_eras:
+            df_filtered = df_filtered[df_filtered["era"].isin(chosen_eras)]
+
     if page == "The Quantified Reader":
         render_overview(df_filtered)
     elif page == "Content Intelligence":
@@ -225,6 +376,18 @@ def render_overview(df):
     c2.metric("Words Read", f"{total_words/1000000:.2f}M")
     c3.metric("Reading Time (Hours)", f"{hours_read:,}")
     c4.metric("Avg. Grade Level", f"{avg_complexity:.1f}")
+
+    # Where the corpus came from. One continuous reading history, three
+    # ingestion eras - worth showing, because the shape of what the archive
+    # knows about an article differs by era.
+    if "era" in df.columns and df["era"].nunique() > 1:
+        counts = df["era"].value_counts()
+        ordered = [era for era in ERA_ORDER if era in counts.index]
+        ordered += [era for era in counts.index if era not in ordered]
+        era_cols = st.columns(len(ordered))
+        for column, era in zip(era_cols, ordered):
+            share = counts[era] / total_articles * 100 if total_articles else 0
+            column.metric(era, f"{counts[era]:,}", f"{share:.0f}% of archive")
 
     # Reading Achievements - Contextualize the word count
     st.markdown("---")
@@ -1779,10 +1942,22 @@ def render_review(df):
             # No review history yet - suggest starting fresh
             st.info("👋 Welcome! You haven't reviewed any articles yet. Let's start with some random articles from your archive.")
 
-            # Sample 10 random articles with summaries
-            candidates = df[df["summary"].notna()].sample(min(10, len(df)))
+            # Sample up to 10 random articles that actually have a summary.
+            # The sample size has to come from the summarised population, not
+            # from len(df): Matter-era articles arrive before enrichment runs,
+            # so the pool of reviewable cards is routinely smaller than the
+            # archive, and asking for more cards than exist raises.
+            summarised = df[df["summary"].notna()]
+            candidates = summarised.sample(min(10, len(summarised))) if not summarised.empty else summarised
 
-            if st.button("Start First Review Session (10 cards)", type="primary"):
+            if candidates.empty:
+                st.warning(
+                    "No articles with AI summaries in the current selection, so there is "
+                    "nothing to review yet. Run the enrichment pass "
+                    "(`scripts/core/enrich_archive_gemini.py`), or widen the era and date "
+                    "filters in the sidebar."
+                )
+            elif st.button(f"Start First Review Session ({len(candidates)} cards)", type="primary"):
                 st.session_state.review_deck = candidates.to_dict('records')
                 st.session_state.review_index = 0
                 st.session_state.session_complete = False
@@ -1799,8 +1974,9 @@ def render_review(df):
                 if not df_history.empty:
                     st.subheader("Upcoming Reviews")
                     upcoming = df_history.sort_values("next_review").head(10)
+                    article_ids = review_id_series(df)
                     for _, row in upcoming.iterrows():
-                        article = df[df["instapaper_id"] == row["article_id"]]
+                        article = df[article_ids == row["article_id"]]
                         if not article.empty:
                             title = article.iloc[0]["title"]
                             days_until = (row["next_review"] - now).days
@@ -1810,7 +1986,7 @@ def render_review(df):
 
                 # Limit to 10 cards per session
                 due_ids_session = due_ids[:10]
-                candidates = df[df["instapaper_id"].isin(due_ids_session)]
+                candidates = df[review_id_series(df).isin(due_ids_session)]
 
                 if st.button(f"Start Review Session ({len(candidates)} cards)", type="primary"):
                     st.session_state.review_deck = candidates.to_dict('records')
@@ -1943,7 +2119,7 @@ def render_review(df):
             if st.button("😰 Hard", use_container_width=True, type="secondary"):
                 # Record review
                 df_history = load_review_history()
-                article_id = article.get("instapaper_id")
+                article_id = review_id(article)
                 df_history = update_review_record(article_id, 0, df_history)
                 save_review_history(df_history)
 
@@ -1955,7 +2131,7 @@ def render_review(df):
             if st.button("🤔 Good", use_container_width=True, type="secondary"):
                 # Record review
                 df_history = load_review_history()
-                article_id = article.get("instapaper_id")
+                article_id = review_id(article)
                 df_history = update_review_record(article_id, 1, df_history)
                 save_review_history(df_history)
 
@@ -1967,7 +2143,7 @@ def render_review(df):
             if st.button("✅ Easy", use_container_width=True, type="primary"):
                 # Record review
                 df_history = load_review_history()
-                article_id = article.get("instapaper_id")
+                article_id = review_id(article)
                 df_history = update_review_record(article_id, 2, df_history)
                 save_review_history(df_history)
 

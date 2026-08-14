@@ -19,7 +19,13 @@ VAULT_PATH = Path(
         str(Path.home() / "Obsidian" / "Vault" / "Instapaper"),
     )
 )
-DATA_DIR = Path(__file__).parent.parent / "data"
+# Anchored to the repo root, which is where dashboard/app.py reads the index
+# from. This script used to live at scripts/build_index.py, where
+# `parent.parent` was the repo root; moving it into scripts/core/ silently
+# repointed the output at scripts/data/ while the dashboard kept reading
+# data/, so the index had to be copied across by hand after every rebuild.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DATA_DIR = REPO_ROOT / "data"
 INDEX_PATH = DATA_DIR / "archive_index.parquet"
 
 def parse_article(file_path):
@@ -53,6 +59,24 @@ def parse_article(file_path):
         url = fm.get("original_url", "")
         instapaper_id = fm.get("instapaper_id", None)
         author = fm.get("author", "Unknown")
+
+        # Which reading era this article came from. The legacy importer and the
+        # Matter sync both stamp `source` explicitly; the Instapaper exporter
+        # predates the field, so its files are recognised by carrying an
+        # instapaper_id instead.
+        source = fm.get("source", None)
+        if not source:
+            source = "instapaper" if instapaper_id is not None else "unknown"
+
+        # Matter carries podcasts, PDFs and tweets alongside articles; the
+        # Instapaper era was articles only.
+        content_type = fm.get("content_type", "article")
+        matter_id = fm.get("matter_id", None)
+
+        # Times Matter saw this article read again after it was already in the
+        # archive. Recorded on the original file; the first read date is never
+        # revised, so this is the only trace a re-read leaves.
+        reread_count = fm.get("matter_reread_count", 0)
 
         # Date Handling - support both Instapaper and legacy formats
         # Instapaper articles use "date_saved" and "date_archived"
@@ -111,6 +135,10 @@ def parse_article(file_path):
 
         return {
             "instapaper_id": instapaper_id,
+            "matter_id": matter_id,
+            "reread_count": reread_count,
+            "source": source,
+            "content_type": content_type,
             "title": title,
             "url": url,
             "author": author,

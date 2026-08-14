@@ -6,6 +6,7 @@ A comprehensive toolkit for building a searchable, AI-enriched archive from mult
 
 1. **📥 Import** articles from multiple sources:
    - Instapaper API export
+   - Matter (nightly incremental sync, articles + highlights)
    - Legacy PDFs, Word documents, HTML, TXT files
 2. **🤖 AI Enrichment** - Extract topics, people, organizations, concepts, sentiment
 3. **📊 Analytics Dashboard** - Visualize 20+ years of reading with interactive charts
@@ -38,6 +39,16 @@ cp env.example .env
 
 ```bash
 python scripts/core/export_instapaper_to_obsidian.py
+```
+
+### 3b. Sync from Matter (Optional)
+
+```bash
+# Verify your token (see docs/MATTER_SYNC.md for how to get one)
+python scripts/core/export_matter_to_archive.py --check-auth
+
+# Pull new articles and highlights
+python scripts/core/export_matter_to_archive.py --sync
 ```
 
 ### 4. Import Legacy Files (Optional)
@@ -80,6 +91,7 @@ streamlit run dashboard/app.py
 ├── scripts/
 │   ├── core/                 # Main workflow scripts
 │   │   ├── export_instapaper_to_obsidian.py
+│   │   ├── export_matter_to_archive.py
 │   │   ├── import_legacy_archive.py
 │   │   ├── enrich_archive.py
 │   │   ├── enrich_archive_gemini.py
@@ -130,6 +142,7 @@ Automatically extracts from each article:
 - **[Data Quality](docs/CORRUPTION_HANDLING.md)** - Handling corrupted content
 - **[Dashboard Features](docs/DASHBOARD.md)** - Using the analytics dashboard
 - **[API Limitations](docs/API_LIMITATIONS.md)** - Known Instapaper API issues
+- **[Matter Sync](docs/MATTER_SYNC.md)** - Second reading source: token setup, incremental sync, nightly job
 
 ## 🔧 Requirements
 
