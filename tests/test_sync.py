@@ -34,8 +34,8 @@ def write_instapaper_article(vault, url, filename="2019-04-01 – Same Article.m
 # ---- preconditions --------------------------------------------------------
 
 def test_a_missing_vault_fails_loudly_and_is_never_created(tmp_path):
-    """The vault lives on an external SSD; creating it would fake an empty archive."""
-    missing = tmp_path / "Volumes" / "Extreme SSD" / "Instapaper-Archive"
+    """The vault lives on a network volume; creating it would fake an empty archive."""
+    missing = tmp_path / "Volumes" / "AST" / "Instapaper-Matter-Archive"
     with pytest.raises(VaultNotFoundError) as excinfo:
         ensure_vault(missing)
     assert str(missing) in str(excinfo.value)
@@ -656,8 +656,8 @@ def test_a_vault_that_vanishes_mid_run_is_not_recreated(vault, tmp_path):
     over the real 17,637-row index."""
     import shutil
 
-    mount = tmp_path / "Volumes" / "Extreme SSD"
-    vault_on_drive = mount / "Instapaper-Archive"
+    mount = tmp_path / "Volumes" / "AST"
+    vault_on_drive = mount / "Instapaper-Matter-Archive"
     vault_on_drive.mkdir(parents=True)
 
     class Unplugged(FakeClient):

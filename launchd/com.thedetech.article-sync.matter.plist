@@ -41,8 +41,9 @@
 
   Prerequisites:
     * ~/.secrets/matter.token exists, mode 0600 (see docs/MATTER_SYNC.md).
-    * The vault drive is mounted. If it is not, the job exits 2 with a clear
-      message rather than creating an empty archive.
+    * The vault volume is mounted (/Volumes/AST, the NAS SMB share, since
+      2026-08-14 - previously an external SSD). If it is not, the job exits 2
+      with a clear message rather than creating an empty archive.
 
   Verify before installing:
     python3 scripts/core/export_matter_to_archive.py --check-auth
@@ -83,7 +84,7 @@
         <!-- Where the Markdown archive lives. Must match the value used by
              build_index.py and the rest of the pipeline. -->
         <key>INSTAPAPER_VAULT_PATH</key>
-        <string>/Volumes/Extreme SSD/Instapaper-Archive</string>
+        <string>/Volumes/AST/Library/Articles/Instapaper-Matter-Archive</string>
     </dict>
 
     <key>StartCalendarInterval</key>
