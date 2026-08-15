@@ -19,9 +19,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 load_dotenv()
 
 # Config
-DATA_DIR = Path(__file__).parent.parent / "data"
+# Anchored to the repo root, same fix as build_index.py: this script also
+# predates the move into scripts/core/, where `parent.parent` silently became
+# scripts/ and pointed at a stale copy of the index in scripts/data/.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DATA_DIR = REPO_ROOT / "data"
 INDEX_PATH = DATA_DIR / "archive_index.parquet"
-FAILURE_LOG = Path(__file__).parent.parent / "enrichment_failures.log"
+FAILURE_LOG = REPO_ROOT / "scripts" / "enrichment_failures.log"
 MODEL_NAME = "gemini-2.5-flash-lite"  # Best price-performance, 5x cheaper than Flash
 MAX_WORKERS = 20  # Parallel processing threads
 
