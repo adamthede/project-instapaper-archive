@@ -38,11 +38,10 @@ def log_failure(title: str, file_path: str, reason: str, failure_log_path: Path)
     with open(failure_log_path, "a", encoding="utf-8") as f:
         f.write(log_entry)
 
-def get_enrichment(content, api_key):
-    """
-    Sends the article content to Gemini for analysis.
-    """
-    prompt = f"""Analyze the following article text deeply. I need structured insights for a personal knowledge base.
+def build_prompt(content):
+    """The one shared prompt - the local (LM Studio) variant imports this
+    so the two backends can never drift apart."""
+    return f"""Analyze the following article text deeply. I need structured insights for a personal knowledge base.
 
 Provide the following output fields exactly as formatted below:
 
@@ -71,6 +70,13 @@ SUMMARY: [A 2-3 sentence TL;DR summary capturing the core argument and conclusio
 Article Text:
 {content[:10000]}
 """
+
+
+def get_enrichment(content, api_key):
+    """
+    Sends the article content to Gemini for analysis.
+    """
+    prompt = build_prompt(content)
 
     try:
         # Configure client with API key
