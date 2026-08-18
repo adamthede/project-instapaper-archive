@@ -60,7 +60,7 @@ Mark YES if:
 
 TOPICS: [List 3-5 high-level themes/topics, comma-separated]
 PEOPLE: [List key people mentioned, comma-separated. If none, write None]
-ORGANIZATIONS: [List key companies/orgs mentioned, comma-separated. If none, write None]
+ORGANIZATIONS: [List key companies/orgs mentioned, comma-separated. Exclude the publication itself and outlets cited only as sources (e.g. do not list the newspaper the article appeared in). If none, write None]
 LOCATIONS: [List notable cities/countries/regions/landmarks mentioned, comma-separated. If none, write None]
 CONCEPTS: [List 3-8 important abstract concepts or products (e.g., "machine learning", "supply chains"), comma-separated. If none, write None]
 SENTIMENT: [One word: Positive, Negative, or Neutral]

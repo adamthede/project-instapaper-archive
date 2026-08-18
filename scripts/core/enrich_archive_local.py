@@ -94,16 +94,22 @@ def needs_enrichment(row):
 def main():
     limit = None
     dry_run = False
+    min_words = 0
     for arg in sys.argv[1:]:
         if arg.isdigit():
             limit = int(arg)
         elif arg == "dry-run":
             dry_run = True
+        elif arg.startswith("min-words="):
+            min_words = int(arg.split("=", 1)[1])
 
     if not INDEX_PATH.exists():
         sys.exit(f"Index not found: {INDEX_PATH} — run build_index.py first.")
     df = pd.read_parquet(INDEX_PATH)
     candidates = df[df.apply(needs_enrichment, axis=1)]
+    if min_words:
+        # Skip the known-empty legacy rows; only bodies worth reading.
+        candidates = candidates[candidates["word_count"].fillna(0) >= min_words]
     if limit:
         candidates = candidates.head(limit)
     print(f"{len(candidates)} article(s) need enrichment "
