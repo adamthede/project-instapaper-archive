@@ -145,6 +145,9 @@ def parse_article(file_path):
             "date_saved": date_saved,
             "date_archived": date_archived,
             "word_count": word_count,
+            # Carried so downstream candidate selection (enrich_archive_local)
+            # can exclude junk-scrape files instead of re-judging them nightly.
+            "content_corrupted": bool(fm.get("content_corrupted", False)),
             "reading_time_min": reading_time_min,
             "grade_level": grade_level,
             "topics": topics,
