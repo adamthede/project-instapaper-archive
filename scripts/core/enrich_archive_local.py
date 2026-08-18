@@ -101,6 +101,7 @@ def main():
     limit = None
     dry_run = False
     min_words = 0
+    scan_matter = False
     for arg in sys.argv[1:]:
         if arg.isdigit():
             limit = int(arg)
@@ -108,14 +109,34 @@ def main():
             dry_run = True
         elif arg.startswith("min-words="):
             min_words = int(arg.split("=", 1)[1])
+        elif arg == "scan-matter":
+            scan_matter = True
 
-    if not INDEX_PATH.exists():
-        sys.exit(f"Index not found: {INDEX_PATH} — run build_index.py first.")
-    df = pd.read_parquet(INDEX_PATH)
-    candidates = df[df.apply(needs_enrichment, axis=1)]
-    if min_words:
-        # Skip the known-empty legacy rows; only bodies worth reading.
-        candidates = candidates[candidates["word_count"].fillna(0) >= min_words]
+    if scan_matter:
+        # Nightly mode: new Matter articles are exactly new files in the
+        # vault's matter/ subdir, so scan those directly instead of the
+        # index - the index is rebuilt AFTER enrichment, and this avoids
+        # paying a second full rebuild every night just to find them.
+        import frontmatter as fm
+        vault = os.environ.get("INSTAPAPER_VAULT_PATH")
+        if not vault or not (Path(vault) / "matter").is_dir():
+            sys.exit(f"scan-matter: no matter/ dir under INSTAPAPER_VAULT_PATH ({vault})")
+        rows = []
+        for f in sorted((Path(vault) / "matter").glob("*.md")):
+            meta = fm.load(f).metadata
+            if meta.get("content_corrupted"):
+                continue
+            if not meta.get("ai_summary") and not meta.get("ai_topics"):
+                rows.append({"file_path": str(f), "title": meta.get("title", f.stem)})
+        candidates = pd.DataFrame(rows, columns=["file_path", "title"])
+    else:
+        if not INDEX_PATH.exists():
+            sys.exit(f"Index not found: {INDEX_PATH} — run build_index.py first.")
+        df = pd.read_parquet(INDEX_PATH)
+        candidates = df[df.apply(needs_enrichment, axis=1)]
+        if min_words:
+            # Skip the known-empty legacy rows; only bodies worth reading.
+            candidates = candidates[candidates["word_count"].fillna(0) >= min_words]
     if limit:
         candidates = candidates.head(limit)
     print(f"{len(candidates)} article(s) need enrichment "

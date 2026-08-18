@@ -69,6 +69,7 @@
         <string>/opt/homebrew/bin/python3</string>
         <string>/Users/adam_thede/Documents/Code/Project - Instapaper Archive/scripts/core/export_matter_to_archive.py</string>
         <string>--full</string>
+        <string>--enrich-local</string>
         <string>--rebuild-index</string>
     </array>
 

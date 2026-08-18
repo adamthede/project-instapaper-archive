@@ -84,6 +84,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-record-rereads", action="store_true",
                         help="Do not annotate an existing archive article when Matter reports "
                              "reading it again; just count it.")
+    parser.add_argument("--enrich-local", action="store_true",
+                        help="After a sync that wrote new articles, enrich them "
+                             "via LM Studio (Qwen) before the index rebuild. "
+                             "Non-fatal if LM Studio is down.")
     parser.add_argument("--rebuild-index", action="store_true",
                         help="Run build_index.py afterwards so the dashboard sees the new articles.")
     parser.add_argument("--heartbeat", default=str(DEFAULT_HEARTBEAT),
@@ -217,7 +221,17 @@ def main(argv=None) -> int:
     if config.heartbeat_path and not args.dry_run:
         write_heartbeat(config.heartbeat_path, result)
 
-    if args.rebuild_index and not args.dry_run and (result.new or result.updated):
+    # Enrich BEFORE the rebuild so tonight's articles reach the dashboard
+    # with their ai_* fields in one pass. Enrichment failure never blocks
+    # the rebuild - see enrich_local's docstring.
+    # Unconditional (not gated on result.new): articles left unenriched by a
+    # previous night's LM Studio outage are picked up here, and the scan is a
+    # cheap no-op when nothing is pending.
+    enriched_any = False
+    if args.enrich_local and not args.dry_run:
+        enriched_any = sync_module.enrich_local(REPO_ROOT)
+
+    if args.rebuild_index and not args.dry_run and (result.new or result.updated or enriched_any):
         sync_module.rebuild_index(REPO_ROOT)
 
     return 0 if result.errors == 0 else 1

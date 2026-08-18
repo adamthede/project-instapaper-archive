@@ -794,6 +794,46 @@ def write_heartbeat(path: Path, result: SyncResult) -> None:
         log.warning("Could not write heartbeat to %s: %s", path, exc)
 
 
+def enrich_local(repo_root: Path) -> bool:
+    """Run the local (LM Studio/Qwen) enrichment over new matter/ files.
+
+    Same interpreter strategy as rebuild_index: the enricher needs pandas and
+    python-frontmatter, so it runs under the repo venv. Failure is NON-FATAL
+    by design - an unenriched article is picked up by the next night's scan,
+    while a dead LM Studio must never block the sync or the index rebuild.
+    """
+    script = repo_root / "scripts" / "core" / "enrich_archive_local.py"
+    if not script.exists():
+        log.error("Cannot enrich locally: %s not found", script)
+        return False
+    candidates = []
+    override = os.environ.get("MATTER_INDEX_PYTHON")
+    if override:
+        candidates.append(Path(override).expanduser())
+    candidates += [repo_root / ".venv" / "bin" / "python", repo_root / "venv" / "bin" / "python"]
+    interpreter = next((c for c in candidates if c.exists()), None)
+    if interpreter is None:
+        log.error("Cannot enrich locally: no venv interpreter found")
+        return False
+    try:
+        proc = subprocess.run([str(interpreter), str(script), "scan-matter"],
+                              capture_output=True, text=True, timeout=3600)
+        for line in (proc.stdout or "").strip().splitlines():
+            log.info("enrich-local: %s", line)
+        if proc.returncode != 0:
+            log.warning("Local enrichment exited %d: %s", proc.returncode,
+                        (proc.stderr or "").strip()[-300:])
+            return False
+        # True only when something was written - the return value gates an
+        # otherwise-skipped index rebuild, and a no-op night must not cost one.
+        m = re.search(r"Done: (\d+) enriched", proc.stdout or "")
+        return bool(m and int(m.group(1)) > 0)
+    except subprocess.TimeoutExpired:
+        log.warning("Local enrichment timed out after 1h; articles will be "
+                    "picked up by the next nightly scan.")
+        return False
+
+
 def rebuild_index(repo_root: Path) -> bool:
     """Run build_index.py so the dashboard sees the new articles.
 
