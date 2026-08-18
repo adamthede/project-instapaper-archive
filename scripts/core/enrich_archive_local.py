@@ -43,7 +43,10 @@ from enrich_archive_gemini import (  # noqa: E402
 
 LMSTUDIO_URL = os.getenv("LMSTUDIO_URL", "http://localhost:1234/v1/chat/completions")
 # Pinned per the routing contract: never "whatever's loaded".
-PINNED_MODEL = os.getenv("LMSTUDIO_MODEL", "qwen3.6-35b-a3b")
+# EXACT catalog id (lms ls / GET /v1/models). A partial name 400s when
+# nothing is loaded: JIT-load only matches exact ids ("qwen3.6-35b-a3b"
+# failed on 2026-08-18 while -mtp was the real id).
+PINNED_MODEL = os.getenv("LMSTUDIO_MODEL", "qwen3.6-35b-a3b-mtp")
 LOCK_PATH = Path.home() / ".cache" / "tractor-silo" / "lmstudio-digest.lock"
 REQUEST_TIMEOUT = 300  # a 10k-char article on a busy machine can be slow
 
@@ -68,7 +71,10 @@ def _locked_completion(prompt):
             })
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
-    resp.raise_for_status()
+    if resp.status_code >= 400:
+        # Surface LM Studio's reason ("No models loaded", "model not found"),
+        # not just the bare status line.
+        raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:300]}")
     body = resp.json()
     served = body.get("model", "")
     if PINNED_MODEL.lower() not in served.lower():
