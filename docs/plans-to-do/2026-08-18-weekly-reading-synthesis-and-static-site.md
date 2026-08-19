@@ -4,7 +4,7 @@ status: "In Progress"
 priority: "P1"
 project: "articles"
 created: 2026-08-18
-linked_pr: ""
+linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/3"
 depends_on:
   - "2026-08-12 dashboard audit (docs/2026-08-12-dashboard-audit-and-static-site-proposal.md) — this plan absorbs its Part 2"
 ---
@@ -110,6 +110,18 @@ surfaces that survive.
 5. **Week-page visual set:** chosen at the Phase 2 mockup review, not before.
 6. **Big Letter hook:** monthly, the four weekly digests are ingredients —
    manual pull at first, automation later.
+
+## Known approximations and follow-up requirements
+
+- **Week boundaries are approximate by one day for Matter rows:** date_archived
+  is day-granular UTC (0 of 234 rows carry a time), so a Sunday-evening CDT
+  read can stamp Monday UTC and land in the next week. Accepted; not fixable
+  in this repo.
+- **Cockpit registration REQUIRES weekday-aware schedule handling first:**
+  launchd_stats._plist_schedule drops Weekday and last_expected_fire assumes
+  daily, so registering a Sunday job as-is false-alarms no-run six days a
+  week (com.thedetech.releases.weekly shares this hazard, also unregistered).
+  The command-center follow-up PR must fix that before adding this entry.
 
 ## Fleet contract notes
 

@@ -24,26 +24,33 @@ def make_df(rows):
 
 # ---- week arithmetic --------------------------------------------------------
 
-def test_last_closed_week_on_a_wednesday():
-    assert ws.last_closed_week(dt.date(2026, 8, 19)) == "2026-W33"
+def test_default_week_midweek_is_last_closed_week():
+    assert ws.default_week(dt.date(2026, 8, 19)) == "2026-W33"
 
 
-def test_last_closed_week_on_a_monday_is_the_week_just_ended():
-    assert ws.last_closed_week(dt.date(2026, 8, 17)) == "2026-W33"
+def test_default_week_monday_is_the_week_just_ended():
+    assert ws.default_week(dt.date(2026, 8, 17)) == "2026-W33"
 
 
-def test_last_closed_week_on_a_sunday_is_still_the_prior_week():
-    # Sunday's week is not closed until midnight - the 20:00 job must
-    # therefore target the week that ENDS that day only via --week; the
-    # default is the previous one.
-    assert ws.last_closed_week(dt.date(2026, 8, 23)) == "2026-W33"
+def test_default_week_SUNDAY_is_that_days_own_week():
+    # The 20:00 Sunday job must digest the week ending that evening, not
+    # serve a digest seven days stale (round-1 review blocker 1).
+    assert ws.default_week(dt.date(2026, 8, 23)) == "2026-W34"
+    assert ws.default_week(dt.date(2026, 8, 30)) == "2026-W35"
+
+
+def test_parse_week_normalizes_and_rejects():
+    assert ws.parse_week("2026-W5") == "2026-W05"
+    assert ws.parse_week("2026-w33") == "2026-W33"
+    import pytest as _pt
+    with _pt.raises(SystemExit, match="2027-W53"):
+        ws.parse_week("2027-W53")
+    with _pt.raises(SystemExit, match="garbage"):
+        ws.parse_week("garbage")
 
 
 def test_week_bounds_iso_year_boundary():
-    # 2026-W53 does not exist; 2027-W01 starts Monday 2027-01-04,
-    # and 2026-W53's absence means 2026-12-31 (Thursday) is 2026-W53? No:
-    # ISO gives 2026 exactly 53 weeks only if it starts/ends Thursday.
-    # 2026-01-01 is a Thursday, so 2026 HAS a W53 spanning the new year.
+    # 2026 begins on a Thursday, so it has a W53 spanning the new year.
     start, end = ws.week_bounds("2026-W53")
     assert start == dt.date(2026, 12, 28)
     assert end == dt.date(2027, 1, 3)
@@ -82,10 +89,62 @@ def test_corrupted_rows_are_excluded():
 
 # ---- stats ------------------------------------------------------------------
 
-def test_top_values_ranks_and_caps():
+def test_top_values_emits_count_pairs_and_drops_singletons():
     s = pd.Series([["a", "b"], ["a"], ["a", "c"], ["b"], ["d"], ["e"], ["f"]])
     top = ws.top_values(s, n=3)
-    assert top[0] == "a" and len(top) == 3
+    # Singletons are alphabetical noise (round-1 minor 7): only repeats,
+    # as [value, count] pairs.
+    assert top == [["a", 3], ["b", 2]]
+
+
+def test_heartbeat_timestamps_carry_the_z_suffix(tmp_path, monkeypatch):
+    # The Z is the contract with launchd_stats._read_heartbeat; a naive
+    # stamp would display a 20:00 CDT run as 01:00 the next day.
+    monkeypatch.setattr(ws, "HEARTBEAT", tmp_path / "hb.json")
+    ws.write_heartbeat("ok", "2026-W33", 5)
+    hb = json.loads((tmp_path / "hb.json").read_text())
+    assert hb["started_at"].endswith("Z")
+
+
+def test_gather_highlights_matter_only_next_heading_and_oversize_skip(tmp_path):
+    def article(name, body):
+        f = tmp_path / name
+        f.write_text(body, encoding="utf-8")
+        return str(f)
+    rows = pd.DataFrame([
+        {"source": "matter", "title": "H", "file_path": article(
+            "h.md", "body\n## Highlights\n> quote one\n## NotHighlights\nswallowed?")},
+        {"source": "matter", "title": "BIG", "file_path": article(
+            "big.md", "## Highlights\n" + "x" * 10000)},
+        {"source": "matter", "title": "H2", "file_path": article(
+            "h2.md", "## Highlights\n> quote two")},
+        {"source": "instapaper", "title": "LEGACY", "file_path": article(
+            "l.md", "## Highlights\n> never read - wrong era")},
+    ])
+    out = ws.gather_highlights(rows)
+    assert "quote one" in out and "quote two" in out
+    assert "swallowed" not in out          # stops at the next heading
+    assert "xxxx" not in out               # oversized skipped, not fatal
+    assert "wrong era" not in out          # matter-only
+
+
+def test_prompt_carries_highlights_and_caps_the_roster():
+    rows = pd.DataFrame([{"title": f"T{i}", "word_count": 100, "topics": ["t"],
+                          "summary": "s"} for i in range(50)])
+    prompt = ws.build_weekly_prompt("2026-W33", rows, "> my highlight")
+    assert "my highlight" in prompt
+    assert "T39" in prompt and "T40" not in prompt
+    assert "10 more articles" in prompt
+
+
+def test_synthesize_uses_prose_temperature(monkeypatch):
+    seen = {}
+    def fake(prompt, temperature=None, max_tokens=None):
+        seen.update(t=temperature, m=max_tokens)
+        return "ok"
+    monkeypatch.setattr(ws, "_locked_completion", fake)
+    ws.synthesize("p")
+    assert seen == {"t": 0.7, "m": 1200}
 
 
 def test_week_rereads_counts_only_recorded_in_window(tmp_path):
@@ -167,6 +226,21 @@ def test_model_failure_is_nonzero_and_heartbeats_fail(fake_run, monkeypatch, tmp
     hb = json.loads((tmp_path / "hb.json").read_text())
     assert hb["outcome"] == "fail"
     assert "unreachable" in hb["error"]
+
+
+def test_unmounted_vault_heartbeats_fail_not_silence(fake_run, monkeypatch, tmp_path):
+    # Round-1 blocker 2: the realistic Sunday failure (NAS asleep) must not
+    # leave the cockpit reading last week's stale ok.
+    real_mkdir = Path.mkdir
+    def deny_out_dir(self, *a, **k):
+        if self.name == "synthesis":
+            raise PermissionError("Read-only file system")
+        return real_mkdir(self, *a, **k)
+    monkeypatch.setattr(Path, "mkdir", deny_out_dir)
+    rc = run_main(monkeypatch, ["--week", "2026-W33", "--out-dir", str(fake_run)])
+    assert rc == 1
+    hb = json.loads((tmp_path / "hb.json").read_text())
+    assert hb["outcome"] == "fail" and "Read-only" in hb["error"]
 
 
 def test_prev_week_delta_is_carried(fake_run, monkeypatch):

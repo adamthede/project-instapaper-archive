@@ -21,6 +21,7 @@ the file is a projection of the index plus one model call, never the record
 of anything unrecoverable.
 """
 import argparse
+import re
 import datetime as dt
 import json
 import os
@@ -38,11 +39,32 @@ TOP_N = 5
 MAX_HIGHLIGHT_CHARS = 4000
 
 
-def last_closed_week(today=None):
+def default_week(today=None):
+    """The week the scheduled run should digest. On a Sunday (the 20:00 job's
+    own day) that is TODAY's ISO week - it closes at midnight and the reading
+    day is effectively over; anything read after 20:00 is healed by a manual
+    --week regeneration and is approximate anyway (Matter archive dates are
+    day-granular UTC). On any other day: the last fully closed week."""
     today = today or dt.date.today()
+    if today.weekday() == 6:
+        y, w, _ = today.isocalendar()
+        return f"{y}-W{w:02d}"
     monday_this_week = today - dt.timedelta(days=today.weekday())
-    end_of_last_week = monday_this_week - dt.timedelta(days=1)
-    y, w, _ = end_of_last_week.isocalendar()
+    y, w, _ = (monday_this_week - dt.timedelta(days=1)).isocalendar()
+    return f"{y}-W{w:02d}"
+
+
+def parse_week(raw):
+    """'2026-W5' and '2026-w05' normalize to '2026-W05'; garbage and
+    nonexistent weeks (2027-W53) fail loudly with a usable message."""
+    m = re.fullmatch(r"(\d{4})-[Ww](\d{1,2})", raw.strip())
+    if not m:
+        raise SystemExit(f"Bad --week {raw!r}: expected e.g. 2026-W33")
+    y, w = int(m.group(1)), int(m.group(2))
+    try:
+        dt.date.fromisocalendar(y, w, 1)
+    except ValueError as e:
+        raise SystemExit(f"Bad --week {raw!r}: {e}")
     return f"{y}-W{w:02d}"
 
 
@@ -83,8 +105,11 @@ def top_values(series_of_lists, n=TOP_N):
             v = str(v).strip()
             if v:
                 counts[v] = counts.get(v, 0) + 1
+    # Singletons are alphabetical noise on a typical week (65 people all at
+    # count 1); a stat that reads meaningful but is alphabetical is worse
+    # than none. Emit [value, count] pairs, repeats only.
     ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
-    return [v for v, _ in ranked[:n]]
+    return [[v, c] for v, c in ranked[:n] if c >= 2]
 
 
 def week_rereads(vault, start, end):
@@ -106,17 +131,20 @@ def gather_highlights(rows):
     """Adam's own words about the week's articles - the highest-signal input."""
     chunks = []
     total = 0
-    for _, r in rows.iterrows():
+    matter_rows = rows[rows["source"] == "matter"] if "source" in rows.columns else rows
+    for _, r in matter_rows.iterrows():
         try:
             text = Path(r["file_path"]).read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
         if "## Highlights" not in text:
             continue
-        section = text.split("## Highlights", 1)[1].strip()
+        section = text.split("## Highlights", 1)[1]
+        # Stop at the next heading rather than swallowing the rest of the file.
+        section = re.split(r"\n## ", section, 1)[0].strip()
         chunk = f"From \u201c{r['title']}\u201d:\n{section}"
         if total + len(chunk) > MAX_HIGHLIGHT_CHARS:
-            break
+            continue  # skip the oversized one, keep collecting small ones
         chunks.append(chunk)
         total += len(chunk)
     return "\n\n".join(chunks)
@@ -133,12 +161,26 @@ def as_list(v):
         return []
 
 
+def safe_int(v):
+    return 0 if pd.isna(v) else int(v)
+
+
+MAX_PROMPT_ARTICLES = 40
+
+
 def build_weekly_prompt(week, rows, highlights):
     lines = []
-    for _, r in rows.iterrows():
+    # Backfill weeks can hold 180+ articles (~100k chars) - enough to blow a
+    # local context window SILENTLY (LM Studio truncates, exit 0). Cap the
+    # prompt roster; the frontmatter roster stays complete.
+    capped = rows.head(MAX_PROMPT_ARTICLES)
+    for _, r in capped.iterrows():
         topics = ", ".join(as_list(r.get("topics"))[:4])
-        summary = str(r.get("summary") or "").strip()
-        lines.append(f"- \u201c{r['title']}\u201d ({int(r['word_count'] or 0)} words; {topics})\n  {summary}")
+        summary = "" if pd.isna(r.get("summary")) else str(r.get("summary")).strip()
+        lines.append(f"- \u201c{r['title']}\u201d ({safe_int(r.get('word_count'))} words; {topics})\n  {summary}")
+    omitted = len(rows) - len(capped)
+    if omitted > 0:
+        lines.append(f"(and {omitted} more articles this week, omitted for length)")
     articles_block = "\n".join(lines)
     highlight_block = f"\nThe reader's own highlights from this week:\n{highlights}\n" if highlights else ""
     return f"""You are writing a weekly reading digest for the week {week}. Below are the articles one reader actually read this week, each with its summary and topics.{highlight_block}
@@ -179,15 +221,17 @@ def write_heartbeat(outcome, week, article_count, error=None):
         pass
 
 
-def main():
+def _parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument("--week", help="ISO week like 2026-W33 (default: last closed week)")
     ap.add_argument("--dry-run", action="store_true", help="Print, write nothing.")
     ap.add_argument("--out-dir", help="Override output dir (default: <vault>/synthesis).")
     ap.add_argument("--no-heartbeat", action="store_true")
-    args = ap.parse_args()
+    return ap.parse_args()
 
-    week = args.week or last_closed_week()
+
+def _run(args):
+    week = parse_week(args.week) if args.week else default_week()
     start, end = week_bounds(week)
 
     vault = os.environ.get("INSTAPAPER_VAULT_PATH")
@@ -221,7 +265,7 @@ def main():
         "rereads_recorded": week_rereads(vault, start, end) if vault else 0,
         "articles": [
             {"title": str(r["title"]), "url": str(r.get("url") or ""),
-             "words": int(r["word_count"] or 0), "date_read": r["date_read"].date().isoformat()}
+             "words": safe_int(r.get("word_count")), "date_read": r["date_read"].date().isoformat()}
             for _, r in rows.iterrows()
         ],
     }
@@ -245,11 +289,31 @@ def main():
 
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{week}.md"
-    out.write_text(doc, encoding="utf-8")
+    tmp = out_dir / f".{week}.md.tmp"
+    tmp.write_text(doc, encoding="utf-8")
+    tmp.replace(out)
     print(f"Wrote {out} ({len(rows)} articles, {words} words read).")
     if not args.no_heartbeat:
         write_heartbeat("ok", week, len(rows))
     return 0
+
+
+def main():
+    """Any failure - unmounted vault, bad week, torn write - must heartbeat
+    `fail` and exit 1, or the cockpit reads last week's stale `ok` on exactly
+    the nights something broke. Only a clean run or dry-run skips that."""
+    args = _parse_args()
+    try:
+        return _run(args)
+    except SystemExit as e:
+        if not args.no_heartbeat and not args.dry_run and e.code not in (0, None):
+            write_heartbeat("fail", args.week or default_week(), 0, error=str(e)[:300])
+        raise
+    except Exception as e:
+        print(f"weekly synthesis failed: {e}", file=sys.stderr)
+        if not args.no_heartbeat and not args.dry_run:
+            write_heartbeat("fail", args.week or default_week(), 0, error=str(e)[:300])
+        return 1
 
 
 if __name__ == "__main__":
