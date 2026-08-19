@@ -145,18 +145,50 @@ def test_index_lists_every_week_with_year_grouping(two_year_dir):
     assert '>2026</div>' in html_out and '>2025</div>' in html_out
 
 
-def test_bad_week_is_skipped_and_prior_site_survives(two_year_dir, tmp_path, capsys):
+@pytest.mark.parametrize("poison", [
+    ("reading_time_hours: 0.3", "reading_time_hours: null"),
+    ("total_words: 3570", "total_words: not-a-number"),
+    ("article_count: 2", "article_count: null"),
+    ("week_start: '2025-12-08'", "week_start: garbage"),
+    ("week_end: '2025-12-14'", "week_end: null"),
+])
+def test_bad_week_is_skipped_and_prior_site_survives(two_year_dir, tmp_path, capsys, poison):
     out = tmp_path / "_site"
     gen.generate(two_year_dir, out)
-    # Poison one week: null hours used to kill the whole build AFTER the old
-    # site had already been deleted (round-1 blocker 1).
-    bad = (two_year_dir / "2025-W50.md").read_text().replace(
-        "reading_time_hours: 0.3", "reading_time_hours: null")
+    # Poison one week: any bad stat used to kill the whole build AFTER the
+    # old site had already been deleted (round-1 blocker 1; round-2 minor C
+    # asked for all five coerced fields, not just hours).
+    bad = (two_year_dir / "2025-W50.md").read_text().replace(*poison)
     (two_year_dir / "2025-W50.md").write_text(bad)
     count = gen.generate(two_year_dir, out)
     assert count == 1
     assert (out / "weeks" / "2026-W33" / "index.html").exists()
     assert "2025-W50" in capsys.readouterr().err
+
+
+def test_foreign_building_sibling_is_refused_not_consumed(two_year_dir, tmp_path):
+    # Round-2 minor A: blocker 2's exact hole at the sibling temp path.
+    out = tmp_path / "_site"
+    foreign = tmp_path / "_site.building"
+    foreign.mkdir()
+    (foreign / "precious.md").write_text("mine")
+    with pytest.raises(SystemExit, match="Refusing to clear"):
+        gen.generate(two_year_dir, out)
+    assert (foreign / "precious.md").exists()
+
+
+def test_symlinked_out_dir_builds_at_the_real_path(two_year_dir, tmp_path):
+    # Round-2 minor B: previously rendered fully then died mute on
+    # rmtree(symlink), stranding a complete .building dir.
+    real = tmp_path / "real_site"
+    real.mkdir()
+    link = tmp_path / "link_site"
+    link.symlink_to(real)
+    gen.generate(two_year_dir, link)
+    gen.generate(two_year_dir, link)  # second run exercises the swap-over path
+    assert (real / "index.html").exists()
+    assert not (tmp_path / "link_site.building").exists()
+    assert not (tmp_path / "real_site.building").exists()
 
 
 def test_out_dir_guard_refuses_foreign_directories(two_year_dir, tmp_path):
