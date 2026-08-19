@@ -97,6 +97,20 @@ def test_top_values_emits_count_pairs_and_drops_singletons():
     assert top == [{"name": "a", "count": 3}, {"name": "b", "count": 2}]
 
 
+def test_source_host_strips_www_keeps_subdomains_and_survives_empties():
+    assert ws.source_host("https://www.theatlantic.com/magazine/x") == "theatlantic.com"
+    assert ws.source_host("https://simonsarris.substack.com/p/x") == "simonsarris.substack.com"
+    assert ws.source_host("") == ""
+    assert ws.source_host(None) == ""
+
+
+def test_top_sources_counts_distinct_and_repeats():
+    rows = pd.DataFrame({"url": ["https://a.com/1", "https://a.com/2",
+                                 "https://b.org/1", ""]})
+    out = ws.top_sources(rows)
+    assert out == {"distinct": 2, "repeats": [{"name": "a.com", "count": 2}]}
+
+
 def test_heartbeat_timestamps_carry_the_z_suffix(tmp_path, monkeypatch):
     # The Z is the contract with launchd_stats._read_heartbeat; a naive
     # stamp would display a 20:00 CDT run as 01:00 the next day.

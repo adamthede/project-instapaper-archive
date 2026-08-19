@@ -128,6 +128,27 @@ def week_rereads(vault, start, end):
         return 0
 
 
+def source_host(url):
+    """The source is the URL's host, www stripped. Subdomains stay - the
+    substacks are distinct publications, not one source. Empty for the
+    ~10.5k legacy rows that carry no URL."""
+    from urllib.parse import urlparse
+    if not url or pd.isna(url):
+        return ""
+    host = urlparse(str(url)).netloc.lower()
+    return host[4:] if host.startswith("www.") else host
+
+
+def top_sources(rows, n=TOP_N):
+    hosts = [h for h in (source_host(u) for u in rows["url"]) if h]
+    counts = {}
+    for h in hosts:
+        counts[h] = counts.get(h, 0) + 1
+    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    return {"distinct": len(counts),
+            "repeats": [{"name": h, "count": c} for h, c in ranked[:n] if c >= 2]}
+
+
 def gather_highlights(rows):
     """Adam's own words about the week's articles - the highest-signal input."""
     chunks = []
@@ -264,8 +285,10 @@ def _run(args):
         "top_people": top_values(rows["people"]),
         "top_orgs": top_values(rows["orgs"]),
         "rereads_recorded": week_rereads(vault, start, end) if vault else 0,
+        "sources": top_sources(rows),
         "articles": [
-            {"title": str(r["title"]), "url": str(r.get("url") or ""),
+            {"title": str(r["title"]), "url": "" if pd.isna(r.get("url")) else str(r.get("url")),
+             "source": source_host(r.get("url")),
              "words": safe_int(r.get("word_count")), "date_read": r["date_read"].date().isoformat()}
             for _, r in rows.iterrows()
         ],
