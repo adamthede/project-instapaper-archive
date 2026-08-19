@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026 · W33 — The Week in Reading</title>
+<style>
+  :root {
+    --bg: #1c1917;          /* stone-900 */
+    --bg-raise: #292524;    /* stone-800 */
+    --ink: #e7e5e4;         /* stone-200 */
+    --ink-2: #a8a29e;       /* stone-400 */
+    --ink-3: #78716c;       /* stone-500 */
+    --rule: #44403c;        /* stone-700 */
+    --amber: #fbbf24;       /* time */
+    --amber-dim: #92700c;
+    --brand: #FF8F3B;
+    --emerald: #34d399;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: ui-sans-serif, -apple-system, "Helvetica Neue", sans-serif;
+    line-height: 1.5;
+  }
+  .page { max-width: 720px; margin: 0 auto; padding: 64px 24px 96px; }
+  .label {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .num { font-variant-numeric: tabular-nums; }
+
+  header { border-bottom: 1px solid var(--rule); padding-bottom: 28px; }
+  header .kicker { color: var(--brand); }
+  h1 { font-size: 56px; font-weight: 200; letter-spacing: -0.02em; margin-top: 10px; }
+  h1 .wk { color: var(--amber); }
+  .daterange { margin-top: 6px; color: var(--ink-2); font-size: 15px; }
+
+  .stats { display: flex; gap: 40px; flex-wrap: wrap; padding: 32px 0; border-bottom: 1px solid var(--rule); }
+  .stat .v { font-size: 40px; font-weight: 200; }
+  .stat .v em { font-style: normal; font-size: 20px; color: var(--ink-2); }
+  .stat .l { margin-top: 2px; }
+  .stat.time .v { color: var(--amber); }
+
+  section { padding: 36px 0 0; }
+  .prose {
+    font-family: Charter, Georgia, serif;
+    font-size: 17px; line-height: 1.75; color: var(--ink);
+    max-width: 640px;
+  }
+  .prose p + p { margin-top: 1.2em; }
+  .prose .lede::first-letter {
+    color: var(--brand); font-size: 3.1em; float: left;
+    line-height: 0.82; padding-right: 8px; font-weight: 400;
+  }
+  .thread {
+    margin-top: 28px; padding: 18px 20px; background: var(--bg-raise);
+    border-left: 2px solid var(--brand); font-family: Charter, Georgia, serif;
+    font-size: 16px; color: var(--ink);
+  }
+
+  .viz-title { margin-bottom: 18px; }
+  .days { display: flex; gap: 2px; align-items: flex-end; height: 140px; margin-top: 8px; }
+  .day { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+  .day .bar {
+    background: var(--amber-dim); border-radius: 4px 4px 0 0; min-height: 2px;
+    transition: background .15s;
+  }
+  .day.peak .bar { background: var(--amber); }
+  .day:hover .bar { background: var(--brand); }
+  .day .dl { text-align: center; margin-top: 8px; }
+  .day .dv { text-align: center; font-size: 12px; color: var(--ink-2); margin-bottom: 4px; }
+  .day.peak .dv { color: var(--amber); }
+
+  .roster { margin-top: 8px; }
+  .row { display: grid; grid-template-columns: 44px 1fr 64px; gap: 12px; align-items: baseline;
+         padding: 7px 0; border-bottom: 1px solid #2a2523; text-decoration: none; }
+  .row:hover { background: var(--bg-raise); }
+  .row .d { font-size: 12px; color: var(--ink-3); }
+  .row .t { font-size: 14.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .t .wbar { display: block; height: 3px; border-radius: 2px; background: var(--amber-dim); margin-top: 5px; }
+  .row .w { font-size: 12.5px; color: var(--ink-2); text-align: right; }
+  .row.longest .t { color: var(--amber); }
+  .row.longest .wbar { background: var(--amber); }
+
+  .facets { display: flex; gap: 40px; flex-wrap: wrap; margin-top: 8px; }
+  .facet .l { margin-bottom: 8px; }
+  .chip { display: inline-block; padding: 4px 10px; margin: 0 6px 6px 0; background: var(--bg-raise);
+          border-radius: 3px; font-size: 13px; color: var(--ink); }
+  .chip .c { color: var(--amber); font-size: 11.5px; margin-left: 5px; }
+  .empty { color: var(--ink-3); font-size: 13px; font-style: italic; }
+
+  footer { margin-top: 56px; border-top: 1px solid var(--rule); padding-top: 16px;
+           display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  @media (max-width: 560px) { h1 { font-size: 40px; } .stats { gap: 24px; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="label kicker">The Week in Reading</div>
+    <h1>2026 <span class="wk">· W33</span></h1>
+    <div class="daterange num">August 10 – 16, 2026</div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="v num">18</div><div class="l label">Articles read</div></div>
+    <div class="stat"><div class="v num">72,376</div><div class="l label">Words</div></div>
+    <div class="stat time"><div class="v num">5.1<em> hrs</em></div><div class="l label">Reading time</div></div>
+    <div class="stat"><div class="v num">16,792</div><div class="l label">Longest read · words</div></div>
+  </div>
+
+  <section>
+    <div class="prose">
+      <p class="lede">The tension between systemic structures and individual agency defined much of the week’s intellectual landscape. Several pieces highlighted how modern institutions often stifle human potential by prioritizing abstract systems over lived experience. In “The Most Precious Resource is Agency,” the author argues that contemporary education systems create learned helplessness by removing children from meaningful, real-world contributions. This critique resonates with “Childhoods of exceptional people,” which suggests that greatness frequently emerges not from formal schooling but from immersive environments where young minds are surrounded by intellectually gifted adults and encouraged to engage in serious discourse early on. Similarly, the physical environment plays a role in this dynamic, as seen in “Place and Non-Place.” The article contrasts vibrant urban centers with wasted infrastructure like parking lots, arguing that cities designed for pedestrians foster deeper community engagement than those dominated by car-centric design.</p>
+      <p>Parallel to these societal observations were deep reflections on time, memory, and the nature of existence itself. The finite nature of life was a recurring motif, particularly in “The Tail End,” which urges readers to recognize that crucial relationships often reach their conclusion much sooner than expected. This urgency complements the scientific inquiry in “What Is Time?” where physicists suggest that our perception of time’s flow may be an illusion emerging from a deeper, timeless reality. “Augmenting Long-term Memory” explores how systems like Anki can enhance retention, framing memory as a conscious choice essential for creativity, and “Everything is Fertile” teaches seeing the extraordinary in the ordinary through what its author calls "magic eyes."</p>
+      <p>Finally, the week reveals a shift toward redefining success, happiness, and human connection amidst rapid technological change. “The AI Revolution: The Road to Superintelligence” warns of exponential growth making the future unrecognizable, while “In Praise of Idleness” argues that leisure is essential for civilization, countering the modern reverence for constant labor. This aligns with “Growth Without Goals,” which advocates continuous daily practice over fixed endpoints. Human connection remains the anchor, as “Unabridged.” emphasizes through narrative stewardship and deep listening.</p>
+    </div>
+    <div class="thread"><span class="label" style="color:var(--brand)">Thread of the week&nbsp;&nbsp;</span>
+      The search for authentic agency and meaning within increasingly complex and accelerated systems.</div>
+  </section>
+
+  <section>
+    <div class="label viz-title">When the reading happened · words per day</div>
+    <div class="days">
+      <div class="day" title="Mon Aug 10 — 2,348 words, 2 articles"><div class="dv num">2.3k</div><div class="bar" style="height:5%"></div><div class="dl label">Mon</div></div>
+      <div class="day" title="Tue Aug 11 — 4,409 words, 2 articles"><div class="dv num">4.4k</div><div class="bar" style="height:10%"></div><div class="dl label">Tue</div></div>
+      <div class="day" title="Wed Aug 12 — 8,019 words, 2 articles"><div class="dv num">8.0k</div><div class="bar" style="height:19%"></div><div class="dl label">Wed</div></div>
+      <div class="day" title="Thu Aug 13 — 13,384 words, 3 articles"><div class="dv num">13.4k</div><div class="bar" style="height:31%"></div><div class="dl label">Thu</div></div>
+      <div class="day peak" title="Fri Aug 14 — 43,172 words, 8 articles"><div class="dv num">43.2k</div><div class="bar" style="height:100%"></div><div class="dl label">Fri</div></div>
+      <div class="day" title="Sat Aug 15 — 1,044 words, 1 article"><div class="dv num">1.0k</div><div class="bar" style="height:2.4%"></div><div class="dl label">Sat</div></div>
+      <div class="day" title="Sun Aug 16 — no reading"><div class="dv num">—</div><div class="bar" style="height:0"></div><div class="dl label">Sun</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label viz-title">The eighteen · scaled by length</div>
+    <div class="roster">
+      <a class="row" href="https://www.ben-evans.com/benedictevans/2025/11/23/ai-networks-and-mechanical-turks"><span class="d num">8·10</span><span class="t">AI, networks and Mechanical Turks<span class="wbar" style="width:5%"></span></span><span class="w num">907</span></a>
+      <a class="row" href="https://simonsarris.substack.com/p/the-most-precious-resource-is-agency"><span class="d num">8·10</span><span class="t">The Most Precious Resource is Agency<span class="wbar" style="width:9%"></span></span><span class="w num">1,441</span></a>
+      <a class="row" href="https://newworldeconomics.com/place-and-non-place/"><span class="d num">8·11</span><span class="t">Place and Non-Place<span class="wbar" style="width:21%"></span></span><span class="w num">3,495</span></a>
+      <a class="row" href="https://www.npr.org/2025/02/04/nx-s1-5286311/trump-schools-education-department-funding-cuts-congress-student-loans"><span class="d num">8·11</span><span class="t">A guide to what the U.S. Education Department does (and doesn't) do<span class="wbar" style="width:5%"></span></span><span class="w num">914</span></a>
+      <a class="row" href="https://waitbutwhy.com/2015/01/artificial-intelligence-revolution-1.html"><span class="d num">8·12</span><span class="t">The AI Revolution: The Road to Superintelligence<span class="wbar" style="width:45%"></span></span><span class="w num">7,513</span></a>
+      <a class="row" href="https://kyledeanreinford.com/blog/cloudflare-email-workers-for-llm-pipeline/"><span class="d num">8·12</span><span class="t">A Cool Pattern for Ingesting Emails for LLM Extraction Jobs<span class="wbar" style="width:3%"></span></span><span class="w num">506</span></a>
+      <a class="row" href="http://www.collaborativefund.com/blog/how-this-all-happened/"><span class="d num">8·13</span><span class="t">How This All Happened<span class="wbar" style="width:28%"></span></span><span class="w num">4,785</span></a>
+      <a class="row" href="https://www.linkedin.com/pulse/its-official-world-order-has-broken-down-ray-dalio-cuofe"><span class="d num">8·13</span><span class="t">It’s Official: The World Order Has Broken Down<span class="wbar" style="width:42%"></span></span><span class="w num">7,101</span></a>
+      <a class="row" href="http://nickcammarata.com/writing/everything-is-fertile"><span class="d num">8·13</span><span class="t">Everything is Fertile<span class="wbar" style="width:9%"></span></span><span class="w num">1,498</span></a>
+      <a class="row longest" href="https://augmentingcognition.com/ltm.html"><span class="d num">8·14</span><span class="t">Augmenting Long-term Memory<span class="wbar" style="width:100%"></span></span><span class="w num">16,792</span></a>
+      <a class="row" href="https://nautil.us/what-is-time-17483/"><span class="d num">8·14</span><span class="t">What Is Time?<span class="wbar" style="width:7%"></span></span><span class="w num">1,215</span></a>
+      <a class="row" href="https://www.theatlantic.com/magazine/archive/2009/06/what-makes-us-happy/307439/"><span class="d num">8·14</span><span class="t">What Makes Us Happy?<span class="wbar" style="width:68%"></span></span><span class="w num">11,479</span></a>
+      <a class="row" href="https://harpers.org/archive/1932/10/in-praise-of-idleness/"><span class="d num">8·14</span><span class="t">In Praise of Idleness<span class="wbar" style="width:30%"></span></span><span class="w num">4,954</span></a>
+      <a class="row" href="https://escapingflatland.substack.com/p/childhoods"><span class="d num">8·14</span><span class="t">Childhoods of exceptional people<span class="wbar" style="width:28%"></span></span><span class="w num">4,651</span></a>
+      <a class="row" href="https://www.joincolossus.com/blog/posts/growth-without-goals"><span class="d num">8·14</span><span class="t">Growth Without Goals<span class="wbar" style="width:9%"></span></span><span class="w num">1,592</span></a>
+      <a class="row" href="https://mailchimp.com/about/mcsv-static"><span class="d num">8·14</span><span class="t">How to Be Happier - Eleven of the Most Popular Approaches<span class="wbar" style="width:9%"></span></span><span class="w num">1,467</span></a>
+      <a class="row" href="https://waitbutwhy.com/2015/12/the-tail-end.html"><span class="d num">8·14</span><span class="t">The Tail End<span class="wbar" style="width:6%"></span></span><span class="w num">1,022</span></a>
+      <a class="row" href="https://joylere.substack.com/p/unabridged-3ca"><span class="d num">8·15</span><span class="t">Unabridged.<span class="wbar" style="width:6%"></span></span><span class="w num">1,044</span></a>
+    </div>
+  </section>
+
+  <section>
+    <div class="facets">
+      <div class="facet">
+        <div class="l label">Recurring topics</div>
+        <span class="chip">Artificial Intelligence<span class="c num">×2</span></span>
+        <span class="chip">Perception<span class="c num">×2</span></span>
+      </div>
+      <div class="facet">
+        <div class="l label">Recurring orgs</div>
+        <span class="chip">Amazon<span class="c num">×2</span></span>
+      </div>
+      <div class="facet">
+        <div class="l label">Recurring people</div>
+        <span class="empty">none this week — 65 mentioned, each once</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span class="label">Synthesized by qwen3.6-35b-a3b · on-device</span>
+    <span class="label num">Generated 2026-08-19 · reading.adamthede.com (proposed)</span>
+  </footer>
+
+</div>
+</body>
+</html>
