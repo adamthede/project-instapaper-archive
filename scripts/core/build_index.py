@@ -148,6 +148,15 @@ def parse_article(file_path):
             # Carried so downstream candidate selection (enrich_archive_local)
             # can exclude junk-scrape files instead of re-judging them nightly.
             "content_corrupted": bool(fm.get("content_corrupted", False)),
+            # The remaining five keys the 2026-08-11 audit found written to
+            # markdown but never carried into the index - the deep-dive pages
+            # (reading-progress, highlight density, tag facets) need them.
+            "matter_status": fm.get("matter_status"),
+            "matter_progress": fm.get("matter_progress"),
+            "matter_highlight_count": fm.get("matter_highlight_count"),
+            "date_saved_source": fm.get("date_saved_source"),
+            "tags": list(fm.get("tags") or []),
+            "favorite": bool(fm.get("favorite", False)),
             "reading_time_min": reading_time_min,
             "grade_level": grade_level,
             "topics": topics,
