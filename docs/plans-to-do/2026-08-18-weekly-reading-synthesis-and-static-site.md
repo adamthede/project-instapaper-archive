@@ -1,6 +1,6 @@
 ---
 title: "Weekly Reading Synthesis + Static Site — the browsable week-over-week archive"
-status: "Queued"
+status: "In Progress"
 priority: "P1"
 project: "articles"
 created: 2026-08-18
@@ -101,7 +101,7 @@ Spaced Review behind (its review-writes need a server; park until wanted).
 Keep `dashboard/` runnable until the site has feature-parity on the
 surfaces that survive.
 
-## Decisions for Adam (defaults proposed, flag disagreement at review)
+## Decisions — SETTLED 2026-08-19 (Adam confirmed all four defaults)
 
 1. **Output home:** vault `synthesis/` subdir (part of the archive itself). 
 2. **Cadence:** Sunday 20:00 local.
