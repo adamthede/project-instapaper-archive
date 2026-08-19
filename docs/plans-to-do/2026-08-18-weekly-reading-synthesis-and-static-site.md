@@ -11,6 +11,10 @@ depends_on:
 
 # Weekly Reading Synthesis + Static Site
 
+> **Status note (2026-08-19):** Phase 1 SHIPPED via PR #3 (merged after a
+> two-round adversarial review; plist installed same day). Phases 2-5 remain;
+> next gate is the Phase 2 week-page mockup for Adam's approval.
+
 ## Problem
 
 The archive now captures and enriches autonomously (Matter nightly, local Qwen
