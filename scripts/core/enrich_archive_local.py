@@ -55,7 +55,7 @@ class ModelMismatch(RuntimeError):
     pass
 
 
-def _locked_completion(prompt):
+def _locked_completion(prompt, temperature=0.2, max_tokens=800):
     """One inference under the shared flock. BSD flock on the byte-identical
     fleet path — POSIX lockf would not interoperate with the other holders."""
     LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -65,8 +65,8 @@ def _locked_completion(prompt):
             resp = requests.post(LMSTUDIO_URL, timeout=REQUEST_TIMEOUT, json={
                 "model": PINNED_MODEL,
                 "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.2,
-                "max_tokens": 800,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
                 "stream": False,
             })
         finally:

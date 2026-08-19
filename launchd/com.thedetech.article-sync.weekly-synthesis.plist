@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Weekly reading synthesis - Sundays at 20:00 local.
+
+  Reads the closing ISO week from the archive index and writes one woven
+  digest (prose + stats frontmatter) to <vault>/synthesis/<week>.md via the
+  local model (LM Studio/Qwen, fleet flock, pinned id). Settled decisions
+  2026-08-19: vault synthesis/ home, Sunday 20:00, 300-500 words.
+
+  Fleet conventions honoured (same as the Matter nightly's plist):
+    * ProgramArguments[0] is /opt/homebrew/bin/python3 (the TCC grant holder);
+      it runs a stdlib-only launcher that subprocesses the repo venv, which
+      has pandas. Override the venv with MATTER_INDEX_PYTHON.
+    * Logs live OUTSIDE ~/Documents (EX_CONFIG otherwise).
+    * RunAtLoad false.
+    * Heartbeat: ~/Library/Logs/MatterSync/weekly-synthesis-heartbeat.json,
+      fleet shape, written on failure too. Cockpit registration is a separate
+      command-center change (hardcoded registry).
+
+  Non-fatal posture: LM Studio down = heartbeat "fail", exit 1, no file
+  written; the next Sunday regenerates the same week only if asked - the
+  default target is always the week just closed, so a missed Sunday is
+  healed by a manual `--week` run.
+
+  Install:
+    cp launchd/com.thedetech.article-sync.weekly-synthesis.plist ~/Library/LaunchAgents/ \
+      && launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.thedetech.article-sync.weekly-synthesis.plist
+
+  Run once by hand:
+    launchctl kickstart -k gui/$(id -u)/com.thedetech.article-sync.weekly-synthesis
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.thedetech.article-sync.weekly-synthesis</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/python3</string>
+        <string>/Users/adam_thede/Documents/Code/Project - Instapaper Archive/scripts/core/weekly_synthesis_launcher.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/adam_thede/Documents/Code/Project - Instapaper Archive</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/adam_thede</string>
+        <key>INSTAPAPER_VAULT_PATH</key>
+        <string>/Volumes/AST/Library/Articles/Instapaper-Matter-Archive</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>
+        <key>Hour</key>
+        <integer>20</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/adam_thede/Library/Logs/MatterSync/weekly-synthesis.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/adam_thede/Library/Logs/MatterSync/weekly-synthesis.err.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+</dict>
+</plist>
