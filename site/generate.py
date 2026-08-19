@@ -55,6 +55,14 @@ def load_weeks(synthesis_dir):
             meta = dict(post.metadata)
             if not meta.get("week") or not isinstance(meta.get("articles"), list):
                 raise ValueError("missing week/articles frontmatter")
+            # Every stat the templates interpolate must be sound HERE, or a
+            # single bad week kills the whole build at render time (round-1
+            # review blocker 1). Coerce loudly; failure skips the week.
+            dt.date.fromisoformat(str(meta["week_start"]))
+            dt.date.fromisoformat(str(meta["week_end"]))
+            meta["article_count"] = int(meta["article_count"])
+            meta["total_words"] = int(meta["total_words"])
+            meta["reading_time_hours"] = float(meta["reading_time_hours"])
             meta["prose"] = post.content.strip()
             # Older files predate the source field; derive at render time.
             for a in meta["articles"]:
@@ -272,12 +280,21 @@ def render_week(meta, prev_wk=None, next_wk=None):
         longest = " longest" if w == max_words and len(arts) > 1 else ""
         d = str(a.get("date_read") or "")[5:].replace("-", "·")
         src = f'<span class="src">{e(a["source"])}</span>' if a.get("source") else ""
-        href = e(a.get("url") or "#")
-        roster_html += (f'      <a class="row{longest}" href="{href}">'
-                        f'<span class="d num">{d}</span>'
-                        f'<span class="t">{e(str(a.get("title") or "Untitled"))}{src}'
-                        f'<span class="wbar" style="width:{pct:.0f}%"></span></span>'
-                        f'<span class="w num">{n(w)}</span></a>\n')
+        url = str(a.get("url") or "")
+        # Scheme allowlist: these are third-party scraped URLs, and e()
+        # escapes quotes but not a javascript: scheme. A missing URL renders
+        # a non-link row, not a dead href="#" (33 real cases in 2025-W47).
+        linkable = url.lower().startswith(("http://", "https://"))
+        inner = (f'<span class="d num">{d}</span>'
+                 f'<span class="t">{e(str(a.get("title") or "Untitled"))}{src}'
+                 f'<span class="wbar" style="width:{pct:.0f}%"></span></span>'
+                 f'<span class="w num">{n(w)}</span>')
+        if linkable:
+            tag = f'<a class="row{longest}" href="{e(url)}">{inner}</a>'
+        else:
+            tag = f'<span class="row{longest}">{inner}</span>'
+        roster_html += "      " + tag + "\n"
+
 
     def chips(pairs, empty_note):
         if not pairs:
@@ -286,7 +303,7 @@ def render_week(meta, prev_wk=None, next_wk=None):
         for item in pairs:
             name, count = (item["name"], item["count"]) if isinstance(item, dict) else item
             out += (f'        <span class="chip">{e(str(name))}'
-                    f'<span class="c num">×{count}</span></span>\n')
+                    f'<span class="c num">×{e(str(count))}</span></span>\n')
         return out
 
     distinct_sources, repeat_sources = week_sources(meta)
@@ -307,7 +324,7 @@ def render_week(meta, prev_wk=None, next_wk=None):
   <div class="stats">
     <div class="stat"><div class="v num">{n(meta["article_count"])}</div><div class="l label">Articles read</div></div>
     <div class="stat"><div class="v num">{n(meta["total_words"])}</div><div class="l label">Words</div></div>
-    <div class="stat time"><div class="v num">{meta["reading_time_hours"]}<em> hrs</em></div><div class="l label">Reading time</div></div>
+    <div class="stat time"><div class="v num">{e(str(meta["reading_time_hours"]))}<em> hrs</em></div><div class="l label">Reading time</div></div>
     <div class="stat"><div class="v num">{n(longest_words)}</div><div class="l label">Longest read · words</div></div>
     <div class="stat"><div class="v num">{distinct_sources}</div><div class="l label">Sources</div></div>
   </div>
@@ -360,7 +377,8 @@ def render_index(weeks):
     trend = ""
     for m in weeks:
         w = str(m["week"])
-        pct = max(int(m["total_words"]) / peak * 100, 2)
+        # sqrt scale: linear pinned 51 of 127 real weeks to the visual floor.
+        pct = max((int(m["total_words"]) / peak) ** 0.5 * 100, 3)
         cls = ' class="latest"' if m is weeks[-1] else ""
         tip = f"{w} — {n(m['total_words'])} words, {m['article_count']} articles"
         trend += (f'    <a href="weeks/{w}/" title="{e(tip)}"{cls} '
@@ -375,7 +393,12 @@ def render_index(weeks):
             rows += f'  <div class="yearhead num">{year}</div>\n'
             year_seen = year
         topics = m.get("top_topics") or []
-        top = topics[0]["name"] if topics and isinstance(topics[0], dict) else (topics[0][0] if topics else "")
+        if topics and isinstance(topics[0], dict):
+            top = topics[0].get("name", "")
+        elif topics and isinstance(topics[0], (list, tuple)):
+            top = topics[0][0]
+        else:
+            top = str(topics[0]) if topics else ""
         rows += (f'  <a class="wrow" href="weeks/{w}/">'
                  f'<span class="wk2 num">{w}</span>'
                  f'<span class="topic">{e(str(top))}</span>'
@@ -392,7 +415,7 @@ def render_index(weeks):
     <div class="stat"><div class="v num">{n(len(weeks))}</div><div class="l label">Weeks</div></div>
     <div class="stat"><div class="v num">{n(total_articles)}</div><div class="l label">Articles</div></div>
     <div class="stat"><div class="v num">{n(total_words)}</div><div class="l label">Words read</div></div>
-    <div class="stat time"><div class="v num">{n(total_hours)}<em> hrs</em></div><div class="l label">Reading time</div></div>
+    <div class="stat time"><div class="v num">{total_hours:,.1f}<em> hrs</em></div><div class="l label">Reading time</div></div>
   </div>
 
   <section>
@@ -415,23 +438,40 @@ def render_index(weeks):
 # main
 # ---------------------------------------------------------------------------
 
+MARKER = ".reading-site"
+
+
 def generate(synthesis_dir, out_dir):
+    """Render into a temp dir and swap only on success: a failed build must
+    never leave the deploy dir empty (review blocker 1), and --out must never
+    delete a directory this generator did not create (review blocker 2)."""
     weeks = load_weeks(synthesis_dir)
     if not weeks:
         raise SystemExit(f"No synthesis files found in {synthesis_dir}")
     out = Path(out_dir)
-    if out.exists():
-        shutil.rmtree(out)
-    (out / "weeks").mkdir(parents=True)
-    (out / "style.css").write_text(STYLE, encoding="utf-8")
-    (out / "index.html").write_text(render_index(weeks), encoding="utf-8")
+    if out.exists() and any(out.iterdir()) and not (out / MARKER).exists():
+        raise SystemExit(
+            f"Refusing to overwrite {out}: it is not empty and was not "
+            f"generated by this script (no {MARKER} marker). Pick another --out.")
+
+    tmp = out.parent / (out.name + ".building")
+    if tmp.exists():
+        shutil.rmtree(tmp)
+    (tmp / "weeks").mkdir(parents=True)
+    (tmp / MARKER).write_text("generated by site/generate.py\n")
+    (tmp / "style.css").write_text(STYLE, encoding="utf-8")
+    (tmp / "index.html").write_text(render_index(weeks), encoding="utf-8")
     for i, m in enumerate(weeks):
         w = str(m["week"])
         prev_wk = str(weeks[i - 1]["week"]) if i > 0 else None
         next_wk = str(weeks[i + 1]["week"]) if i < len(weeks) - 1 else None
-        d = out / "weeks" / w
+        d = tmp / "weeks" / w
         d.mkdir()
         (d / "index.html").write_text(render_week(m, prev_wk, next_wk), encoding="utf-8")
+
+    if out.exists():
+        shutil.rmtree(out)
+    os.replace(tmp, out)
     return len(weeks)
 
 

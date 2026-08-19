@@ -119,3 +119,87 @@ def test_generate_refuses_an_empty_dir(tmp_path):
     empty.mkdir()
     with pytest.raises(SystemExit):
         gen.generate(empty, tmp_path / "_site")
+
+
+WEEK2_MD = WEEK_MD.replace("2026-W33", "2025-W50").replace("'2026-08-10'", "'2025-12-08'") \
+                  .replace("'2026-08-16'", "'2025-12-14'") \
+                  .replace("'2026-08-11'", "'2025-12-09'").replace("'2026-08-14'", "'2025-12-12'")
+
+
+@pytest.fixture
+def two_year_dir(tmp_path):
+    d = tmp_path / "synthesis"
+    d.mkdir()
+    (d / "2026-W33.md").write_text(WEEK_MD, encoding="utf-8")
+    (d / "2025-W50.md").write_text(WEEK2_MD, encoding="utf-8")
+    return d
+
+
+def test_index_lists_every_week_with_year_grouping(two_year_dir):
+    # Round-1 minor 6: a surviving mutant dropped a week from the row list
+    # and nothing failed. Every week gets a row AND a trend bar; years head.
+    weeks = gen.load_weeks(two_year_dir)
+    html_out = gen.render_index(weeks)
+    for w in ("2026-W33", "2025-W50"):
+        assert html_out.count(f'href="weeks/{w}/"') == 2, w  # trend + row
+    assert '>2026</div>' in html_out and '>2025</div>' in html_out
+
+
+def test_bad_week_is_skipped_and_prior_site_survives(two_year_dir, tmp_path, capsys):
+    out = tmp_path / "_site"
+    gen.generate(two_year_dir, out)
+    # Poison one week: null hours used to kill the whole build AFTER the old
+    # site had already been deleted (round-1 blocker 1).
+    bad = (two_year_dir / "2025-W50.md").read_text().replace(
+        "reading_time_hours: 0.3", "reading_time_hours: null")
+    (two_year_dir / "2025-W50.md").write_text(bad)
+    count = gen.generate(two_year_dir, out)
+    assert count == 1
+    assert (out / "weeks" / "2026-W33" / "index.html").exists()
+    assert "2025-W50" in capsys.readouterr().err
+
+
+def test_out_dir_guard_refuses_foreign_directories(two_year_dir, tmp_path):
+    precious = tmp_path / "precious"
+    precious.mkdir()
+    (precious / "irreplaceable.md").write_text("do not delete")
+    with pytest.raises(SystemExit, match="Refusing to overwrite"):
+        gen.generate(two_year_dir, precious)
+    assert (precious / "irreplaceable.md").exists()
+
+
+def test_regeneration_over_own_output_is_allowed(two_year_dir, tmp_path):
+    out = tmp_path / "_site"
+    gen.generate(two_year_dir, out)
+    gen.generate(two_year_dir, out)  # marker present -> no refusal
+    assert (out / gen.MARKER).exists()
+
+
+def test_javascript_scheme_and_missing_urls_render_nonlinks(synth_dir):
+    m = gen.load_weeks(synth_dir)[0]
+    m["articles"][0]["url"] = "javascript:alert(1)"
+    m["articles"][1]["url"] = ""
+    html_out = gen.render_week(m)
+    assert "javascript:" not in html_out
+    assert 'href="#"' not in html_out
+    assert html_out.count('<span class="row') == 2  # both are non-links
+
+
+def test_hostile_topic_count_is_escaped(synth_dir):
+    m = gen.load_weeks(synth_dir)[0]
+    m["top_topics"] = [{"name": "AI", "count": '1"><script>x</script>'}]
+    html_out = gen.render_week(m)
+    assert "<script>x</script>" not in html_out
+
+
+def test_index_hours_keep_their_decimal(two_year_dir):
+    weeks = gen.load_weeks(two_year_dir)
+    html_out = gen.render_index(weeks)
+    assert "0.6<em> hrs</em>" in html_out  # 0.3 + 0.3, not int-truncated
+
+
+def test_plain_string_topic_fallback_is_whole_word(synth_dir):
+    m = gen.load_weeks(synth_dir)[0]
+    m["top_topics"] = ["Artificial Intelligence"]
+    html_out = gen.render_index([m])
+    assert "Artificial Intelligence" in html_out
