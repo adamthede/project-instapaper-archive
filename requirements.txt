@@ -21,3 +21,4 @@ watchdog>=4.0.0
 wordcloud>=1.9.0
 matplotlib>=3.7.0
 
+PyYAML

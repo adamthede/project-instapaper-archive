@@ -16,7 +16,8 @@ Run under the repo venv (pandas):
     .venv/bin/python scripts/core/weekly_synthesis.py [--week 2026-W33]
                                                       [--dry-run] [--out-dir D]
 
-Default week is the last fully closed ISO week. Regeneration overwrites -
+Default week: on Sundays (the scheduled run's day) the week ending that
+evening; any other day, the last fully closed week. Regeneration overwrites -
 the file is a projection of the index plus one model call, never the record
 of anything unrecoverable.
 """
@@ -109,7 +110,7 @@ def top_values(series_of_lists, n=TOP_N):
     # count 1); a stat that reads meaningful but is alphabetical is worse
     # than none. Emit [value, count] pairs, repeats only.
     ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
-    return [[v, c] for v, c in ranked[:n] if c >= 2]
+    return [{"name": v, "count": c} for v, c in ranked[:n] if c >= 2]
 
 
 def week_rereads(vault, start, end):
@@ -141,7 +142,7 @@ def gather_highlights(rows):
             continue
         section = text.split("## Highlights", 1)[1]
         # Stop at the next heading rather than swallowing the rest of the file.
-        section = re.split(r"\n## ", section, 1)[0].strip()
+        section = re.split(r"\n## ", section, maxsplit=1)[0].strip()
         chunk = f"From \u201c{r['title']}\u201d:\n{section}"
         if total + len(chunk) > MAX_HIGHLIGHT_CHARS:
             continue  # skip the oversized one, keep collecting small ones
@@ -223,7 +224,7 @@ def write_heartbeat(outcome, week, article_count, error=None):
 
 def _parse_args():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--week", help="ISO week like 2026-W33 (default: last closed week)")
+    ap.add_argument("--week", help="ISO week like 2026-W33 (default: Sunday = the week ending today, else last closed week)")
     ap.add_argument("--dry-run", action="store_true", help="Print, write nothing.")
     ap.add_argument("--out-dir", help="Override output dir (default: <vault>/synthesis).")
     ap.add_argument("--no-heartbeat", action="store_true")

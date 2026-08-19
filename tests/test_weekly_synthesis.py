@@ -94,7 +94,7 @@ def test_top_values_emits_count_pairs_and_drops_singletons():
     top = ws.top_values(s, n=3)
     # Singletons are alphabetical noise (round-1 minor 7): only repeats,
     # as [value, count] pairs.
-    assert top == [["a", 3], ["b", 2]]
+    assert top == [{"name": "a", "count": 3}, {"name": "b", "count": 2}]
 
 
 def test_heartbeat_timestamps_carry_the_z_suffix(tmp_path, monkeypatch):
@@ -241,6 +241,40 @@ def test_unmounted_vault_heartbeats_fail_not_silence(fake_run, monkeypatch, tmp_
     assert rc == 1
     hb = json.loads((tmp_path / "hb.json").read_text())
     assert hb["outcome"] == "fail" and "Read-only" in hb["error"]
+
+
+def test_bad_week_config_error_still_heartbeats_fail(fake_run, monkeypatch, tmp_path):
+    # The SystemExit branch of the blocker-2 fix, unpinned in round 2 (N3).
+    with pytest.raises(SystemExit):
+        run_main(monkeypatch, ["--week", "garbage", "--out-dir", str(fake_run)])
+    hb = json.loads((tmp_path / "hb.json").read_text())
+    assert hb["outcome"] == "fail"
+
+
+def test_dry_run_failure_writes_no_heartbeat(fake_run, monkeypatch, tmp_path):
+    def boom(prompt):
+        raise RuntimeError("down")
+    monkeypatch.setattr(ws, "synthesize", boom)
+    rc = run_main(monkeypatch, ["--week", "2026-W33", "--dry-run",
+                                "--out-dir", str(fake_run)])
+    assert rc == 1
+    assert not (tmp_path / "hb.json").exists()
+
+
+def test_safe_int_and_summary_guard_nan():
+    import numpy as np
+    assert ws.safe_int(np.float64("nan")) == 0
+    rows = pd.DataFrame([{"title": "T", "word_count": np.float64("nan"),
+                          "topics": ["t"], "summary": np.float64("nan")}])
+    prompt = ws.build_weekly_prompt("2026-W33", rows, "")
+    assert "nan" not in prompt
+
+
+def test_as_list_handles_arrays_none_and_scalars():
+    import numpy as np
+    assert ws.as_list(np.array(["a", "b"])) == ["a", "b"]
+    assert ws.as_list(None) == []
+    assert ws.as_list(3) == []
 
 
 def test_prev_week_delta_is_carried(fake_run, monkeypatch):

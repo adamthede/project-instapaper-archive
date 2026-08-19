@@ -5,4 +5,3 @@ markdownify>=0.11.0
 beautifulsoup4>=4.11.0
 google-generativeai>=0.3.0
 markitdown>=0.0.1a2
-PyYAML
