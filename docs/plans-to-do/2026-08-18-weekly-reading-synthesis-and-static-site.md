@@ -15,6 +15,12 @@ depends_on:
 > two-round adversarial review; plist installed same day). Phases 2-5 remain;
 > next gate is the Phase 2 week-page mockup for Adam's approval.
 >
+> **2026-08-20:** Phase 4 backfill COMPLETE (854 weeks, 1953-2026; site
+> shows 826 from the 2005 epoch). Phase 5 deep dives SHIPPED (PR #8).
+> Index-at-scale redesign SHIPPED (PR #9). Phase 5b (trends layer) in
+> flight. Remaining: Adam's first deploy, nightly deploy wiring, the
+> Streamlit retirement decision.
+>
 > **2026-08-19 (later):** Phase 2 mockup APPROVED; Matter-era backfill
 > complete (127 weeks, zero failures); Phase 3 build underway - Python
 > generate.py per the audit (Hugo reconsidered and re-declined by Adam).

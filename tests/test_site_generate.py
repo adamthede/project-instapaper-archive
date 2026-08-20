@@ -141,8 +141,9 @@ def test_index_lists_every_week_with_year_grouping(two_year_dir):
     weeks = gen.load_weeks(two_year_dir)
     html_out = gen.render_index(weeks)
     for w in ("2026-W33", "2025-W50"):
-        # trend bar + year-strip cell + row = 3 links per week
-        assert html_out.count(f'href="weeks/{w}/"') == 3, w
+        # year-strip cell + row = 2 links per week (the top chart now links
+        # to year anchors, not weeks - it became the year nav)
+        assert html_out.count(f'href="weeks/{w}/"') == 2, w
     assert '>2026</div>' in html_out and '>2025</div>' in html_out
 
 
@@ -385,3 +386,69 @@ def test_mixed_provenance_note_renders_count_and_escapes(synth_dir):
     assert "3 of the articles carry approximate dates" in html_out
     m["proxy_dated_articles"] = "<img src=x onerror=alert(1)>"
     assert "onerror" not in gen.render_week(m)  # coerces to 0, renders nothing
+
+
+def test_index_top_chart_is_year_nav_with_anchors(two_year_dir):
+    weeks = gen.load_weeks(two_year_dir)
+    html_out = gen.render_index(weeks)
+    assert 'href="#y2026"' in html_out and 'href="#y2025"' in html_out
+    assert 'id="y2026"' in html_out and 'id="y2025"' in html_out
+
+
+def test_older_year_rows_collapse_recent_stay_open(two_year_dir, tmp_path):
+    # Three years: only the two most recent stay expanded.
+    d = two_year_dir
+    (d / "2024-W10.md").write_text(
+        WEEK_MD.replace("2026-W33", "2024-W10").replace("'2026-08-10'", "'2024-03-04'")
+        .replace("'2026-08-16'", "'2024-03-10'").replace("'2026-08-11'", "'2024-03-05'")
+        .replace("'2026-08-14'", "'2024-03-08'"), encoding="utf-8")
+    weeks = gen.load_weeks(d)
+    html_out = gen.render_index(weeks)
+    assert html_out.count("<details") == 1  # only 2024 collapses
+    assert "1 weeks</summary>" in html_out
+    i_details = html_out.index("<details")
+    assert html_out.index('id="y2024"') < i_details  # head+strip outside
+
+
+def test_pre_epoch_stragglers_are_excluded_with_a_note(two_year_dir, tmp_path):
+    (two_year_dir / "1953-W37.md").write_text(
+        WEEK_MD.replace("2026-W33", "1953-W37").replace("'2026-08-10'", "'1953-09-07'")
+        .replace("'2026-08-16'", "'1953-09-13'").replace("'2026-08-11'", "'1953-09-08'")
+        .replace("'2026-08-14'", "'1953-09-11'"), encoding="utf-8")
+    out = tmp_path / "_site"
+    count = gen.generate(two_year_dir, out)
+    assert count == 2  # 1953 excluded
+    assert not (out / "weeks" / "1953-W37").exists()
+    idx = (out / "index.html").read_text()
+    assert f"1 pre-{gen.SITE_EPOCH_WEEK[:4]} publication-dated weeks excluded" in idx
+    assert "1953" not in idx
+
+
+def test_quiet_year_peak_week_still_renders_full_height(two_year_dir):
+    # MINOR-2: the load-bearing property of this PR - per-YEAR peak scaling.
+    # A quiet year's peak week must hit 100%, not flatten to the floor as it
+    # would under the old global-peak scale.
+    d = two_year_dir
+    quiet = (WEEK_MD.replace("2026-W33", "2024-W10")
+             .replace("total_words: 3570", "total_words: 90")
+             .replace("'2026-08-10'", "'2024-03-04'").replace("'2026-08-16'", "'2024-03-10'")
+             .replace("'2026-08-11'", "'2024-03-05'").replace("'2026-08-14'", "'2024-03-08'"))
+    (d / "2024-W10.md").write_text(quiet, encoding="utf-8")
+    html_out = gen.render_index(gen.load_weeks(d))
+    import re
+    strip_2024 = html_out.split('id="y2024"')[1].split("yearhead")[0]
+    assert 'style="height:100%"' in strip_2024
+    assert 'class="wb peakw"' in strip_2024
+
+
+def test_every_details_element_closes(two_year_dir):
+    # MINOR-3: an unclosed <details> swallows every later year into one
+    # collapsed block; the suite only ever counted openings.
+    d = two_year_dir
+    for wk, ds in [("2024-W10", "2024-03-04"), ("2023-W05", "2023-01-30")]:
+        (d / f"{wk}.md").write_text(
+            WEEK_MD.replace("2026-W33", wk).replace("'2026-08-10'", f"'{ds}'")
+            .replace("'2026-08-16'", "'2024-03-10'").replace("'2026-08-11'", f"'{ds}'")
+            .replace("'2026-08-14'", f"'{ds}'"), encoding="utf-8")
+    html_out = gen.render_index(gen.load_weeks(d))
+    assert html_out.count("<details") == html_out.count("</details>") == 2
