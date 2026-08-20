@@ -114,18 +114,40 @@ def safe_int(v):
 
 
 def stats(rows):
-    words = int(pd.to_numeric(rows["word_count"], errors="coerce").fillna(0).sum())
-    minutes = pd.to_numeric(rows["reading_time_min"], errors="coerce").fillna(0).sum()
+    words_col = pd.to_numeric(rows.get("word_count"), errors="coerce")
+    minutes = pd.to_numeric(rows.get("reading_time_min"), errors="coerce").fillna(0).sum()
     domains = {d for d in rows["domain"] if d}
+    median = words_col.dropna().median()
     return {
         "articles": len(rows),
-        "words": words,
+        "words": int(words_col.fillna(0).sum()),
         "hours": round(float(minutes) / 60.0, 1),
         "domains": len(domains),
-        "median_words": int(pd.to_numeric(rows["word_count"], errors="coerce")
-                            .dropna().median()) if len(rows) else 0,
+        # The legacy corpus carries no URLs at all, so a domain count is a
+        # count over an unstated subset unless the pages say how big it is.
+        "url_bearing": int(sum(1 for d in rows["domain"] if d)),
+        "median_words": int(median) if pd.notna(median) else 0,
         "proxy_dated": int(rows["proxy_dated"].sum()),
     }
+
+
+def topic_vocabulary(rows):
+    """(distinct topics, share used exactly once) - measured, not quoted.
+
+    The pages explain why topics are not ranked. That explanation carries
+    numbers, and numbers pasted from a months-old audit drift away from the
+    corpus they claim to describe.
+    """
+    counts = Counter()
+    if "topics" not in rows.columns:
+        return 0, 0.0
+    for v in rows["topics"]:
+        for name in set(as_list(v)):
+            counts[name] += 1
+    if not counts:
+        return 0, 0.0
+    singletons = sum(1 for c in counts.values() if c == 1)
+    return len(counts), round(singletons / len(counts) * 100, 1)
 
 
 def month_series(rows, year):

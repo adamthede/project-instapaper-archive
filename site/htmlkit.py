@@ -26,7 +26,7 @@ def safe_url(url):
     return e(u) if u.lower().startswith(SAFE_SCHEMES) else ""
 
 
-def page(title, body, depth=0, head_extra=""):
+def page(title, body, depth=0, body_extra=""):
     css = "../" * depth + "style.css"
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -40,6 +40,6 @@ def page(title, body, depth=0, head_extra=""):
 <div class="page">
 {body}
 </div>
-{head_extra}</body>
+{body_extra}</body>
 </html>
 """

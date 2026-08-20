@@ -655,7 +655,7 @@ def render_deep_dives(tmp, weeks, corpus_data):
     (tmp / "articles.json").write_bytes(deepdives.payload_json(corpus_data))
     (tmp / "articles").mkdir()
     (tmp / "articles" / "index.html").write_text(
-        deepdives.render_articles_page(len(corpus_data), site_title=SITE_TITLE,
+        deepdives.render_articles_page(corpus_data, site_title=SITE_TITLE,
                                        domain=DOMAIN),
         encoding="utf-8")
     return set(years)
@@ -693,7 +693,23 @@ def generate(synthesis_dir, out_dir, index_path=None):
         corpus_data = load_corpus_or_none(index_path)
         year_pages = set()
         if corpus_data is not None and len(corpus_data):
-            year_pages = render_deep_dives(tmp, weeks, corpus_data)
+            try:
+                year_pages = render_deep_dives(tmp, weeks, corpus_data)
+            except SystemExit:
+                raise  # the payload cap is a deliberate abort, not drift
+            except Exception as err:
+                # Schema drift in the index (a renamed column, a numeric
+                # column arriving as strings) must not cost the week pages,
+                # which do not read the index at all. Fail this leg only.
+                print(f"deep-dive pages failed ({err!r}): rendering weeks only",
+                      file=sys.stderr)
+                year_pages = set()
+                for stale in ("years", "orgs", "articles", "articles.json"):
+                    p = tmp / stale
+                    if p.is_dir():
+                        shutil.rmtree(p, ignore_errors=True)
+                    elif p.exists():
+                        p.unlink()
         (tmp / "index.html").write_text(
             render_index(weeks, year_pages=year_pages, facets=bool(year_pages)),
             encoding="utf-8")

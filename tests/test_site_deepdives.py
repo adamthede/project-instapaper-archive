@@ -215,14 +215,18 @@ def test_payload_json_under_the_cap_round_trips(small):
     assert len(blob) < deepdives.MAX_PAYLOAD_BYTES
 
 
-def test_real_scale_payload_stays_within_the_cap():
-    """A 20k-row corpus of realistic width must fit the budget the cap sets."""
+def test_real_scale_payload_stays_within_an_absolute_budget():
+    """A 20k-row corpus of realistic width must fit SIX MEGABYTES, stated
+    absolutely. Asserting against MAX_PAYLOAD_BYTES would move with the
+    constant, so the natural response to a bloated payload - raise the cap -
+    would leave every test green. The budget is the point, not the constant."""
     rows = [row(title=f"Article number {i} about something or other",
                 url=f"https://example.com/some/path/to/article-{i}",
                 author="A Reasonably Long Author Name")
             for i in range(20000)]
     c = corpus.prepare(frame(rows))
-    assert len(deepdives.payload_json(c)) < deepdives.MAX_PAYLOAD_BYTES
+    assert len(deepdives.payload_json(c)) < 6_000_000
+    assert deepdives.MAX_PAYLOAD_BYTES <= 6 * 1024 * 1024
 
 
 # ---------------------------------------------------------------------------
@@ -289,7 +293,39 @@ def test_orgs_page_ranks_no_topics(small):
 def test_orgs_page_states_coverage_honestly(small):
     out = deepdives.render_orgs(small)
     assert "Articles tagged" in out and "Covered by the top 20" in out
-    assert "73.3%" in out  # the singleton fact, on the page not just in a docstring
+
+
+def test_org_note_reports_the_same_head_coverage_as_the_stat_tile(small):
+    """The note used to hardcode the audit's 42.9% and print it fourteen lines
+    under a tile computing 45.2%. Both numbers now come from one measurement."""
+    head = corpus.head_coverage(small.rows, "orgs", 20)
+    out = deepdives.render_orgs(small)
+    assert f"{head:,.1f}<em>%</em>" in out          # the tile
+    assert f"top 20 cover {head:,.1f}% of the" in out  # the prose
+    assert "42.9%" not in out
+
+
+def test_org_note_measures_the_topic_vocabulary_rather_than_quoting_it(small):
+    vocab, singles = corpus.topic_vocabulary(small.rows)
+    assert (vocab, singles) == (1, 0.0)  # every fixture row is tagged "AI"
+    note = deepdives.org_note(small)
+    assert "1 free-text strings, 0.0% of them used exactly once" in note
+    assert "29,882" not in note and "73.3%" not in note
+
+
+def test_topic_vocabulary_counts_distinct_strings_and_singletons():
+    c = corpus.prepare(frame([
+        row(topics=["AI", "Rust"]), row(topics=["AI"]), row(topics=["Solo"]),
+    ]))
+    assert corpus.topic_vocabulary(c.rows) == (3, round(2 / 3 * 100, 1))
+
+
+def test_org_tooltips_name_the_denominator_they_actually_used(small):
+    """A share of the whole archive labelled 'of the year' is a wrong number."""
+    year = deepdives.render_year(small, 2012)
+    facet = deepdives.render_orgs(small)
+    assert "% of the year" in year and "% of the archive" not in year
+    assert "% of the archive" in facet and "% of the year" not in facet
 
 
 def test_year_provenance_note_scales_with_the_proxy_share():
@@ -310,8 +346,42 @@ def test_year_provenance_note_scales_with_the_proxy_share():
     assert "1 of 2 articles" in out and "50%" in out
 
 
-def test_year_page_without_proxy_dates_renders_no_provenance_note(small):
+def test_year_page_without_proxy_dates_or_url_gaps_renders_no_provenance_note(small):
     assert "provenance" not in deepdives.render_year(small, 2013)
+
+
+def test_a_year_with_no_urls_never_prints_a_bare_zero_under_sources():
+    """Five year pages showed a large light 0 under 'Sources' because the
+    legacy corpus carries no URLs at all. A zero with no explanation is a
+    wrong answer to a question the reader did not know they were asking."""
+    legacy = corpus.prepare(frame([
+        row(title="L1", source="legacy_pdf", url="", date_archived=None,
+            date_saved="2007-01-01"),
+        row(title="L2", source="legacy_pdf", url="", date_archived=None,
+            date_saved="2007-06-01"),
+    ]))
+    out = deepdives.render_year(legacy, 2007)
+    assert corpus.stats(legacy.year(2007))["url_bearing"] == 0
+    assert ">0</div><div class=\"l label\">Sources" not in out
+    assert "no urls in this era" in out.lower()
+
+
+def test_a_partially_urled_year_states_the_subset_it_counted():
+    mixed = corpus.prepare(frame([
+        row(title="L1", source="legacy_pdf", url="", date_archived=None,
+            date_saved="2010-01-01"),
+        row(title="L2", source="legacy_pdf", url="", date_archived=None,
+            date_saved="2010-02-01"),
+        row(title="I1", url="https://example.com/x", date_archived="2010-03-01"),
+    ]))
+    out = deepdives.render_year(mixed, 2010)
+    assert "across 1 articles with a URL" in out
+    assert "Sources are counted over the 1 of 3 articles that carry a URL" in out
+
+
+def test_a_fully_urled_year_says_nothing_extra_about_sources(small):
+    out = deepdives.render_year(small, 2012)
+    assert "articles with a URL" not in out and "no URLs in this era" not in out.lower()
 
 
 def test_year_page_nav_links_only_where_neighbours_exist(small):
@@ -324,7 +394,7 @@ def test_year_page_with_no_weeks_says_so(small):
 
 
 def test_articles_shell_interpolates_no_corpus_data(small):
-    out = deepdives.render_articles_page(len(small))
+    out = deepdives.render_articles_page(small)
     assert "Ada Lovelace" not in out and "example.com" not in out
     assert 'id="q"' in out and 'id="hits"' in out and 'id="detail"' in out
 
@@ -359,8 +429,32 @@ console.log(JSON.stringify(cases.map(safeHref)));
         "", "", "", "", "", "", "", "https://example.com/a", "http://example.com/b"]
 
 
+def test_articles_page_reconciles_the_rows_it_dropped(small):
+    """The page says 3 where the index holds 6; the difference has to be
+    visible or the site is quietly hiding rows."""
+    out = deepdives.render_articles_page(small)
+    assert "3 of 6 indexed rows" in out
+    assert "1 corrupted" in out and "1 undated" in out and "1 dated before 2005" in out
+
+
+def test_articles_page_omits_the_reconciliation_when_nothing_was_dropped():
+    clean = corpus.prepare(frame([row(title="Only", date_archived="2012-01-01")]))
+    assert "indexed rows" not in deepdives.render_articles_page(clean)
+
+
+def test_articles_client_clears_a_stale_detail_panel_on_every_search():
+    js = deepdives.ARTICLES_JS
+    body = js[js.index("function render(term)"):js.index("q.addEventListener")]
+    assert "detail.hidden = true" in body and "detail.textContent = ''" in body
+
+
+def test_articles_client_has_an_empty_state():
+    assert "matched === 0" in deepdives.ARTICLES_JS
+    assert "nothing matches" in deepdives.ARTICLES_JS
+
+
 def test_articles_page_says_search_does_not_cover_bodies(small):
-    assert "not article" in deepdives.render_articles_page(len(small))
+    assert "not article" in deepdives.render_articles_page(small)
 
 
 def test_extra_style_extends_rather_than_forks(small):
@@ -475,6 +569,40 @@ def test_unreadable_index_degrades_instead_of_killing_the_build(synth_dir, tmp_p
     gen.generate(synth_dir, out, index_path=bad)
     assert (out / "index.html").exists()
     assert "skipping year/orgs/article pages" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("break_it", [
+    pytest.param(lambda df: df.drop(columns=["word_count"]), id="missing-word_count"),
+    pytest.param(lambda df: df.drop(columns=["reading_time_min"]), id="missing-reading_time"),
+    pytest.param(lambda df: df.assign(word_count=["a", "b", "c", "d"]), id="word_count-as-strings"),
+])
+def test_index_schema_drift_costs_the_deep_dives_not_the_week_pages(
+        synth_dir, index_file, tmp_path, capsys, break_it):
+    """A backfill that renames or retypes a column must not take down 123 week
+    pages that never read the index. Before this guard, a KeyError inside
+    render_deep_dives aborted the whole build."""
+    drifted = tmp_path / "drifted.parquet"
+    break_it(pd.read_parquet(index_file)).to_parquet(drifted)
+    out = tmp_path / "_site"
+    gen.generate(synth_dir, out, index_path=drifted)
+    # The week pages never depend on the index, so they must always survive.
+    assert (out / "weeks" / "2012-W02" / "index.html").exists()
+    assert (out / "index.html").exists()
+
+    home = (out / "index.html").read_text()
+    if (out / "years").exists():
+        # The drift was absorbed - then the deep dives must be COMPLETE, not
+        # half-built: no year links pointing at pages that were rolled back.
+        assert (out / "articles.json").exists() and (out / "orgs").exists()
+        for year_dir in (out / "years").glob("*"):
+            assert (year_dir / "index.html").exists()
+    else:
+        # The drift was fatal to the deep-dive leg - then it must be loud, and
+        # no partial output may survive into the deployed site.
+        err = capsys.readouterr().err
+        assert "rendering weeks only" in err or "skipping year/orgs/article pages" in err
+        assert not (out / "articles.json").exists() and not (out / "orgs").exists()
+        assert 'href="years/' not in home
 
 
 def test_payload_cap_failure_leaves_the_previous_site_standing(
