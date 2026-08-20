@@ -357,7 +357,10 @@ def test_degenerate_titles_never_link():
 
 
 def test_hugging_asterisk_block_is_load_bearing():
-    # Removing the consumption block leaks 2022-W39's leading asterisk back.
+    # The block fires only when an earlier unbalanced asterisk desyncs the
+    # pairing so the QUOTE branch wins at a hugged title (2022-W39's real
+    # shape - 9 asterisks, odd count). A balanced input is handled by the
+    # asterisk regex branch and would pass with the block deleted.
     arts = [{"title": "Alpha", "url": "https://x.com/a"}]
-    out = gen.link_titles("Amidst fear, *“Alpha”* reassured.", arts)
-    assert "*" not in out
+    out = gen.link_titles('A *stray opener here. Then *“Alpha”* reassured.', arts)
+    assert "*" not in out.split("Then")[1]  # the stray opener is intentional
