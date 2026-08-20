@@ -216,6 +216,33 @@ def test_a_three_article_year_cannot_be_crowned_the_densest():
     assert "read as noise" in html
 
 
+def test_the_neutral_range_is_measured_over_solid_years_only():
+    """A thin year in that range prints "33% to 72%" and quietly contradicts
+    the sentence it sits in."""
+    fat = ([row(date_archived="2012-01-%02d" % (i + 1), sentiment="Neutral")
+            for i in range(20)]
+           + [row(date_archived="2012-02-%02d" % (i + 1), sentiment="Positive")
+              for i in range(20)])
+    thin = [row(date_archived="2013-01-01", sentiment="Positive")] * 2
+    html = trends.render_trends(build(fat + thin))
+    # 2012 is 50% Neutral over 40 rated; 2013 is 0% over 2. Including the thin
+    # year would open the range at 0 and contradict the clause it sits in.
+    assert "Neutral runs between 50% and 50%" in html
+    assert "Neutral runs between 0%" not in html
+
+
+def test_the_grade_span_in_the_note_is_measured_not_asserted():
+    """"twenty-two years of averages live inside three grades" was true when
+    written and drifts the moment the corpus does."""
+    c = build([row(date_archived="2012-%02d-01" % (m + 1), grade_level=10.0)
+               for m in range(12)] * 3
+              + [row(date_archived="2013-%02d-01" % (m + 1), grade_level=15.0)
+                 for m in range(12)] * 3)
+    html = trends.render_trends(c)
+    assert "inside a span of 5.00 grades" in html
+    assert "three grades" not in html
+
+
 def test_the_page_names_the_thin_years_it_refused_to_crown():
     fat = [row(date_archived="2012-%02d-01" % (m + 1), grade_level=11.0)
            for m in range(12)] * 3
@@ -299,6 +326,10 @@ def test_all_thin_years_do_not_produce_a_note_that_contradicts_itself():
     html = trends.render_trends(c)
     assert "Densest year: 2012" in html
     assert "not eligible to be named the densest" not in html
+    # ...but the bars are still hatched, and a mark nothing explains is its own
+    # small failure.
+    assert "Every year here is hatched and dotted" in html
+    assert 'class="col hi thin"' in html or "thin" in html
 
 
 def test_densest_read_title_is_escaped_on_the_year_page():
@@ -534,14 +565,39 @@ def test_heatmap_renders_an_empty_note_rather_than_a_headless_table():
 
 def test_tooltips_are_constrained_to_fit_inside_the_scroll_box():
     """overflow-x:auto forces overflow-y to auto, so a tooltip escaping the
-    container sideways is clipped rather than overflowed. Measured on the real
-    build before this rule: 433 of 1,101 tips lost an edge, the worst by 187px.
-    Geometry cannot be asserted here, so the three rules that fix it are."""
+    container sideways is clipped, not overflowed. Measured on the real build
+    before this rule: 433 of 1,101 tips lost an edge, the worst by 187px.
+
+    Asserted as ARITHMETIC rather than as string matching, because a
+    change-detector here is not a guard: widening the name column moves every
+    cell the tooltips are positioned against, and a test that only greps for
+    `max-width:230px` sails straight through that.
+    """
     css = trends.TRENDS_STYLE
-    assert "max-width:230px" in css          # wraps instead of one 600px line
-    assert "white-space:normal" in css
-    assert "nth-child(-n+5)::after" in css   # near-left cells anchor left
-    assert "nth-last-child(-n+5)::after" in css   # near-right anchor right
+    def px(pattern):
+        return int(re.search(pattern, css).group(1))
+
+    name_col = px(r"\.hm th\.hmn \{ width:(\d+)px")
+    cell = px(r"\.hm td\.hc \{ width:(\d+)px")
+    spacing = px(r"border-spacing:(\d+)px")
+    cap = px(r"\.hm \[data-tip\]::after \{[^}]*max-width:(\d+)px")
+
+    PAGE, PADDING, YEARS = 720, 24, 22        # .page in generate.py; 2005-2026
+    box = PAGE - 2 * PADDING
+    table = name_col + YEARS * cell + (YEARS + 1) * spacing
+    assert table <= box, f"table {table}px overflows the {box}px column"
+
+    # An edge-anchored tooltip runs inward from its own cell edge, so it fits
+    # whenever the cap fits the box at all.
+    assert cap <= box
+
+    # And the edge anchoring is load-bearing, not decoration: a CENTRED tip on
+    # the last column would hang past the right edge.
+    last_centre = name_col + (YEARS - 0.5) * (cell + spacing)
+    assert last_centre + cap / 2 > box
+    assert "nth-child(-n+5)::after" in css
+    assert "nth-last-child(-n+5)::after" in css
+    assert "overflow-wrap:anywhere" in css    # a 35-char host must break
 
 
 def test_wide_matrices_scroll_inside_their_own_container():
@@ -844,8 +900,15 @@ def test_the_disclosure_reports_each_cast_separately_never_their_union():
     disclosure = deepdives.render_people(c).split("What was taken out of this list")[1]
     assert "2 near-identical casts" in disclosure
     assert "9 of them" in disclosure and "8 of them" in disclosure
-    # the union would have put JD Vance in front of all 17
     assert "every one of them lists the identical people" not in disclosure
+    # The row counts alone do not pin it: reverting the NAMES to a union while
+    # keeping "9 of them / 8 of them" passed. JD Vance belongs to exactly one
+    # cast, and the 9-row cast is not it.
+    assert disclosure.count("JD Vance") == 1
+    nine = disclosure.split("9 of them")[1].split(";")[0]
+    eight = disclosure.split("8 of them")[1].split(".")[0]
+    assert "JD Vance" not in nine
+    assert "JD Vance" in eight
 
 
 def test_the_evidence_survives_an_index_that_was_already_cleaned():

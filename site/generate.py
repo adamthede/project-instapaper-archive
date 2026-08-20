@@ -535,7 +535,8 @@ def render_hero(corpus_data):
     ramp = max(len(eras) - 1, 1)
     for i, era in enumerate(eras):
         shade = round(0.30 + (1.0 - 0.30) * (i / ramp), 3)
-        tip = (f"{era['label']} — {n(era['articles'])} articles, "
+        unit = "article" if era["articles"] == 1 else "articles"
+        tip = (f"{era['label']} — {n(era['articles'])} {unit}, "
                f"{era['share']:.1f}% of the archive")
         bar += (f'      <span style="width:{era["share"]:.2f}%;--i:{shade}" '
                 f'data-tip="{e(tip)}"></span>\n')

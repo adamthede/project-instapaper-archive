@@ -29,6 +29,9 @@ from htmlkit import e, n, page, safe_url
 # grows a summary column by accident, not a prediction.
 MAX_PAYLOAD_BYTES = 6 * 1024 * 1024
 
+# How many boilerplate casts /people/ spells out before it summarises.
+MAX_CASTS_NAMED = 4
+
 
 def org_note(rows, vocab_rows=None):
     """Why orgs are ranked here and topics are not.
@@ -160,7 +163,8 @@ def _org_rows(orgs, denominator, scope="the year", noun="organizations"):
         # `scope` is the denominator's noun: the same helper renders a year
         # page and the all-time facet, and a share of the whole archive
         # labelled "of the year" is simply a wrong number.
-        tip = f"{o['name']} - {n(o['count'])} articles, {share:.1f}% of {scope}"
+        unit = "article" if o["count"] == 1 else "articles"
+        tip = f"{o['name']} - {n(o['count'])} {unit}, {share:.1f}% of {scope}"
         out += (f'      <div class="orow{lead}" data-tip="{e(tip)}">'
                 f'<span class="rk">{i}</span>'
                 f'<span class="on">{e(str(o["name"]))}'
@@ -481,12 +485,21 @@ def render_people(corpus, limit=100, site_title="The Week in Reading", domain=""
         # identical is exactly the unearned claim this page exists to refuse:
         # the archive holds two variants, and 229 of the 283 rows never listed
         # the name that a union would put in front of all of them.
+        # Capped. The rule groups on an EXACT cast, so a site that reshuffled
+        # its navigation would split one defect into dozens of near-identical
+        # groups - and this paragraph would become dozens of sentences saying
+        # almost the same thing. Name the big ones, count the rest.
+        ranked = sorted(corpus.people_clusters,
+                        key=lambda c: (-len(c["row_ids"]), c["host"]))
         casts = []
-        for c in sorted(corpus.people_clusters,
-                        key=lambda c: (-len(c["row_ids"]), c["host"])):
+        for c in ranked[:MAX_CASTS_NAMED]:
             casts.append(f"{n(len(c['row_ids']))} of them, all "
                          f"{n(c['word_count'])} words long, list "
                          f"{', '.join(c['names'])}")
+        rest = ranked[MAX_CASTS_NAMED:]
+        if rest:
+            casts.append(f"the remaining {n(sum(len(c['row_ids']) for c in rest))} "
+                         f"across {n(len(rest))} further variants of the same cast")
         variants = ("in one cast" if len(casts) == 1
                     else f"in {len(casts)} near-identical casts")
         cleanup = (

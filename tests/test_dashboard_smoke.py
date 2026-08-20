@@ -107,6 +107,31 @@ def merged_index(merged_vault, tmp_path, monkeypatch):
     return repo, index_path
 
 
+def test_the_real_build_index_writes_the_column_the_site_reads(merged_index):
+    """The write/read seam for the entity quarantine, crossed for real.
+
+    build_index runs as a subprocess here, so this is the only test that sees
+    the column name it actually writes. Round-2 review proved why that matters:
+    with the name spelled independently at each end, renaming one spelling left
+    the whole suite green while /people/ silently went back to reporting that
+    the archive never had a fabricated cast. Both ends import one constant now,
+    and this asserts they still agree after a real run.
+    """
+    _, index_path = merged_index
+    df = pd.read_parquet(index_path)
+
+    for path in (REPO_ROOT / "site", REPO_ROOT / "scripts" / "core"):
+        if str(path) not in sys.path:
+            sys.path.insert(0, str(path))
+    import corpus
+
+    assert corpus.PEOPLE_QUARANTINE in df.columns, sorted(df.columns)
+    # And the reader can consume what the writer produced.
+    prepared = corpus.prepare(df)
+    assert prepared.people_clusters == []      # nothing planted in this vault
+    assert prepared.scrubbed_people == 0
+
+
 def test_build_index_records_all_three_eras(merged_index):
     _, index_path = merged_index
     df = pd.read_parquet(index_path)

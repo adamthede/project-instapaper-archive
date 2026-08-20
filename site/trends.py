@@ -60,8 +60,11 @@ TRENDS_STYLE = """
 .hm tbody tr:hover th.hmn { color:var(--amber); }
 /* The base stylesheet suppresses every tooltip under (hover:none), which on a
    page that is four matrices would leave the cell values encoded by colour
-   alone. Cells carry an aria-label for assistive tech, and tap-and-hold gets
-   the tooltip back here. */
+   alone. Cells carry an aria-label, which is the half that is actually
+   dependable - assistive tech reads it whatever the input device. The :active
+   rule below is a best effort at giving sighted touch users the same numbers;
+   iOS Safari historically does not fire :active on non-interactive elements
+   without a touch handler, and this has not been checked on a real device. */
 @media (hover:none) {
   .hm td.hc:active::after, .hm th.hmn:active::after { display:block; opacity:1; }
 }
@@ -75,7 +78,7 @@ TRENDS_STYLE = """
    running 600px on one nowrap line, and the cells near either end anchor to
    their own edge rather than centring on a 20px target. */
 .hm [data-tip]::after { white-space:normal; width:max-content; max-width:230px;
-  text-align:left; line-height:1.45; }
+  text-align:left; line-height:1.45; overflow-wrap:anywhere; }
 .hm td.hc:nth-child(-n+5)::after, .hm th.hmn::after {
   left:0; right:auto; transform:none; }
 .hm td.hc:nth-last-child(-n+5)::after {
@@ -344,7 +347,16 @@ def render_trends(corpus, site_title="The Week in Reading", domain=""):
         # than naming nothing - so the note must not then go on to call those
         # same years ineligible. It would be arguing with the sentence before
         # it.
-        if thin_years and comp_top not in thin:
+        if thin_years and comp_top in thin:
+            # Every year is thin, so complexity_band ranked them anyway and the
+            # ineligibility sentence would argue with the one above it. The
+            # hatching is still on the page though, and a mark nothing explains
+            # is its own small failure.
+            comp_note += (
+                f" Every year here is hatched and dotted: all of them carry "
+                f"fewer than {COMPLEXITY_MIN_GRADED} graded articles, so the "
+                f"ranking above is drawn from thin evidence throughout.")
+        elif thin_years:
             comp_note += (
                 f" Hatched and dotted: {', '.join(str(y) for y in thin_years)} - fewer "
                 f"than {COMPLEXITY_MIN_GRADED} graded articles apiece. They are drawn "

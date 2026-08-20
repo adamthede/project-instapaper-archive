@@ -54,8 +54,9 @@ RANKABLE_HEAD_COVERAGE = 40.0
 
 # Where a scrubbed-away fabricated cast is kept. Quarantine rather than
 # deletion: /people/ tells the story of this defect and needs the evidence to
-# outlive the fix. See scripts/core/entity_hygiene.py.
-PEOPLE_QUARANTINE = "people_boilerplate"
+# outlive the fix. Re-exported, never re-spelled - see the constant's own
+# comment in entity_hygiene for what a second spelling costs.
+PEOPLE_QUARANTINE = entity_hygiene.PEOPLE_QUARANTINE
 
 # `source` carries eight values; readers care about three eras.
 ERA_ORDER = ("legacy", "instapaper", "matter")

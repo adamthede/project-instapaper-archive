@@ -65,6 +65,14 @@ MIN_CLUSTER = 8
 # rows across 14 hosts). Only an identical MULTI-name set is a fingerprint.
 MIN_NAMES = 2
 
+# The column a scrubbed cast is parked in. Defined HERE, once, and imported by
+# everything that touches it. Round-2 review found three independent spellings
+# of this string - build_index wrote one, this module defaulted to another,
+# site/corpus.py read a third - and renaming any single one of them reproduced
+# the evidence-vanishing bug with the whole suite still green. A constant only
+# helps if every end of the seam uses it.
+PEOPLE_QUARANTINE = "people_boilerplate"
+
 
 def source_host(url):
     """The registrable-ish host, www stripped. Empty for the legacy corpus,
@@ -171,6 +179,13 @@ def scrub(df, column="people", hosts=None, min_cluster=MIN_CLUSTER,
     records = zip(df.index, df[column], hosts, words)
     clusters = find_clusters(records, min_cluster=min_cluster, min_names=min_names)
     if not clusters:
+        if quarantine_column and quarantine_column not in df.columns:
+            # Materialise it even with nothing to park. A column that only
+            # appears on indexes that happened to contain a defect is a schema
+            # that changes shape with its contents, and it leaves the seam
+            # between the writer and the reader untestable on a clean corpus.
+            df = df.copy()
+            df[quarantine_column] = [[] for _ in range(len(df))]
         return df, []
 
     victims = [rid for c in clusters for rid in c["row_ids"]]
@@ -192,16 +207,20 @@ def scrub(df, column="people", hosts=None, min_cluster=MIN_CLUSTER,
     if quarantine_column:
         prior = list(df[quarantine_column]) if quarantine_column in df.columns \
             else [[] for _ in range(len(df))]
-        # Union with anything already quarantined: this may be the second pass
-        # over an index a previous run already cleaned, and the record of that
-        # earlier call is the only remaining proof the defect existed.
+        # Rows this pass caught take the cast it just removed; every other row
+        # KEEPS whatever an earlier pass parked there. That second half is the
+        # point - on a second run over an already-cleaned index there is
+        # nothing left to detect, and the earlier record is the only surviving
+        # proof the defect existed. (A victim row cannot also hold prior
+        # quarantine: its `people` was blanked last time, so it forms no
+        # cluster this time.)
         df[quarantine_column] = [
             list(val) if idx in dropped else (as_names(was) or [])
             for idx, val, was in zip(df.index, original, prior)]
     return df, clusters
 
 
-def quarantined_clusters(df, quarantine_column="people_boilerplate", hosts=None):
+def quarantined_clusters(df, quarantine_column=PEOPLE_QUARANTINE, hosts=None):
     """Rebuild the cluster report from a quarantine column.
 
     The clusters a given run detects are not the clusters an index CONTAINS:

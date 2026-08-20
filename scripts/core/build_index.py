@@ -286,7 +286,7 @@ def build_index():
     # Streamlit dashboard (which does not filter content_corrupted at all) -
     # inherits the fix without repeating it.
     df, _ = entity_hygiene.scrub(df, column="people",
-                                 quarantine_column="people_boilerplate")
+                                 quarantine_column=entity_hygiene.PEOPLE_QUARANTINE)
 
     # Save
     DATA_DIR.mkdir(exist_ok=True)
