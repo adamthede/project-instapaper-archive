@@ -1,0 +1,475 @@
+"""Phase 5 deep dives: the corpus layer, year/orgs pages, the article payload.
+
+Everything here is synthetic. The real Parquet index is never read - these
+tests must pass on a machine that has never seen Adam's archive.
+"""
+import json
+import sys
+from pathlib import Path
+
+import pandas as pd
+import pytest
+
+SITE = Path(__file__).resolve().parents[1] / "site"
+sys.path.insert(0, str(SITE))
+
+import corpus  # noqa: E402
+import deepdives  # noqa: E402
+import generate as gen  # noqa: E402
+
+
+HOSTILE = 'Bad <script>alert(1)</script> "quote"'
+
+
+def row(**over):
+    base = {
+        "instapaper_id": None, "matter_id": None, "source": "instapaper",
+        "content_type": "article", "title": "A Title",
+        "url": "https://www.example.com/a", "author": "Ada Lovelace",
+        "date_saved": "2012-03-01", "date_archived": "2012-03-02",
+        "word_count": 1000, "content_corrupted": False, "reading_time_min": 5.0,
+        "topics": ["AI"], "people": ["Ada Lovelace"], "orgs": ["Google"],
+        "locations": [], "concepts": [], "sentiment": "Neutral",
+        "emotion": "Analytical", "summary": "s", "file_path": "/x.md",
+        "content_snippet": "snip",
+    }
+    base.update(over)
+    return base
+
+
+def frame(rows):
+    df = pd.DataFrame(rows)
+    for c in ("date_saved", "date_archived"):
+        df[c] = pd.to_datetime(df[c])
+    return df
+
+
+@pytest.fixture
+def small():
+    return corpus.prepare(frame([
+        row(title="Alpha", orgs=["Google", "Apple"], date_archived="2012-01-10",
+            word_count=1200),
+        row(title="Beta", orgs=["Google"], date_archived="2012-06-10",
+            word_count=800, url="https://sub.example.org/b"),
+        row(title="Gamma", orgs=["Apple"], date_archived="2013-02-10",
+            word_count=400, author="Unknown"),
+        row(title="Corrupt", content_corrupted=True, date_archived="2012-01-11"),
+        row(title="Ancient", source="legacy_pdf", url="", date_saved="1974-01-01",
+            date_archived=None),
+        row(title="Queued", source="matter", date_archived=None,
+            date_saved="2026-01-01"),
+    ]))
+
+
+# ---------------------------------------------------------------------------
+# corpus layer
+# ---------------------------------------------------------------------------
+
+def test_corrupted_rows_are_excluded_and_counted(small):
+    assert "Corrupt" not in set(small.rows["title"])
+    assert small.excluded_corrupted == 1
+
+
+def test_pre_2005_rows_are_dropped_and_counted(small):
+    assert "Ancient" not in set(small.rows["title"])
+    assert small.excluded_pre_min_year == 1
+    assert min(small.years) >= corpus.MIN_YEAR
+
+
+def test_matter_row_without_an_archive_event_is_undated_not_dated_by_save(small):
+    # A Matter save with no archive event is a QUEUED article, not a read one.
+    # Falling back to date_saved would silently count the to-read pile as read.
+    assert "Queued" not in set(small.rows["title"])
+    assert small.excluded_undated == 1
+
+
+def test_legacy_row_falls_back_to_date_saved():
+    c = corpus.prepare(frame([
+        row(title="Legacy", source="legacy_pdf", url="", date_archived=None,
+            date_saved="2007-05-05"),
+    ]))
+    assert len(c) == 1
+    assert c.rows.iloc[0]["date_read"].date().isoformat() == "2007-05-05"
+    assert bool(c.rows.iloc[0]["proxy_dated"]) is True
+
+
+def test_domain_strips_www_and_keeps_subdomains(small):
+    domains = set(small.rows["domain"])
+    assert "example.com" in domains and "sub.example.org" in domains
+
+
+def test_top_entities_counts_each_article_once():
+    c = corpus.prepare(frame([
+        row(orgs=["Google", "Google", "Google"]),
+        row(orgs=["Google"]),
+        row(orgs=["Apple"]),
+    ]))
+    assert corpus.top_entities(c.rows, "orgs", 5) == [
+        {"name": "Google", "count": 2}, {"name": "Apple", "count": 1}]
+
+
+def test_top_entities_ties_break_alphabetically_and_respect_the_limit():
+    c = corpus.prepare(frame([row(orgs=["Zeta", "Alpha", "Mid"])]))
+    assert [o["name"] for o in corpus.top_entities(c.rows, "orgs", 2)] == ["Alpha", "Mid"]
+
+
+def test_head_coverage_is_distinct_articles_not_a_sum_of_counts():
+    # The bug this guards: summing the top-k counts double-counts every
+    # article carrying two of them. Three articles, two orgs, top-2 coverage
+    # is 100% - the sum-of-counts answer would be 133%.
+    c = corpus.prepare(frame([
+        row(orgs=["Google", "Apple"]), row(orgs=["Google"]), row(orgs=["Apple"]),
+    ]))
+    assert corpus.head_coverage(c.rows, "orgs", 2) == 100.0
+    assert sum(o["count"] for o in corpus.top_entities(c.rows, "orgs", 2)) == 4
+
+
+def test_head_coverage_ignores_articles_outside_the_head():
+    c = corpus.prepare(frame([
+        row(orgs=["Google"]), row(orgs=["Google"]),
+        row(orgs=["Obscure"]), row(orgs=[]),
+    ]))
+    assert corpus.head_coverage(c.rows, "orgs", 1) == 50.0
+
+
+def test_entity_coverage_counts_tagged_articles():
+    c = corpus.prepare(frame([row(orgs=["Google"]), row(orgs=[]), row(orgs=None),
+                              row(orgs=["Apple"])]))
+    assert corpus.entity_coverage(c.rows, "orgs") == 50.0
+
+
+def test_month_series_is_twelve_months_in_order(small):
+    months = corpus.month_series(small.year(2012), 2012)
+    assert [m["label"] for m in months][:3] == ["Jan", "Feb", "Mar"]
+    assert len(months) == 12
+    assert months[0]["count"] == 1 and months[0]["words"] == 1200
+    assert months[5]["count"] == 1 and months[1]["count"] == 0
+
+
+def test_year_stats_reconcile_with_the_rows(small):
+    st = corpus.stats(small.year(2012))
+    rows = small.year(2012)
+    assert st["articles"] == len(rows) == 2
+    assert st["words"] == int(rows["word_count"].sum()) == 2000
+    assert st["domains"] == 2
+    assert st["median_words"] == 1000
+
+
+def test_as_list_survives_arrays_none_and_nan():
+    import numpy as np
+    assert corpus.as_list(np.array(["a", " b "])) == ["a", "b"]
+    assert corpus.as_list(None) == []
+    assert corpus.as_list(float("nan")) == []
+    assert corpus.as_list(["", "  "]) == []
+
+
+# ---------------------------------------------------------------------------
+# the JSON payload
+# ---------------------------------------------------------------------------
+
+def test_payload_shape_is_a_field_header_plus_arrays(small):
+    p = corpus.payload_rows(small)
+    assert p["fields"] == ["title", "url", "source", "domain", "author",
+                           "date_read", "date_saved", "words", "reading_time"]
+    assert p["count"] == len(p["articles"]) == len(small)
+    assert all(len(a) == len(p["fields"]) for a in p["articles"])
+
+
+def test_payload_is_newest_first(small):
+    p = corpus.payload_rows(small)
+    dates = [a[p["fields"].index("date_read")] for a in p["articles"]]
+    assert dates == sorted(dates, reverse=True)
+
+
+def test_payload_excludes_corrupted_and_pre_2005_rows(small):
+    titles = {a[0] for a in corpus.payload_rows(small)["articles"]}
+    assert "Corrupt" not in titles and "Ancient" not in titles
+    assert titles == {"Alpha", "Beta", "Gamma"}
+
+
+def test_payload_blanks_the_unknown_author_placeholder(small):
+    p = corpus.payload_rows(small)
+    ai = p["fields"].index("author")
+    by_title = {a[0]: a for a in p["articles"]}
+    assert by_title["Gamma"][ai] == ""
+    assert by_title["Alpha"][ai] == "Ada Lovelace"
+
+
+def test_payload_carries_no_summary_or_body_fields(small):
+    p = corpus.payload_rows(small)
+    assert "summary" not in p["fields"] and "content_snippet" not in p["fields"]
+
+
+def test_payload_json_enforces_the_size_cap(small, monkeypatch):
+    monkeypatch.setattr(deepdives, "MAX_PAYLOAD_BYTES", 10)
+    with pytest.raises(SystemExit, match="over the"):
+        deepdives.payload_json(small)
+
+
+def test_payload_json_under_the_cap_round_trips(small):
+    blob = deepdives.payload_json(small)
+    assert json.loads(blob)["count"] == len(small)
+    assert len(blob) < deepdives.MAX_PAYLOAD_BYTES
+
+
+def test_real_scale_payload_stays_within_the_cap():
+    """A 20k-row corpus of realistic width must fit the budget the cap sets."""
+    rows = [row(title=f"Article number {i} about something or other",
+                url=f"https://example.com/some/path/to/article-{i}",
+                author="A Reasonably Long Author Name")
+            for i in range(20000)]
+    c = corpus.prepare(frame(rows))
+    assert len(deepdives.payload_json(c)) < deepdives.MAX_PAYLOAD_BYTES
+
+
+# ---------------------------------------------------------------------------
+# rendering + escaping
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def hostile():
+    return corpus.prepare(frame([
+        row(title=HOSTILE, orgs=[HOSTILE], author=HOSTILE,
+            url="javascript:alert(1)", date_archived="2012-04-04"),
+    ]))
+
+
+def test_year_page_escapes_hostile_org_names(hostile):
+    out = deepdives.render_year(hostile, 2012)
+    assert "<script>alert(1)</script>" not in out
+    assert "&lt;script&gt;" in out
+
+
+def test_year_page_tooltips_escape_their_data(hostile):
+    out = deepdives.render_year(hostile, 2012)
+    # The tooltip interpolates the org name into an attribute; an unescaped
+    # double quote there breaks out of data-tip= into markup.
+    assert 'data-tip="Bad &lt;script&gt;' in out
+    assert '"quote"' not in out.split("<style")[0].replace("&quot;", "")
+
+
+def test_orgs_page_escapes_hostile_org_names(hostile):
+    out = deepdives.render_orgs(hostile)
+    assert "<script>alert(1)</script>" not in out
+    assert "&lt;script&gt;" in out
+
+
+def test_year_page_carries_stats_rhythm_orgs_and_weeks(small):
+    out = deepdives.render_year(
+        small, 2012, weeks_in_year=[{"week": "2012-W02", "article_count": 3}])
+    assert "Articles read" in out and "Reading time" in out
+    assert 'class="months"' in out and "Jan" in out and "Dec" in out
+    assert 'class="orow' in out and "Google" in out
+    assert 'href="../../weeks/2012-W02/"' in out
+    assert "2,000" in out  # words, tabular and formatted
+
+
+def test_year_page_ranks_no_topics(small):
+    """The audit's rule, enforced: topics are 73.3% singletons, so there is no
+    topic river and no topic ranking here. The fixture's every article is
+    tagged AI - if topics were being ranked, 'AI' would appear."""
+    out = deepdives.render_year(small, 2012)
+    assert ">AI<" not in out
+    assert 'class="chip"' not in out
+    assert "Recurring topics" not in out
+    # The only mention of topics on the page is the note explaining why they
+    # are absent.
+    assert "Topics cannot be ranked this way" in out
+    assert out.count("Topics") == 1
+
+
+def test_orgs_page_ranks_no_topics(small):
+    out = deepdives.render_orgs(small)
+    assert ">AI<" not in out
+
+
+def test_orgs_page_states_coverage_honestly(small):
+    out = deepdives.render_orgs(small)
+    assert "Articles tagged" in out and "Covered by the top 20" in out
+    assert "73.3%" in out  # the singleton fact, on the page not just in a docstring
+
+
+def test_year_provenance_note_scales_with_the_proxy_share():
+    proxy = corpus.prepare(frame([
+        row(title="L1", source="legacy_pdf", url="", date_archived=None,
+            date_saved="2007-01-01"),
+        row(title="L2", source="legacy_pdf", url="", date_archived=None,
+            date_saved="2007-02-01"),
+    ]))
+    assert "pre-tracking-era year" in deepdives.render_year(proxy, 2007)
+
+    mixed = corpus.prepare(frame([
+        row(title="L1", source="legacy_pdf", url="", date_archived=None,
+            date_saved="2012-01-01"),
+        row(title="I1", date_archived="2012-01-02"),
+    ]))
+    out = deepdives.render_year(mixed, 2012)
+    assert "1 of 2 articles" in out and "50%" in out
+
+
+def test_year_page_without_proxy_dates_renders_no_provenance_note(small):
+    assert "provenance" not in deepdives.render_year(small, 2013)
+
+
+def test_year_page_nav_links_only_where_neighbours_exist(small):
+    out = deepdives.render_year(small, 2012, prev_year=None, next_year="2013")
+    assert 'href="../2013/"' in out and 'href="../2011/"' not in out
+
+
+def test_year_page_with_no_weeks_says_so(small):
+    assert "no weekly synthesis pages" in deepdives.render_year(small, 2013)
+
+
+def test_articles_shell_interpolates_no_corpus_data(small):
+    out = deepdives.render_articles_page(len(small))
+    assert "Ada Lovelace" not in out and "example.com" not in out
+    assert 'id="q"' in out and 'id="hits"' in out and 'id="detail"' in out
+
+
+def test_articles_client_builds_rows_without_innerhtml():
+    """Every cell is textContent and every href passes a scheme test in the
+    browser too - the payload carries third-party scraped titles and URLs."""
+    js = deepdives.ARTICLES_JS
+    assert "innerHTML" not in js
+    assert "textContent" in js
+    assert "https?:" in js and "safeHref" in js
+
+
+def test_articles_page_says_search_does_not_cover_bodies(small):
+    assert "not article" in deepdives.render_articles_page(len(small))
+
+
+def test_extra_style_extends_rather_than_forks(small):
+    # The deep-dive rules must ride on top of the week-page variables, not
+    # redeclare them - one :root, one palette.
+    assert ":root" not in deepdives.EXTRA_STYLE
+    assert "var(--amber)" in deepdives.EXTRA_STYLE
+    assert "@media (max-width:560px)" in deepdives.EXTRA_STYLE
+
+
+# ---------------------------------------------------------------------------
+# end to end through generate()
+# ---------------------------------------------------------------------------
+
+WEEK_MD = """---
+week: 2012-W02
+week_start: '2012-01-09'
+week_end: '2012-01-15'
+generated: '2026-08-20'
+model: qwen3.6-35b-a3b-mtp
+article_count: 1
+total_words: 1200
+reading_time_hours: 0.5
+top_topics: []
+top_people: []
+articles:
+- title: Alpha
+  url: https://www.example.com/a
+  words: 1200
+  date_read: '2012-01-10'
+---
+
+Only paragraph of the digest.
+"""
+
+
+@pytest.fixture
+def synth_dir(tmp_path):
+    d = tmp_path / "synthesis"
+    d.mkdir()
+    (d / "2012-W02.md").write_text(WEEK_MD, encoding="utf-8")
+    return d
+
+
+@pytest.fixture
+def index_file(tmp_path, small):
+    p = tmp_path / "index.parquet"
+    # Round-trip the raw frame, not the prepared one: generate() must do its
+    # own corruption/date filtering, exactly as it will in production.
+    frame([
+        row(title="Alpha", orgs=["Google", "Apple"], date_archived="2012-01-10",
+            word_count=1200),
+        row(title="Beta", orgs=["Google"], date_archived="2012-06-10", word_count=800),
+        row(title="Gamma", orgs=["Apple"], date_archived="2013-02-10", word_count=400),
+        row(title="Corrupt", content_corrupted=True, date_archived="2012-01-11"),
+    ]).to_parquet(p)
+    return p
+
+
+def test_generate_renders_deep_dives_alongside_week_pages(synth_dir, index_file, tmp_path):
+    out = tmp_path / "_site"
+    count = gen.generate(synth_dir, out, index_path=index_file)
+    assert count == 1
+    assert (out / "weeks" / "2012-W02" / "index.html").exists()
+    assert (out / "years" / "2012" / "index.html").exists()
+    assert (out / "years" / "2013" / "index.html").exists()
+    assert (out / "orgs" / "index.html").exists()
+    assert (out / "articles" / "index.html").exists()
+    payload = json.loads((out / "articles.json").read_text())
+    assert payload["count"] == 3  # the corrupted row never ships
+
+
+def test_generate_is_idempotent_with_deep_dives(synth_dir, index_file, tmp_path):
+    out = tmp_path / "_site"
+    gen.generate(synth_dir, out, index_path=index_file)
+    first = (out / "years" / "2012" / "index.html").read_text()
+    gen.generate(synth_dir, out, index_path=index_file)
+    assert (out / "years" / "2012" / "index.html").read_text() == first
+
+
+def test_index_year_heads_link_to_the_rollups(synth_dir, index_file, tmp_path):
+    out = tmp_path / "_site"
+    gen.generate(synth_dir, out, index_path=index_file)
+    home = (out / "index.html").read_text()
+    assert 'href="years/2012/"' in home
+    assert 'href="orgs/"' in home and 'href="articles/"' in home
+
+
+def test_stylesheet_carries_both_week_and_deep_dive_rules(synth_dir, index_file, tmp_path):
+    out = tmp_path / "_site"
+    gen.generate(synth_dir, out, index_path=index_file)
+    css = (out / "style.css").read_text()
+    assert ".days {" in css and ".months {" in css
+    assert css.count(":root {") == 1
+
+
+def test_missing_index_degrades_to_a_weeks_only_site(synth_dir, tmp_path, capsys):
+    out = tmp_path / "_site"
+    gen.generate(synth_dir, out, index_path=tmp_path / "absent.parquet")
+    assert (out / "weeks" / "2012-W02" / "index.html").exists()
+    assert not (out / "years").exists()
+    assert not (out / "articles.json").exists()
+    assert "skipping year/orgs/article pages" in capsys.readouterr().err
+    # and the year head stays plain text rather than a dead link
+    assert 'href="years/2012/"' not in (out / "index.html").read_text()
+
+
+def test_unreadable_index_degrades_instead_of_killing_the_build(synth_dir, tmp_path, capsys):
+    bad = tmp_path / "bad.parquet"
+    bad.write_text("not a parquet file")
+    out = tmp_path / "_site"
+    gen.generate(synth_dir, out, index_path=bad)
+    assert (out / "index.html").exists()
+    assert "skipping year/orgs/article pages" in capsys.readouterr().err
+
+
+def test_payload_cap_failure_leaves_the_previous_site_standing(
+        synth_dir, index_file, tmp_path, monkeypatch):
+    out = tmp_path / "_site"
+    gen.generate(synth_dir, out, index_path=index_file)
+    before = (out / "index.html").read_text()
+    monkeypatch.setattr(deepdives, "MAX_PAYLOAD_BYTES", 10)
+    with pytest.raises(SystemExit):
+        gen.generate(synth_dir, out, index_path=index_file)
+    assert (out / "index.html").read_text() == before
+    assert not (tmp_path / "_site.building").exists()
+
+
+def test_generated_pages_never_scroll_horizontally(synth_dir, index_file, tmp_path):
+    out = tmp_path / "_site"
+    gen.generate(synth_dir, out, index_path=index_file)
+    css = (out / "style.css").read_text()
+    assert "overflow-x:hidden" in css and "overflow-x:clip" in css
+    for html_file in out.rglob("index.html"):
+        text = html_file.read_text()
+        assert "width=device-width" in text
