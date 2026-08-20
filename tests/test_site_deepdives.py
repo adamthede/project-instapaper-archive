@@ -777,3 +777,25 @@ def test_year_note_keeps_head_coverage_local_and_the_vocabulary_archive_wide():
     assert f"across the whole archive that vocabulary is {all_vocab:,} free-text" in out
     assert f"{all_singles:,.1f}% of them used exactly once" in out
     assert "100.0% of them used exactly once" not in out
+
+
+def test_long_entity_names_can_ellipsize_instead_of_widening_their_row():
+    """Found in the browser at 390px: "Department of Homeland Security" grew
+    the 1fr grid track (auto min-size beats nowrap+ellipsis), pushing the
+    count column - the thing the row exists to report - off screen. The row
+    did not scroll the page only because the body clips overflow, so it read
+    as a silently truncated name with no ellipsis and no count."""
+    for selector in (".orow .on", ".arow .at"):
+        block = deepdives.EXTRA_STYLE.split(selector, 1)[1].split("}", 1)[0]
+        assert "min-width:0" in block, f"{selector} can still widen its track"
+        assert "text-overflow:ellipsis" in block
+
+
+@pytest.mark.parametrize("column", ["word_count", "reading_time_min"])
+def test_every_numeric_stat_column_goes_through_the_drift_guard(small, column):
+    """The guard was wired for both columns but pinned for only one, so
+    bypassing it for reading_time_min survived mutation. Every numeric column
+    stats() reads must fail the same way on the same drift."""
+    lying = small.rows.assign(**{column: ["x"] * len(small.rows)})
+    with pytest.raises(ValueError, match="schema drift"):
+        corpus.stats(lying)

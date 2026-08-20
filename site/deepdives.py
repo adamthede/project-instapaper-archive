@@ -70,7 +70,10 @@ EXTRA_STYLE = """
   align-items:baseline; padding:6px 0; border-bottom:1px solid #2a2523; }
 .orow .rk { font-size:11.5px; color:var(--ink-3); text-align:right;
   font-family:ui-monospace,"SF Mono",Menlo,monospace; }
-.orow .on { font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* min-width:0 or the 1fr track grows to fit a nowrap name instead of
+   ellipsizing it, pushing the count column off a 390px screen. */
+.orow .on { min-width:0; font-size:14.5px; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
 .orow .on .obar { display:block; height:3px; border-radius:2px;
   background:var(--amber-dim); margin-top:5px; }
 .orow.lead .on { color:var(--amber); }
@@ -109,7 +112,8 @@ EXTRA_STYLE = """
 .arow:hover, .arow:focus { background:var(--bg-raise); outline:none; }
 .arow .ad { font-size:11.5px; color:var(--ink-3);
   font-family:ui-monospace,"SF Mono",Menlo,monospace; }
-.arow .at { font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.arow .at { min-width:0; font-size:14.5px; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
 .arow .at .asrc { color:var(--ink-3); font-size:12px; margin-left:8px; }
 .arow .aw { font-size:12.5px; color:var(--ink-2); text-align:right;
   font-variant-numeric:tabular-nums; }
