@@ -175,6 +175,72 @@ def parse_article(file_path):
         print(f"Error parsing {file_path.name}: {e}")
         return None
 
+def _norm_title_key(t):
+    import re as _re
+    return _re.sub(r"[^a-z0-9]+", " ", str(t or "").lower()).strip()
+
+
+def dedupe_articles(df):
+    """Collapse duplicate ARTICLES at the index layer; vault files stay put.
+
+    Two real duplicate classes, measured 2026-08-19:
+
+    1. Same instapaper_id, two files (582 bookmarks / 1,222 rows): the
+       Obsidian exporter wrote a save-date-named top-level copy with no
+       archive date, and the CSV bulk import wrote an Archived/ copy with
+       the real one. Keep the copy with a date_archived (tiebreak: has an
+       AI summary, then longer content), so reading dates stay honest.
+
+    2. Matter-era re-push (49 same-title cross-source pairs): for a time
+       Adam pushed Matter reads into Instapaper because only Instapaper had
+       an API. Where a matter row and an instapaper row share a normalized
+       title and their dates fall within 30 days, keep the MATTER row
+       (Adam's rule, 2026-08-19) - its archive date is the truer read date.
+    """
+    before = len(df)
+
+    def _quality(row):
+        return (
+            int(pd.notna(row.get("date_archived"))),
+            int(bool(str(row.get("summary") or "").strip())),
+            int(row.get("word_count") or 0),
+        )
+
+    ip = df["instapaper_id"].notna()
+    keep_idx = []
+    for _, grp in df[ip].groupby("instapaper_id"):
+        if len(grp) > 1:
+            keep_idx.append(grp.apply(_quality, axis=1).idxmax())
+        else:
+            keep_idx.append(grp.index[0])
+    df = pd.concat([df[~ip], df.loc[sorted(set(keep_idx))]])
+    same_id_dropped = before - len(df)
+
+    matter = df[df["source"] == "matter"]
+    insta = df[df["source"] == "instapaper"]
+    m_by_title = {}
+    for _, r in matter.iterrows():
+        m_by_title.setdefault(_norm_title_key(r["title"]), []).append(r)
+    drop = set()
+    for idx, r in insta.iterrows():
+        key = _norm_title_key(r["title"])
+        if not key or key not in m_by_title:
+            continue
+        i_date = r["date_archived"] if pd.notna(r["date_archived"]) else r["date_saved"]
+        if pd.isna(i_date):
+            continue
+        for mrow in m_by_title[key]:
+            m_date = mrow["date_archived"]
+            if pd.notna(m_date) and abs((m_date - i_date).days) <= 30:
+                drop.add(idx)
+                break
+    df = df.drop(index=drop)
+
+    print(f"Deduped: {same_id_dropped} same-instapaper-id rows, "
+          f"{len(drop)} matter-superseded rows ({before} -> {len(df)}).")
+    return df.reset_index(drop=True)
+
+
 def build_index():
     print(f"Scanning vault at: {VAULT_PATH}")
 
@@ -207,6 +273,8 @@ def build_index():
     # Ensure data types
     df["date_saved"] = pd.to_datetime(df["date_saved"])
     df["date_archived"] = pd.to_datetime(df["date_archived"])
+
+    df = dedupe_articles(df)
 
     # Save
     DATA_DIR.mkdir(exist_ok=True)
