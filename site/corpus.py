@@ -110,6 +110,11 @@ class Corpus:
     # clusters they formed. Carried rather than discarded so /people/ can state
     # on the page what was taken out of its own ranking.
     scrubbed_people: int = 0
+    # How many of those scrubbed rows survive every OTHER filter and would
+    # therefore have reached a ranked page. On the 2026-08-20 index this is 0
+    # - the corrupted-content filter already removes all 283 - and the page
+    # says so rather than taking credit for a ranking that was already clean.
+    scrubbed_people_in_corpus: int = 0
     people_clusters: list = field(default_factory=list)
 
     def __len__(self):
@@ -136,13 +141,17 @@ def prepare(df):
     df = df.copy()
     total = len(df)
 
-    # Entity hygiene runs FIRST, on the whole population, and the order is the
-    # whole point. The corrupted-row filter below removes 288 of the 290
-    # Co.Design rows, so scrubbing afterwards would leave a 2-row cluster no
-    # threshold can see - and those two survivors are precisely the rows that
-    # carry the fabricated names into a ranked page. Measured 2026-08-20:
-    # before this call "Todd Kaplan" and "Todd Sherman" reach /people/ with a
-    # count of 1 each; after it, 0.
+    # Entity hygiene runs FIRST, on the whole population, and the order is a
+    # correctness property rather than a preference: a cluster only PARTLY
+    # flagged corrupted would shrink below any sane threshold once the filter
+    # below had run, and the rows that survived - the unflagged ones - are
+    # exactly the rows that would carry a fabricated cast onto a ranked page.
+    #
+    # On the 2026-08-20 index that hazard is latent rather than live: all 283
+    # Co.Design rows are also flagged corrupted, so this pass changes nothing
+    # the site displays. It is load-bearing for the raw index instead, which
+    # dashboard/app.py reads with no corrupted filter at all - there it moves
+    # five fabricated names out of the top 15 and six real ones in.
     people_clusters = []
     if "people" in df.columns:
         df, people_clusters = entity_hygiene.scrub(
@@ -169,9 +178,11 @@ def prepare(df):
         proxy_dated=(df["source"] != "matter") & df["date_archived"].isna(),
     )
     years = sorted(int(y) for y in df["year"].unique())
+    scrubbed_ids = {rid for c in people_clusters for rid in c["row_ids"]}
     return Corpus(rows=df, excluded_corrupted=corrupted, excluded_undated=undated,
                   excluded_pre_min_year=early, years=years,
-                  scrubbed_people=sum(len(c["row_ids"]) for c in people_clusters),
+                  scrubbed_people=len(scrubbed_ids),
+                  scrubbed_people_in_corpus=len(scrubbed_ids & set(df.index)),
                   people_clusters=people_clusters)
 
 

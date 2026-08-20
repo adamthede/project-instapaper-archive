@@ -536,6 +536,43 @@ def test_corpus_carries_the_cleanup_evidence_for_the_page_to_state():
     assert len(c.people_clusters) == 1
 
 
+def test_scrubbed_rows_already_dropped_as_corrupted_are_not_claimed_as_a_save():
+    """The real index's shape: every fabricated row is ALSO flagged corrupted,
+    so the ranking was clean before this rule existed. The page must not take
+    credit for that, so the two counts are kept apart."""
+    c = build(codesign_rows(12, corrupted=True) + [row(people=["Tim Cook"])])
+    assert c.scrubbed_people == 12
+    assert c.scrubbed_people_in_corpus == 0
+    disclosure = deepdives.render_people(c).split("What was taken out of this list")[1]
+    assert "already clean" in disclosure
+    assert "would be sitting in the ranking" not in disclosure
+
+
+def test_a_scrubbed_row_that_survives_the_other_filters_is_counted_as_one():
+    c = build(codesign_rows(12, corrupted=False) + [row(people=["Tim Cook"])])
+    assert c.scrubbed_people == c.scrubbed_people_in_corpus == 12
+    disclosure = deepdives.render_people(c).split("What was taken out of this list")[1]
+    assert "would be sitting in the ranking" in disclosure
+
+
+def test_a_lone_row_with_a_mixed_cast_is_left_alone_and_that_is_deliberate():
+    """The residual leak in the real index, pinned rather than papered over.
+
+    One uncorrupted fastcodesign row carries a cast that mixes the furniture
+    names with the article's real subjects. Its fingerprint is unique, so it
+    forms no cluster and keeps its people - "Todd Kaplan" survives on /people/
+    with a count of 1 out of 41,514 names. Scrubbing it would take a name
+    blocklist, which would also erase Jony Ive from the articles genuinely
+    about him. This test exists so that trade-off stays a decision.
+    """
+    mixed = row(title="mixed", url="https://www.fastcodesign.com/odd",
+                word_count=642, people=["Todd Kaplan", "Jony Ive", "Pope Leo XIV"])
+    c = build(codesign_rows(12) + [mixed])
+    names = {name for v in c.rows["people"] for name in corpus.as_list(v)}
+    assert names == {"Todd Kaplan", "Jony Ive", "Pope Leo XIV"}
+    assert c.scrubbed_people == 12
+
+
 def test_people_page_ranks_the_cleaned_data_and_says_what_it_removed():
     c = build(codesign_rows(12) + [row(people=["Tim Cook"]) for _ in range(3)])
     html = deepdives.render_people(c)
@@ -546,8 +583,8 @@ def test_people_page_ranks_the_cleaned_data_and_says_what_it_removed():
         # allowed to be invisible
         assert fabricated not in ranking
         assert fabricated in disclosure
-    assert "12 articles are excluded" in disclosure
-    assert "Fabricated rows excluded" in ranking
+    assert "12 articles in the index carry a cast that was never in them" in disclosure
+    assert "Fabricated casts dropped" in ranking
 
 
 def test_people_page_escapes_hostile_names():

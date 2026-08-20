@@ -477,18 +477,30 @@ def render_people(corpus, limit=100, site_title="The Week in Reading", domain=""
     if corpus.people_clusters:
         names = sorted({name for c in corpus.people_clusters for name in c["names"]})
         hosts = sorted({c["host"] for c in corpus.people_clusters})
+        leaked = corpus.scrubbed_people_in_corpus
         cleanup = (
-            f"{n(corpus.scrubbed_people)} articles are excluded from this ranking and "
-            f"this ranking only. They come from {', '.join(hosts)}, they all share one "
-            f"exact word count, and every one of them carries the identical extracted "
-            f"cast — {', '.join(names)}. The scraper captured the site's navigation "
-            f"furniture instead of the article and the enrichment pass then read "
-            f"entities out of the furniture, which is why two Fast Company staffers "
-            f"once ranked above Tim Cook in a list of who this reader reads about. "
-            f"Nobody read those articles about those people. The articles themselves "
-            f"are still counted everywhere else on this site; only their invented cast "
-            f"is dropped."
+            f"{n(corpus.scrubbed_people)} articles in the index carry a cast that was "
+            f"never in them. They come from {', '.join(hosts)}, they share one exact "
+            f"word count, and every one of them lists the identical people — "
+            f"{', '.join(names)}. The scraper captured the site's navigation furniture "
+            f"instead of the article and the enrichment pass then read entities out of "
+            f"the furniture. Nobody read those articles about those people, and their "
+            f"people lists are dropped before anything on this page is counted."
         )
+        # Credit only for what this actually changed HERE. On the current index
+        # every one of those rows is also flagged as corrupted content, so this
+        # ranking was clean before the rule existed - and saying otherwise
+        # would be the same kind of unearned confidence the rule exists to fix.
+        if leaked:
+            cleanup += (
+                f" {n(leaked)} of them clear this site's other filters, so without that "
+                f"step they would be sitting in the ranking above.")
+        else:
+            cleanup += (
+                " None of them clear this site's corrupted-content filter, so this "
+                "particular ranking was already clean and the rule changes nothing you "
+                "can see here. It earns its place upstream, in the index itself, where "
+                "those names outranked Tim Cook.")
     else:
         cleanup = ("No boilerplate entity clusters were found in this index at build "
                    "time.")
@@ -512,7 +524,8 @@ def render_people(corpus, limit=100, site_title="The Week in Reading", domain=""
     {_stat(n(report['vocabulary']), 'Distinct names')}
     {_stat(f"{report['tagged_share']:,.1f}<em>%</em>", 'Articles tagged')}
     {_stat(f"{report['head_coverage']:,.1f}<em>%</em>", 'Covered by the top 20')}
-    {_stat(n(corpus.scrubbed_people), 'Fabricated rows excluded')}
+    {_stat(n(corpus.scrubbed_people), 'Fabricated casts dropped',
+           'articles, before any other filter')}
   </div>
 
   <section>
