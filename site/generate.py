@@ -19,7 +19,6 @@ touches the network.
 """
 import argparse
 import datetime as dt
-import html
 import os
 import re
 import shutil
@@ -29,8 +28,13 @@ from urllib.parse import urlparse
 
 import frontmatter
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import deepdives  # noqa: E402
+from htmlkit import e, n, page  # noqa: E402,F401
+
 SITE_TITLE = "The Week in Reading"
 DOMAIN = "reading.adamthede.com"
+DEFAULT_INDEX = Path(__file__).resolve().parents[1] / "data" / "archive_index.parquet"
 
 
 # ---------------------------------------------------------------------------
@@ -187,13 +191,6 @@ def fmt_range(meta):
     return f"{a.strftime('%b')} {a.day} – {b.strftime('%b')} {b.day}, {b.year}"
 
 
-def n(x):
-    return f"{int(x):,}"
-
-
-e = html.escape
-
-
 # ---------------------------------------------------------------------------
 # templates
 # ---------------------------------------------------------------------------
@@ -311,25 +308,6 @@ footer { margin-top:56px; border-top:1px solid var(--rule); padding-top:16px;
 .wrow .c2,.wrow .w2 { font-size:13px; color:var(--ink-2); text-align:right; }
 @media (max-width:560px){ h1{font-size:40px;} .stats{gap:24px;}
   .wrow{grid-template-columns:80px 1fr 60px;} .wrow .w2{display:none;} }
-"""
-
-
-def page(title, body, depth=0):
-    css = "../" * depth + "style.css"
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{e(title)}</title>
-<link rel="stylesheet" href="{css}">
-</head>
-<body>
-<div class="page">
-{body}
-</div>
-</body>
-</html>
 """
 
 
@@ -498,7 +476,7 @@ def render_week(meta, prev_wk=None, next_wk=None, prev_meta=None):
     return page(f"{week} — {SITE_TITLE}", body, depth=2)
 
 
-def render_index(weeks):
+def render_index(weeks, year_pages=(), facets=False):
     total_articles = sum(int(m["article_count"]) for m in weeks)
     total_words = sum(int(m["total_words"]) for m in weeks)
     total_hours = round(sum(float(m["reading_time_hours"]) for m in weeks), 1)
@@ -545,7 +523,11 @@ def render_index(weeks):
         w = str(m["week"])
         year = w.split("-")[0]
         if year != year_seen:
-            rows += f'  <div class="yearhead num">{year}</div>\n'
+            # The year head is the doorway to the rollup page - but only when
+            # that page exists (no index parquet = weeks-only build).
+            head = (f'<a href="years/{e(year)}/">{e(year)}</a>'
+                    if year in year_pages else e(year))
+            rows += f'  <div class="yearhead num">{head}</div>\n'
             rows += year_strip(year)
             year_seen = year
         topics = m.get("top_topics") or []
@@ -569,6 +551,19 @@ def render_index(weeks):
                  f'<span class="c2 num">{n(m["article_count"])} art</span>'
                  f'<span class="w2 num">{n(m["total_words"])} w</span></a>\n')
 
+    facet_nav = ""
+    if facets:
+        years_html = "".join(
+            f'<a href="years/{e(y)}/">{e(y)}</a>' for y in sorted(year_pages))
+        facet_nav = f"""
+  <section>
+    <div class="label viz-title">Beyond the week</div>
+    <div class="yearheads"><a href="orgs/">Organizations</a><a href="articles/">Every article</a></div>
+    <div class="label viz-title" style="margin-top:22px">Year rollups</div>
+    <div class="yearheads">{years_html}</div>
+  </section>
+"""
+
     body = f"""  <header>
     <span class="label kicker">{e(DOMAIN)}</span>
     <h1>{e(SITE_TITLE)}</h1>
@@ -588,6 +583,7 @@ def render_index(weeks):
 {trend}    </div>
   </section>
 
+{facet_nav}
   <section>
 {rows}  </section>
 
@@ -605,7 +601,67 @@ def render_index(weeks):
 MARKER = ".reading-site"
 
 
-def generate(synthesis_dir, out_dir):
+def load_corpus_or_none(index_path):
+    """The Parquet index, or None with a loud note on stderr.
+
+    The deep-dive pages are the only thing that needs it. A missing or
+    unreadable index degrades to a weeks-only site rather than to no site -
+    the same fail-open posture load_weeks() takes with a bad week file.
+    """
+    if index_path is None:
+        return None
+    path = Path(index_path)
+    if not path.exists():
+        print(f"no index at {path}: skipping year/orgs/article pages", file=sys.stderr)
+        return None
+    try:
+        import corpus
+        return corpus.load_corpus(path)
+    except Exception as err:
+        print(f"could not read {path} ({err}): skipping year/orgs/article pages",
+              file=sys.stderr)
+        return None
+
+
+def render_deep_dives(tmp, weeks, corpus_data):
+    """Year rollups, the orgs facet, and the article payload + shell.
+
+    Returns the set of years that got a page, so the index can link its year
+    heads only where a page exists.
+    """
+    weeks_by_year = {}
+    for m in weeks:
+        weeks_by_year.setdefault(str(m["week"]).split("-")[0], []).append(m)
+
+    years = [str(y) for y in corpus_data.years]
+    (tmp / "years").mkdir()
+    for i, y in enumerate(years):
+        d = tmp / "years" / y
+        d.mkdir()
+        (d / "index.html").write_text(
+            deepdives.render_year(
+                corpus_data, y, weeks_in_year=weeks_by_year.get(y, []),
+                prev_year=years[i - 1] if i > 0 else None,
+                next_year=years[i + 1] if i < len(years) - 1 else None,
+                site_title=SITE_TITLE, domain=DOMAIN),
+            encoding="utf-8")
+
+    (tmp / "orgs").mkdir()
+    (tmp / "orgs" / "index.html").write_text(
+        deepdives.render_orgs(corpus_data, site_title=SITE_TITLE, domain=DOMAIN),
+        encoding="utf-8")
+
+    # Payload first: the size cap raises, and it must raise before the swap.
+    (tmp / "articles.json").write_bytes(deepdives.payload_json(corpus_data))
+    (tmp / "articles").mkdir()
+    (tmp / "articles" / "index.html").write_text(
+        deepdives.render_articles_page(len(corpus_data), site_title=SITE_TITLE,
+                                       domain=DOMAIN),
+        encoding="utf-8")
+    return set(years)
+
+
+def generate(synthesis_dir, out_dir, index_path=None):
     """Render into a temp dir and swap only on success: a failed build must
     never leave the deploy dir empty (review blocker 1), and --out must never
     delete a directory this generator did not create (review blocker 2)."""
@@ -632,8 +688,15 @@ def generate(synthesis_dir, out_dir):
     try:
         (tmp / "weeks").mkdir(parents=True)
         (tmp / MARKER).write_text("generated by site/generate.py\n")
-        (tmp / "style.css").write_text(STYLE, encoding="utf-8")
-        (tmp / "index.html").write_text(render_index(weeks), encoding="utf-8")
+        (tmp / "style.css").write_text(STYLE + deepdives.EXTRA_STYLE,
+                                       encoding="utf-8")
+        corpus_data = load_corpus_or_none(index_path)
+        year_pages = set()
+        if corpus_data is not None and len(corpus_data):
+            year_pages = render_deep_dives(tmp, weeks, corpus_data)
+        (tmp / "index.html").write_text(
+            render_index(weeks, year_pages=year_pages, facets=bool(year_pages)),
+            encoding="utf-8")
         for i, m in enumerate(weeks):
             w = str(m["week"])
             prev_wk = str(weeks[i - 1]["week"]) if i > 0 else None
@@ -663,11 +726,22 @@ def main():
     ap.add_argument("--synthesis-dir", default=default_dir,
                     help="Week files (default: $INSTAPAPER_VAULT_PATH/synthesis)")
     ap.add_argument("--out", default="_site")
+    ap.add_argument("--index", default=str(DEFAULT_INDEX),
+                    help="Parquet archive index for the year/orgs/article pages")
+    ap.add_argument("--no-index", action="store_true",
+                    help="Skip the deep-dive pages; render weeks only")
     args = ap.parse_args()
     if not args.synthesis_dir:
         sys.exit("Set INSTAPAPER_VAULT_PATH or pass --synthesis-dir.")
-    count = generate(args.synthesis_dir, args.out)
-    print(f"Rendered {count} week pages + index into {args.out}/")
+    count = generate(args.synthesis_dir, args.out,
+                     index_path=None if args.no_index else args.index)
+    out = Path(args.out)
+    years = len(list((out / "years").glob("*/index.html"))) if (out / "years").exists() else 0
+    payload = (out / "articles.json")
+    extra = f", {years} year pages" if years else ""
+    if payload.exists():
+        extra += f", articles.json ({payload.stat().st_size/1e6:.1f} MB)"
+    print(f"Rendered {count} week pages + index{extra} into {args.out}/")
 
 
 if __name__ == "__main__":
