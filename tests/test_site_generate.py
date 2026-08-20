@@ -141,8 +141,9 @@ def test_index_lists_every_week_with_year_grouping(two_year_dir):
     weeks = gen.load_weeks(two_year_dir)
     html_out = gen.render_index(weeks)
     for w in ("2026-W33", "2025-W50"):
-        # trend bar + year-strip cell + row = 3 links per week
-        assert html_out.count(f'href="weeks/{w}/"') == 3, w
+        # year-strip cell + row = 2 links per week (the top chart now links
+        # to year anchors, not weeks - it became the year nav)
+        assert html_out.count(f'href="weeks/{w}/"') == 2, w
     assert '>2026</div>' in html_out and '>2025</div>' in html_out
 
 
@@ -385,3 +386,39 @@ def test_mixed_provenance_note_renders_count_and_escapes(synth_dir):
     assert "3 of the articles carry approximate dates" in html_out
     m["proxy_dated_articles"] = "<img src=x onerror=alert(1)>"
     assert "onerror" not in gen.render_week(m)  # coerces to 0, renders nothing
+
+
+def test_index_top_chart_is_year_nav_with_anchors(two_year_dir):
+    weeks = gen.load_weeks(two_year_dir)
+    html_out = gen.render_index(weeks)
+    assert 'href="#y2026"' in html_out and 'href="#y2025"' in html_out
+    assert 'id="y2026"' in html_out and 'id="y2025"' in html_out
+
+
+def test_older_year_rows_collapse_recent_stay_open(two_year_dir, tmp_path):
+    # Three years: only the two most recent stay expanded.
+    d = two_year_dir
+    (d / "2024-W10.md").write_text(
+        WEEK_MD.replace("2026-W33", "2024-W10").replace("'2026-08-10'", "'2024-03-04'")
+        .replace("'2026-08-16'", "'2024-03-10'").replace("'2026-08-11'", "'2024-03-05'")
+        .replace("'2026-08-14'", "'2024-03-08'"), encoding="utf-8")
+    weeks = gen.load_weeks(d)
+    html_out = gen.render_index(weeks)
+    assert html_out.count("<details") == 1  # only 2024 collapses
+    assert "1 weeks</summary>" in html_out
+    i_details = html_out.index("<details")
+    assert html_out.index('id="y2024"') < i_details  # head+strip outside
+
+
+def test_pre_epoch_stragglers_are_excluded_with_a_note(two_year_dir, tmp_path):
+    (two_year_dir / "1953-W37.md").write_text(
+        WEEK_MD.replace("2026-W33", "1953-W37").replace("'2026-08-10'", "'1953-09-07'")
+        .replace("'2026-08-16'", "'1953-09-13'").replace("'2026-08-11'", "'1953-09-08'")
+        .replace("'2026-08-14'", "'1953-09-11'"), encoding="utf-8")
+    out = tmp_path / "_site"
+    count = gen.generate(two_year_dir, out)
+    assert count == 2  # 1953 excluded
+    assert not (out / "weeks" / "1953-W37").exists()
+    idx = (out / "index.html").read_text()
+    assert "1 pre-2005 publication-dated weeks excluded" in idx
+    assert "1953" not in idx

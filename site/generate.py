@@ -33,6 +33,10 @@ import deepdives  # noqa: E402
 from htmlkit import e, n, page  # noqa: E402,F401
 
 SITE_TITLE = "The Week in Reading"
+# Weeks before this are publication-date stragglers (1-8 weeks/year,
+# 1953-2004, 27 files) - catalog artifacts, not reading history. Sustained
+# weekly density starts 2005 (31 weeks) - measured 2026-08-20, Adam's call.
+SITE_EPOCH_WEEK = "2005-W01"
 DOMAIN = "reading.adamthede.com"
 DEFAULT_INDEX = Path(__file__).resolve().parents[1] / "data" / "archive_index.parquet"
 
@@ -286,14 +290,28 @@ header .kicker:hover { text-decoration:underline; }
 footer { margin-top:56px; border-top:1px solid var(--rule); padding-top:16px;
   display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
 /* index */
-.trend { display:flex; gap:1px; align-items:flex-end; height:90px; margin-top:24px; }
+.trend { display:flex; gap:2px; align-items:flex-end; height:110px; margin-top:24px; }
+.trend a { position:relative; }
+.trend .yl { position:absolute; bottom:-18px; left:50%; transform:translateX(-50%);
+  font-size:9px; color:var(--ink-3); letter-spacing:0; }
+.trend { margin-bottom:22px; }
+.yearhead { scroll-margin-top:24px; }
+.ystrip a.wb { align-self:flex-end; background:var(--amber-dim); border-radius:2px 2px 0 0; }
+.ystrip a.wb.peakw { background:var(--amber); }
+.ystrip a.wb:hover { background:var(--brand); outline:none; }
+details.yweeks summary { cursor:pointer; padding:8px 0 14px; list-style:none;
+  color:var(--ink-3); }
+details.yweeks summary:hover { color:var(--brand); }
+details.yweeks summary::before { content:"▸ "; }
+details.yweeks[open] summary::before { content:"▾ "; }
 .trend a { flex:1; background:var(--amber-dim); border-radius:2px 2px 0 0;
   min-height:2px; display:block; }
 .trend a:hover { background:var(--brand); }
 .trend a.latest { background:var(--amber); }
 .yearhead { margin:40px 0 4px; color:var(--ink-2); font-size:22px; font-weight:200; }
-.ystrip { display:flex; gap:2px; margin:8px 0 14px; }
-.ystrip a, .ystrip span { flex:1; height:9px; border-radius:1px; display:block; }
+.ystrip { display:flex; gap:2px; margin:8px 0 10px; height:40px; align-items:flex-end; }
+.ystrip a, .ystrip span { flex:1; border-radius:1px; display:block; }
+.ystrip span { height:3px; background:#231f1d; align-self:flex-end; }
 .ystrip span { background:#231f1d; }
 .ystrip a:hover { outline:1px solid var(--brand); }
 .wrow { display:grid; grid-template-columns:170px 1fr 70px 90px; gap:12px;
@@ -476,22 +494,34 @@ def render_week(meta, prev_wk=None, next_wk=None, prev_meta=None):
     return page(f"{week} — {SITE_TITLE}", body, depth=2)
 
 
-def render_index(weeks, year_pages=(), facets=False):
+def render_index(weeks, year_pages=(), facets=False, excluded=0):
     total_articles = sum(int(m["article_count"]) for m in weeks)
     total_words = sum(int(m["total_words"]) for m in weeks)
     total_hours = round(sum(float(m["reading_time_hours"]) for m in weeks), 1)
     first, last = weeks[0], weeks[-1]
 
     peak = max(int(m["total_words"]) for m in weeks) or 1
-    trend = ""
+
+    # Words per YEAR - the chart doubles as the page's year navigation
+    # (anchor jumps). 854 weekly bars at this width were sub-pixel; weekly
+    # granularity now lives inside each year's own strip.
+    ystats = {}
     for m in weeks:
-        w = str(m["week"])
-        # sqrt scale: linear pinned 51 of 127 real weeks to the visual floor.
-        pct = max((int(m["total_words"]) / peak) ** 0.5 * 100, 3)
-        cls = ' class="latest"' if m is weeks[-1] else ""
-        tip = f"{w} — {n(m['total_words'])} words, {m['article_count']} articles"
-        trend += (f'    <a href="weeks/{w}/" data-tip="{e(tip)}"{cls} '
-                  f'style="height:{pct:.1f}%"></a>\n')
+        y = str(m["week"]).split("-")[0]
+        st = ystats.setdefault(y, {"words": 0, "articles": 0, "weeks": 0})
+        st["words"] += int(m["total_words"])
+        st["articles"] += int(m["article_count"])
+        st["weeks"] += 1
+    ypeak = max(st["words"] for st in ystats.values()) or 1
+    trend = ""
+    for y in sorted(ystats):
+        st = ystats[y]
+        pct = max((st["words"] / ypeak) ** 0.5 * 100, 4)
+        cls = ' class="latest"' if y == max(ystats) else ""
+        tip = (f"{y} — {n(st['words'])} words, {n(st['articles'])} articles, "
+               f"{st['weeks']} weeks")
+        trend += (f'    <a href="#y{e(y)}" data-tip="{e(tip)}"{cls} '
+                  f'style="height:{pct:.1f}%"><span class="yl num">{e(y[2:])}</span></a>\n')
 
     by_week = {str(m["week"]): m for m in weeks}
     max_words = peak
@@ -504,6 +534,9 @@ def render_index(weeks, year_pages=(), facets=False):
             n_weeks = dt.date(int(year), 12, 28).isocalendar()[1]
         except ValueError:
             n_weeks = 52
+        year_weeks = [by_week[f"{year}-W{i:02d}"] for i in range(1, n_weeks + 1)
+                      if f"{year}-W{i:02d}" in by_week]
+        wpeak = max((int(m2["total_words"]) for m2 in year_weeks), default=1) or 1
         cells = ""
         for i in range(1, n_weeks + 1):
             wk = f"{year}-W{i:02d}"
@@ -511,24 +544,44 @@ def render_index(weeks, year_pages=(), facets=False):
             if m2 is None:
                 cells += "      <span></span>\n"
             else:
-                alpha = 0.22 + 0.78 * (int(m2["total_words"]) / max_words) ** 0.5
+                # Height carries words-per-week within the year; the top
+                # chart carries the cross-year comparison.
+                hp = max((int(m2["total_words"]) / wpeak) ** 0.5 * 100, 8)
+                peak_cls = " peakw" if int(m2["total_words"]) == wpeak else ""
                 tip = f"{wk} — {n(m2['total_words'])} words"
-                cells += (f'      <a href="weeks/{wk}/" data-tip="{e(tip)}" '
-                          f'style="background:rgba(251,191,36,{alpha:.2f})"></a>\n')
+                cells += (f'      <a class="wb{peak_cls}" href="weeks/{wk}/" data-tip="{e(tip)}" '
+                          f'style="height:{hp:.0f}%"></a>\n')
         return f'  <div class="ystrip">\n{cells}  </div>\n'
+
+    # The two most recent years stay expanded; older years keep their head
+    # and weekly chart always visible (the data is never hidden) with the
+    # week ROWS behind a native <details> - 854 rows was unreadable scroll.
+    open_years = set(sorted(ystats, reverse=True)[:2])
+    year_row_counts = {}
+    for m in weeks:
+        y = str(m["week"]).split("-")[0]
+        year_row_counts[y] = year_row_counts.get(y, 0) + 1
 
     rows = ""
     year_seen = None
+    open_details = False
     for m in reversed(weeks):
         w = str(m["week"])
         year = w.split("-")[0]
         if year != year_seen:
+            if open_details:
+                rows += "  </details>\n"
+                open_details = False
             # The year head is the doorway to the rollup page - but only when
             # that page exists (no index parquet = weeks-only build).
             head = (f'<a href="years/{e(year)}/">{e(year)}</a>'
                     if year in year_pages else e(year))
-            rows += f'  <div class="yearhead num">{head}</div>\n'
+            rows += f'  <div class="yearhead num" id="y{e(year)}">{head}</div>\n'
             rows += year_strip(year)
+            if year not in open_years:
+                rows += (f'  <details class="yweeks"><summary class="label">'
+                         f'{year_row_counts[year]} weeks</summary>\n')
+                open_details = True
             year_seen = year
         topics = m.get("top_topics") or []
         if topics and isinstance(topics[0], dict):
@@ -550,6 +603,8 @@ def render_index(weeks, year_pages=(), facets=False):
                  f'<span class="topic">{e(str(top))}</span>'
                  f'<span class="c2 num">{n(m["article_count"])} art</span>'
                  f'<span class="w2 num">{n(m["total_words"])} w</span></a>\n')
+    if open_details:
+        rows += "  </details>\n"
 
     facet_nav = ""
     if facets:
@@ -578,7 +633,7 @@ def render_index(weeks, year_pages=(), facets=False):
   </div>
 
   <section>
-    <div class="label viz-title">Words per week · {first["week"]} → {last["week"]}</div>
+    <div class="label viz-title">Words per year · {first["week"]} → {last["week"]} · click to jump</div>
     <div class="trend">
 {trend}    </div>
   </section>
@@ -588,7 +643,7 @@ def render_index(weeks, year_pages=(), facets=False):
 {rows}  </section>
 
   <footer>
-    <span class="label">Synthesized on-device · qwen · one page per ISO week</span>
+    <span class="label">Synthesized on-device · qwen · one page per ISO week{f" · {excluded} pre-2005 publication-dated weeks excluded" if excluded else ""}</span>
     <span class="label num">Generated {dt.date.today().isoformat()}</span>
   </footer>"""
     return page(SITE_TITLE, body, depth=0)
@@ -666,6 +721,11 @@ def generate(synthesis_dir, out_dir, index_path=None):
     never leave the deploy dir empty (review blocker 1), and --out must never
     delete a directory this generator did not create (review blocker 2)."""
     weeks = load_weeks(synthesis_dir)
+    pre_epoch = [m for m in weeks if str(m["week"]) < SITE_EPOCH_WEEK]
+    if pre_epoch:
+        print(f"Excluding {len(pre_epoch)} pre-{SITE_EPOCH_WEEK} straggler weeks "
+              f"(publication-proxy dates, not reading history).")
+        weeks = [m for m in weeks if str(m["week"]) >= SITE_EPOCH_WEEK]
     if not weeks:
         raise SystemExit(f"No synthesis files found in {synthesis_dir}")
     # resolve() so a symlinked --out swaps at the real path instead of
@@ -711,7 +771,7 @@ def generate(synthesis_dir, out_dir, index_path=None):
                     elif p.exists():
                         p.unlink()
         (tmp / "index.html").write_text(
-            render_index(weeks, year_pages=year_pages, facets=bool(year_pages)),
+            render_index(weeks, year_pages=year_pages, facets=bool(year_pages), excluded=len(pre_epoch)),
             encoding="utf-8")
         for i, m in enumerate(weeks):
             w = str(m["week"])
