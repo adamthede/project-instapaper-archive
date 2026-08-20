@@ -337,6 +337,9 @@ ARTICLES_JS = """
     }
     detail.appendChild(dl);
     detail.hidden = false;
+    // The panel renders below the hit list, so a click on row 40 would
+    // otherwise open a detail view the reader never sees.
+    detail.scrollIntoView({ block: 'nearest' });
   }
 
   function render(term) {

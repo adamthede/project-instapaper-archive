@@ -4,6 +4,9 @@ Everything here is synthetic. The real Parquet index is never read - these
 tests must pass on a machine that has never seen Adam's archive.
 """
 import json
+import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -333,6 +336,27 @@ def test_articles_client_builds_rows_without_innerhtml():
     assert "innerHTML" not in js
     assert "textContent" in js
     assert "https?:" in js and "safeHref" in js
+
+
+def test_shipped_safehref_rejects_hostile_schemes():
+    """Run the actual shipped safeHref() in node against the schemes a
+    scraped-URL corpus can contain. The source-level assertions above prove
+    the gate is wired in; this proves the gate works."""
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node not available")
+    m = re.search(r"function safeHref[\s\S]*?\n  \}", deepdives.ARTICLES_JS)
+    assert m, "safeHref not found in the shipped client code"
+    probe = m.group(0) + """
+var cases = ['javascript:alert(1)', 'JaVaScRiPt:alert(1)', 'data:text/html,<script>x',
+             'vbscript:x', ' javascript:alert(1)', '', null,
+             'https://example.com/a', 'http://example.com/b'];
+console.log(JSON.stringify(cases.map(safeHref)));
+"""
+    out = subprocess.run([node, "-e", probe], capture_output=True, text=True,
+                         timeout=30, check=True)
+    assert json.loads(out.stdout) == [
+        "", "", "", "", "", "", "", "https://example.com/a", "http://example.com/b"]
 
 
 def test_articles_page_says_search_does_not_cover_bodies(small):
