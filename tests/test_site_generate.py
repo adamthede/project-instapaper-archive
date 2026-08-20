@@ -141,7 +141,8 @@ def test_index_lists_every_week_with_year_grouping(two_year_dir):
     weeks = gen.load_weeks(two_year_dir)
     html_out = gen.render_index(weeks)
     for w in ("2026-W33", "2025-W50"):
-        assert html_out.count(f'href="weeks/{w}/"') == 2, w  # trend + row
+        # trend bar + year-strip cell + row = 3 links per week
+        assert html_out.count(f'href="weeks/{w}/"') == 3, w
     assert '>2026</div>' in html_out and '>2025</div>' in html_out
 
 
@@ -235,3 +236,40 @@ def test_plain_string_topic_fallback_is_whole_word(synth_dir):
     m["top_topics"] = ["Artificial Intelligence"]
     html_out = gen.render_index([m])
     assert "Artificial Intelligence" in html_out
+
+
+def test_prose_titles_are_bolded_and_linked(synth_dir):
+    m = gen.load_weeks(synth_dir)[0]
+    m["prose"] = "A quoted “Two” appears here.\n\nUnknown “Not An Article” stays plain."
+    html_out = gen.render_week(m)
+    assert '<a class="atitle" href="https://sub.example.org/two">“Two”</a>' in html_out
+    assert "“Not An Article”" in html_out
+    assert 'atitle">“Not An Article' not in html_out
+
+
+def test_prose_title_without_url_is_bold_not_link(synth_dir):
+    m = gen.load_weeks(synth_dir)[0]
+    m["articles"][1]["url"] = ""
+    m["prose"] = "See “Two” today."
+    html_out = gen.render_week(m)
+    assert '<strong class="atitle">“Two”</strong>' in html_out
+
+
+def test_stat_deltas_render_against_previous_week(two_year_dir):
+    weeks = gen.load_weeks(two_year_dir)
+    html_out = gen.render_week(weeks[1], prev_meta=weeks[0])
+    assert 'class="delta">= 2025-W50' in html_out  # identical fixture stats
+
+
+def test_week_page_links_home(synth_dir):
+    m = gen.load_weeks(synth_dir)[0]
+    html_out = gen.render_week(m)
+    assert '<a class="home" href="../../">All weeks</a>' in html_out
+
+
+def test_year_strip_marks_absent_weeks_as_stubs(two_year_dir):
+    weeks = gen.load_weeks(two_year_dir)
+    html_out = gen.render_index(weeks)
+    assert html_out.count('<div class="ystrip">') == 2
+    assert "<span></span>" in html_out  # absent-week stubs
+    assert 'data-tip="2026-W33' in html_out

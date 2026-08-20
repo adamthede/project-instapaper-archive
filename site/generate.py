@@ -75,6 +75,37 @@ def load_weeks(synthesis_dir):
     return weeks
 
 
+def _norm_title(t):
+    return re.sub(r"[^a-z0-9]+", " ", str(t).lower()).strip()
+
+
+def link_titles(paragraph, articles):
+    """Escape a prose paragraph, bolding (and linking, when the article has a
+    URL) any quoted span that matches a roster title. Deterministic - the
+    digests quote titles verbatim, so no LLM re-run and no hallucinated
+    markup; all 127 existing weeks get it at render time."""
+    by_norm = {}
+    for a in articles:
+        by_norm[_norm_title(a.get("title"))] = a
+    out = []
+    last = 0
+    for m in re.finditer(r"[\u201c\"]([^\u201d\u201c\"]+)[\u201d\"]", paragraph):
+        quoted = m.group(1)
+        art = by_norm.get(_norm_title(quoted))
+        if art is None:
+            continue
+        out.append(e(paragraph[last:m.start()]))
+        inner = "\u201c" + e(quoted) + "\u201d"
+        url = str(art.get("url") or "")
+        if url.lower().startswith(("http://", "https://")):
+            out.append(f'<a class="atitle" href="{e(url)}">{inner}</a>')
+        else:
+            out.append(f'<strong class="atitle">{inner}</strong>')
+        last = m.end()
+    out.append(e(paragraph[last:]))
+    return "".join(out)
+
+
 def split_prose(prose):
     """Paragraphs, plus the thread-of-the-week sentence lifted into its own
     callout when the digest closes with one (the prompt asks for it, so most
@@ -159,6 +190,9 @@ h1 .wk { color:var(--amber); }
 .stat .v { font-size:40px; font-weight:200; }
 .stat .v em { font-style:normal; font-size:20px; color:var(--ink-2); }
 .stat .l { margin-top:2px; }
+.stat .delta { margin-top:4px; font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  font-size:11px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.stat .delta b { color:var(--ink-2); font-weight:400; }
 .stat.time .v { color:var(--amber); }
 section { padding:36px 0 0; }
 .prose { font-family:Charter,Georgia,serif; font-size:17px; line-height:1.75;
@@ -169,6 +203,9 @@ section { padding:36px 0 0; }
 .thread { margin-top:28px; padding:18px 20px; background:var(--bg-raise);
   border-left:2px solid var(--brand); font-family:Charter,Georgia,serif;
   font-size:16px; }
+.prose .atitle, .thread .atitle { font-weight:700; color:#f5f0eb;
+  text-decoration:none; }
+a.atitle:hover { color:var(--brand); }
 .viz-title { margin-bottom:18px; }
 .days { display:flex; gap:2px; align-items:flex-end; height:140px; margin-top:8px; }
 .day { flex:1; display:flex; flex-direction:column; justify-content:flex-end; height:100%; }
@@ -179,6 +216,16 @@ section { padding:36px 0 0; }
 .day .dl { text-align:center; margin-top:8px; }
 .day .dv { text-align:center; font-size:12px; color:var(--ink-2); margin-bottom:4px; }
 .day.peak .dv { color:var(--amber); }
+/* styled tooltips (trend bars + day bars) */
+[data-tip] { position:relative; }
+[data-tip]::after { content:attr(data-tip); position:absolute;
+  bottom:calc(100% + 10px); left:50%; transform:translateX(-50%);
+  background:#0c0a09; color:var(--ink); border:1px solid var(--rule);
+  border-left:2px solid var(--amber); padding:7px 11px; border-radius:4px;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:11.5px;
+  letter-spacing:.02em; white-space:nowrap; opacity:0; pointer-events:none;
+  transition:opacity .12s; z-index:6; }
+[data-tip]:hover::after { opacity:1; }
 .roster { margin-top:8px; }
 .row { display:grid; grid-template-columns:44px 1fr 64px; gap:12px;
   align-items:baseline; padding:7px 0; border-bottom:1px solid #2a2523;
@@ -195,13 +242,17 @@ section { padding:36px 0 0; }
 .facets { display:flex; gap:40px; flex-wrap:wrap; margin-top:8px; }
 .facet .l { margin-bottom:8px; }
 .chip { display:inline-block; padding:4px 10px; margin:0 6px 6px 0;
-  background:var(--bg-raise); border-radius:3px; font-size:13px; }
-.chip .c { color:var(--amber); font-size:11.5px; margin-left:5px; }
+  background:var(--bg-raise); border-radius:3px; font-size:13px;
+  vertical-align:baseline; }
+.chip .c { color:var(--amber); font-size:.72em; margin-left:5px; }
 .empty { color:var(--ink-3); font-size:13px; font-style:italic; }
 .weeknav { display:flex; justify-content:space-between; margin-top:48px;
   padding-top:16px; border-top:1px solid var(--rule); }
 .weeknav a { text-decoration:none; color:var(--ink-2); font-size:14px; }
 .weeknav a:hover { color:var(--brand); }
+.weeknav .home { color:var(--ink-3); font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  font-size:11px; letter-spacing:.14em; text-transform:uppercase; }
+header .kicker:hover { text-decoration:underline; }
 footer { margin-top:56px; border-top:1px solid var(--rule); padding-top:16px;
   display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
 /* index */
@@ -211,11 +262,17 @@ footer { margin-top:56px; border-top:1px solid var(--rule); padding-top:16px;
 .trend a:hover { background:var(--brand); }
 .trend a.latest { background:var(--amber); }
 .yearhead { margin:40px 0 4px; color:var(--ink-2); font-size:22px; font-weight:200; }
-.wrow { display:grid; grid-template-columns:96px 1fr 70px 90px; gap:12px;
+.ystrip { display:flex; gap:2px; margin:8px 0 14px; }
+.ystrip a, .ystrip span { flex:1; height:9px; border-radius:1px; display:block; }
+.ystrip span { background:#231f1d; }
+.ystrip a:hover { outline:1px solid var(--brand); }
+.wrow { display:grid; grid-template-columns:170px 1fr 70px 90px; gap:12px;
   align-items:baseline; padding:9px 0; border-bottom:1px solid #2a2523;
   text-decoration:none; }
 .wrow:hover { background:var(--bg-raise); }
-.wrow .wk2 { color:var(--amber); font-size:14px; }
+.wrow .wk2 { color:var(--amber); font-size:14px; white-space:nowrap; }
+.wrow .wk2 em { font-style:normal; color:var(--ink-3); font-size:11.5px;
+  margin-left:8px; }
 .wrow .topic { font-size:14px; color:var(--ink-2); overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap; }
 .wrow .c2,.wrow .w2 { font-size:13px; color:var(--ink-2); text-align:right; }
@@ -243,14 +300,15 @@ def page(title, body, depth=0):
 """
 
 
-def render_week(meta, prev_wk=None, next_wk=None):
+def render_week(meta, prev_wk=None, next_wk=None, prev_meta=None):
     week = str(meta["week"])
     year, wnum = week.split("-")
+    arts = meta["articles"]
     paras, thread = split_prose(meta["prose"])
     prose_html = ""
     for i, p in enumerate(paras):
         cls = ' class="lede"' if i == 0 else ""
-        prose_html += f"      <p{cls}>{e(p)}</p>\n"
+        prose_html += f"      <p{cls}>{link_titles(p, arts)}</p>\n"
     thread_html = ""
     if thread:
         thread_html = (f'    <div class="thread"><span class="label" '
@@ -266,12 +324,11 @@ def render_week(meta, prev_wk=None, next_wk=None):
         tip = (f"{d['date'].strftime('%a %b %-d')} — {n(d['words'])} words, "
                f"{d['count']} article{'s' if d['count'] != 1 else ''}"
                if d["count"] else f"{d['date'].strftime('%a %b %-d')} — no reading")
-        day_html += (f'      <div class="day{cls}" title="{e(tip)}">'
+        day_html += (f'      <div class="day{cls}" data-tip="{e(tip)}">'
                      f'<div class="dv num">{dv}</div>'
                      f'<div class="bar" style="height:{pct:.1f}%"></div>'
                      f'<div class="dl label">{d["label"]}</div></div>\n')
 
-    arts = meta["articles"]
     max_words = max((int(a.get("words") or 0) for a in arts), default=1) or 1
     roster_html = ""
     for a in arts:
@@ -302,18 +359,45 @@ def render_week(meta, prev_wk=None, next_wk=None):
         out = ""
         for item in pairs:
             name, count = (item["name"], item["count"]) if isinstance(item, dict) else item
-            out += (f'        <span class="chip">{e(str(name))}'
+            # Type scale carries the count: a x4 topic reads twice the
+            # size of a x2 - size IS the datum, the xN confirms it.
+            try:
+                size = min(13 + (int(count) - 2) * 3, 24)
+            except (TypeError, ValueError):
+                size = 13
+            out += (f'        <span class="chip" style="font-size:{size}px">{e(str(name))}'
                     f'<span class="c num">×{e(str(count))}</span></span>\n')
         return out
 
     distinct_sources, repeat_sources = week_sources(meta)
     longest_words = max((int(a.get("words") or 0) for a in arts), default=0)
+    longest_title = ""
+    for a in arts:
+        if int(a.get("words") or 0) == longest_words:
+            longest_title = str(a.get("title") or "")[:34]
+            break
 
-    nav = ""
-    if prev_wk or next_wk:
-        left = f'<a href="../{prev_wk}/">← {prev_wk}</a>' if prev_wk else "<span></span>"
-        right = f'<a href="../{next_wk}/">{next_wk} →</a>' if next_wk else "<span></span>"
-        nav = f'  <div class="weeknav">{left}{right}</div>\n'
+    def delta(key):
+        # vs the previous GENERATED week (corpus-adjacent, not calendar-
+        # adjacent): a small motion line under the headline numeral.
+        if not prev_meta:
+            return ""
+        try:
+            cur, prev = float(meta[key]), float(prev_meta[key])
+        except (KeyError, TypeError, ValueError):
+            return ""
+        diff = cur - prev
+        if diff == 0:
+            return '<div class="delta">= ' + e(str(prev_meta["week"])) + "</div>"
+        arrow = "\u25b2" if diff > 0 else "\u25bc"
+        val = f"{abs(diff):,.1f}" if key == "reading_time_hours" else f"{abs(diff):,.0f}"
+        return ('<div class="delta">' + arrow + " <b>" + val + "</b> vs "
+                + e(str(prev_meta["week"])) + "</div>")
+
+    left = f'<a href="../{prev_wk}/">← {prev_wk}</a>' if prev_wk else "<span></span>"
+    right = f'<a href="../{next_wk}/">{next_wk} →</a>' if next_wk else "<span></span>"
+    nav = ('  <div class="weeknav">' + left
+           + '<a class="home" href="../../">All weeks</a>' + right + '</div>\n')
 
     body = f"""  <header>
     <a class="label kicker" href="../../">{e(SITE_TITLE)}</a>
@@ -322,10 +406,10 @@ def render_week(meta, prev_wk=None, next_wk=None):
   </header>
 
   <div class="stats">
-    <div class="stat"><div class="v num">{n(meta["article_count"])}</div><div class="l label">Articles read</div></div>
-    <div class="stat"><div class="v num">{n(meta["total_words"])}</div><div class="l label">Words</div></div>
-    <div class="stat time"><div class="v num">{e(str(meta["reading_time_hours"]))}<em> hrs</em></div><div class="l label">Reading time</div></div>
-    <div class="stat"><div class="v num">{n(longest_words)}</div><div class="l label">Longest read · words</div></div>
+    <div class="stat"><div class="v num">{n(meta["article_count"])}</div><div class="l label">Articles read</div>{delta("article_count")}</div>
+    <div class="stat"><div class="v num">{n(meta["total_words"])}</div><div class="l label">Words</div>{delta("total_words")}</div>
+    <div class="stat time"><div class="v num">{e(str(meta["reading_time_hours"]))}<em> hrs</em></div><div class="l label">Reading time</div>{delta("reading_time_hours")}</div>
+    <div class="stat"><div class="v num">{n(longest_words)}</div><div class="l label">Longest read · words</div><div class="delta">{e(longest_title)}</div></div>
     <div class="stat"><div class="v num">{distinct_sources}</div><div class="l label">Sources</div></div>
   </div>
 
@@ -381,8 +465,32 @@ def render_index(weeks):
         pct = max((int(m["total_words"]) / peak) ** 0.5 * 100, 3)
         cls = ' class="latest"' if m is weeks[-1] else ""
         tip = f"{w} — {n(m['total_words'])} words, {m['article_count']} articles"
-        trend += (f'    <a href="weeks/{w}/" title="{e(tip)}"{cls} '
+        trend += (f'    <a href="weeks/{w}/" data-tip="{e(tip)}"{cls} '
                   f'style="height:{pct:.1f}%"></a>\n')
+
+    by_week = {str(m["week"]): m for m in weeks}
+    max_words = peak
+
+    def year_strip(year):
+        """52/53 cells, one per ISO week of the year - the calendar itself as
+        a chart. Present weeks are amber scaled by words and link through;
+        absent weeks are faint stubs. GitHub-contribution grammar, one row."""
+        try:
+            n_weeks = dt.date(int(year), 12, 28).isocalendar()[1]
+        except ValueError:
+            n_weeks = 52
+        cells = ""
+        for i in range(1, n_weeks + 1):
+            wk = f"{year}-W{i:02d}"
+            m2 = by_week.get(wk)
+            if m2 is None:
+                cells += "      <span></span>\n"
+            else:
+                alpha = 0.22 + 0.78 * (int(m2["total_words"]) / max_words) ** 0.5
+                tip = f"{wk} — {n(m2['total_words'])} words"
+                cells += (f'      <a href="weeks/{wk}/" data-tip="{e(tip)}" '
+                          f'style="background:rgba(251,191,36,{alpha:.2f})"></a>\n')
+        return f'  <div class="ystrip">\n{cells}  </div>\n'
 
     rows = ""
     year_seen = None
@@ -391,6 +499,7 @@ def render_index(weeks):
         year = w.split("-")[0]
         if year != year_seen:
             rows += f'  <div class="yearhead num">{year}</div>\n'
+            rows += year_strip(year)
             year_seen = year
         topics = m.get("top_topics") or []
         if topics and isinstance(topics[0], dict):
@@ -399,8 +508,16 @@ def render_index(weeks):
             top = topics[0][0]
         else:
             top = str(topics[0]) if topics else ""
-        rows += (f'  <a class="wrow" href="weeks/{w}/">'
-                 f'<span class="wk2 num">{w}</span>'
+        ws = dt.date.fromisoformat(str(m["week_start"]))
+        we = dt.date.fromisoformat(str(m["week_end"]))
+        span = f"{ws.strftime('%b')} {ws.day}–{we.day}" if ws.month == we.month \
+            else f"{ws.strftime('%b')} {ws.day}–{we.strftime('%b')} {we.day}"
+        # The row's background IS the words bar - sqrt-scaled amber wash.
+        pct = (int(m["total_words"]) / max_words) ** 0.5 * 100
+        bg = (f'style="background:linear-gradient(90deg,rgba(251,191,36,.08) '
+              f'{pct:.1f}%,transparent {pct:.1f}%)"')
+        rows += (f'  <a class="wrow" href="weeks/{w}/" {bg}>'
+                 f'<span class="wk2 num">{w.split("-")[1]}<em>{e(span)}</em></span>'
                  f'<span class="topic">{e(str(top))}</span>'
                  f'<span class="c2 num">{n(m["article_count"])} art</span>'
                  f'<span class="w2 num">{n(m["total_words"])} w</span></a>\n')
@@ -476,7 +593,9 @@ def generate(synthesis_dir, out_dir):
             next_wk = str(weeks[i + 1]["week"]) if i < len(weeks) - 1 else None
             d = tmp / "weeks" / w
             d.mkdir()
-            (d / "index.html").write_text(render_week(m, prev_wk, next_wk), encoding="utf-8")
+            prev_meta = weeks[i - 1] if i > 0 else None
+            (d / "index.html").write_text(
+                render_week(m, prev_wk, next_wk, prev_meta), encoding="utf-8")
 
         if out.exists():
             shutil.rmtree(out)
