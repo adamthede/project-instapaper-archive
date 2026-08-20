@@ -114,23 +114,28 @@ def safe_int(v):
 
 
 def numeric_column(rows, name):
-    """Coerce an index column to numbers, treating wholesale coercion failure
-    as schema drift.
+    """Coerce an index column to numbers, rejecting a non-numeric dtype.
 
-    A rewritten Parquet emitting word_count as strings is a likelier drift
-    than the column vanishing, and errors="coerce" alone turns it into a
-    complete, deployable site reporting 0 words. Raising here hands the
-    failure to generate()'s deep-dive guard, which degrades to weeks-only -
-    loud, and the same outcome as a missing column.
+    Drift is a TYPE question, not a proportion question. errors="coerce" alone
+    turned a retyped word_count into a complete, deployable site reporting 0
+    words; a share-of-values threshold only moved that cliff, because a
+    backfill retypes rows one at a time - at the midpoint of a live retype the
+    site would have deployed half the archive's word count with no warning,
+    and consistently so, since payload_rows' safe_int drops the same rows.
+
+    A correctly-typed column is int64 or float64; sparse data stays float64
+    with NaN. Only a column carrying strings goes object, so the dtype check
+    is exact, needs no threshold, and does not change verdict with sample
+    size (stats() runs per year page, sometimes over three rows). Raising
+    hands the failure to generate()'s deep-dive guard: weeks-only, loud, the
+    same outcome as a missing column.
     """
     raw = rows[name]
-    col = pd.to_numeric(raw, errors="coerce")
-    present = int(raw.notna().sum())
-    if present and int(col.notna().sum()) * 2 < present:
+    if int(raw.notna().sum()) and not pd.api.types.is_numeric_dtype(raw):
         raise ValueError(
-            f"index column {name!r}: only {int(col.notna().sum())} of {present} "
-            f"values are numeric - schema drift, refusing to report zeros")
-    return col
+            f"index column {name!r} has dtype {raw.dtype} where a number was "
+            f"expected - schema drift, refusing to report zeros")
+    return pd.to_numeric(raw, errors="coerce")
 
 
 def stats(rows):

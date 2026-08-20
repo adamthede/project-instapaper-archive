@@ -29,26 +29,31 @@ from htmlkit import e, n, page
 MAX_PAYLOAD_BYTES = 6 * 1024 * 1024
 
 
-def org_note(rows):
-    """Why orgs are ranked here and topics are not - measured on THESE rows.
+def org_note(rows, vocab_rows=None):
+    """Why orgs are ranked here and topics are not.
 
-    Two ways to get this wrong, both shipped once. First: pasting the audit's
-    42.9% into a constant, so the orgs page printed 42.9% in prose fourteen
-    lines under a stat tile reading 45.2%. Second: measuring the whole corpus
-    and printing the result under a year page's twenty org rows, where "the
-    top 20 cover 45.2% of the articles counted here" described 16,346 rows
-    instead of the 513 above it. The note describes whatever rows it is given,
-    so callers pass the rows their page actually ranks.
+    The two halves take different scopes on purpose. Head coverage describes
+    the list printed directly above it, so it is measured on `rows` - an
+    earlier draft measured the whole corpus and printed "the top 20 cover
+    45.2% of the 16,346 articles counted here" over a year page's 513.
+
+    The topic half is an argument about the archive's vocabulary, and the
+    singleton share is monotone in sample size (100% at n=3, 74.2% at
+    n=16,346). Year-scoping it made the sentence contradict itself: on
+    /years/2021/ both halves read 100%, so the contrast the sentence exists
+    to draw - orgs can be ranked, topics cannot - collapsed on the page
+    stating it. `vocab_rows` therefore stays archive-wide.
 
     Output is int and float interpolation only - no corpus strings reach it -
     but callers still escape it, because that is not a property to rely on.
     """
     head = head_coverage(rows, "orgs", 20)
-    vocab, singles = topic_vocabulary(rows)
+    vocab, singles = topic_vocabulary(rows if vocab_rows is None else vocab_rows)
     return (f"Organizations are the one entity field this archive can rank honestly: "
             f"the top 20 cover {head:,.1f}% of the {n(len(rows))} articles "
-            f"counted here. Topics cannot be ranked this way - that vocabulary is "
-            f"{n(vocab)} free-text strings, {singles:,.1f}% of them used exactly once.")
+            f"counted here. Topics cannot be ranked this way - across the whole "
+            f"archive that vocabulary is {n(vocab)} free-text strings, "
+            f"{singles:,.1f}% of them used exactly once.")
 
 
 EXTRA_STYLE = """
@@ -259,7 +264,7 @@ def render_year(corpus, year, weeks_in_year=(), prev_year=None, next_year=None,
     <div class="label viz-title">Organizations in the year's reading · top {len(orgs)} by articles</div>
     <div class="roster">
 {_org_rows(orgs, st['articles'], scope='the year')}    </div>
-    <div class="note">{e(org_note(rows))}</div>
+    <div class="note">{e(org_note(rows, vocab_rows=corpus.rows))}</div>
   </section>
 
   <section>

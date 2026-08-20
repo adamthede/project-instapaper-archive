@@ -315,9 +315,13 @@ def test_org_note_measures_the_topic_vocabulary_rather_than_quoting_it(small):
 
 def test_topic_vocabulary_counts_distinct_strings_and_singletons():
     c = corpus.prepare(frame([
-        row(topics=["AI", "Rust", "AI"]), row(topics=["AI"]), row(topics=["Solo"]),
+        row(topics=["AI", "AI"]), row(topics=["Rust"]), row(topics=["Solo"]),
     ]))
-    assert corpus.topic_vocabulary(c.rows) == (3, round(2 / 3 * 100, 1))
+    # Every topic is used by exactly one ARTICLE, so the singleton share is
+    # 100% - but only if the intra-article duplicate is collapsed first.
+    # Without the dedupe "AI" counts 2 and the share drops to 66.7%, which is
+    # what makes this fixture able to see the bug at all.
+    assert corpus.topic_vocabulary(c.rows) == (3, 100.0)
 
 
 def test_org_tooltips_name_the_denominator_they_actually_used(small):
@@ -693,6 +697,43 @@ def test_a_numeric_column_of_strings_is_drift_not_a_zero(small):
         corpus.stats(lying)
 
 
+def test_a_half_retyped_column_is_drift_too():
+    """A backfill retypes rows one at a time. A share-of-values threshold only
+    moves the cliff: at the midpoint of a live retype the old rule passed and
+    the site deployed half the archive's words, undetectably - payload_rows'
+    safe_int drops exactly the same rows, so the two surfaces agreed."""
+    c = corpus.prepare(frame([row(title=f"A{i}", word_count=100)
+                              for i in range(10)]))
+    for retyped in (1, 3, 5, 9):
+        mixed = list(c.rows["word_count"].astype(object))
+        for i in range(retyped):
+            mixed[i] = str(mixed[i])
+        with pytest.raises(ValueError, match="schema drift"):
+            corpus.stats(c.rows.assign(word_count=mixed))
+
+
+def test_clean_numeric_strings_are_drift_even_though_they_would_coerce():
+    """A column arriving as "100"/"200" currently works by coincidence.
+    Coincidence is not a contract - the dtype is still wrong."""
+    c = corpus.prepare(frame([row(word_count=100), row(word_count=200)]))
+    with pytest.raises(ValueError, match="schema drift"):
+        corpus.stats(c.rows.assign(word_count=["100", "200"]))
+
+
+def test_an_all_null_numeric_column_is_not_drift():
+    c = corpus.prepare(frame([row(word_count=None), row(word_count=None)]))
+    assert corpus.stats(c.rows.assign(word_count=[None, None]))["words"] == 0
+
+
+def test_a_missing_numeric_column_raises_rather_than_reading_as_absent():
+    """rows[name], not rows.get(name): .get() reads like a graceful-absence
+    guard, but pd.to_numeric(None) returns a float64 scalar and the failure
+    surfaces later as a confusing AttributeError."""
+    c = corpus.prepare(frame([row()]))
+    with pytest.raises(KeyError):
+        corpus.stats(c.rows.drop(columns=["word_count"]))
+
+
 def test_a_sparse_numeric_column_is_not_mistaken_for_drift():
     c = corpus.prepare(frame([row(word_count=1000), row(word_count=None),
                               row(word_count=None)]))
@@ -715,3 +756,24 @@ def test_string_typed_word_count_costs_the_deep_dives(synth_dir, index_file,
 def test_article_links_open_in_a_new_tab(small):
     out = deepdives.render_articles_page(small)
     assert "target = '_blank'" in out and "rel = 'noreferrer'" in out
+
+
+def test_year_note_keeps_head_coverage_local_and_the_vocabulary_archive_wide():
+    """Scoping BOTH halves to the year made the sentence contradict itself:
+    the singleton share is monotone in sample size, so a thin year printed
+    "top 20 cover 100.0%" and "100.0% used exactly once" in one breath,
+    collapsing the very contrast the sentence exists to draw."""
+    c = corpus.prepare(frame(
+        [row(title="thin", orgs=["Solo"], topics=["Only"], date_archived="2021-04-01")]
+        + [row(title=f"y13-{i}", orgs=[f"Org{i:02d}"], topics=[f"T{i:02d}", "Shared"],
+               date_archived="2013-04-01") for i in range(40)]))
+    thin_vocab, thin_singles = corpus.topic_vocabulary(c.year(2021))
+    all_vocab, all_singles = corpus.topic_vocabulary(c.rows)
+    assert (thin_vocab, thin_singles) == (1, 100.0)   # the artifact, if year-scoped
+    assert all_singles < 100.0                        # the real claim
+
+    out = deepdives.render_year(c, 2021)
+    assert f"top 20 cover 100.0% of the 1 articles counted here" in out
+    assert f"across the whole archive that vocabulary is {all_vocab:,} free-text" in out
+    assert f"{all_singles:,.1f}% of them used exactly once" in out
+    assert "100.0% of them used exactly once" not in out
