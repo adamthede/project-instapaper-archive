@@ -339,3 +339,25 @@ def test_thread_callout_links_quoted_titles(synth_dir):
     html_out = gen.render_week(m)
     assert 'thread"><span' in html_out
     assert html_out.count('class="atitle"') >= 1
+
+
+def test_unbalanced_quote_final_sentence_is_not_lifted():
+    # The splitter can cut inside a quotation (real case: 2025-W25) - a
+    # fragment starting mid-quote must never become the thread callout.
+    paras, thread = gen.split_prose(
+        "Alpha paragraph.\n\nHe said “Two things. It’s actually an original.” "
+        "to discoveries that intelligence evolved independently in birds and mammals across eras.")
+    assert thread is None
+
+
+def test_degenerate_titles_never_link():
+    arts = [{"title": "", "url": "https://x.com/e"}, {"title": None, "url": "https://x.com/n"}]
+    out = gen.link_titles("A quoted “—” and “None” stay plain.", arts)
+    assert "atitle" not in out
+
+
+def test_hugging_asterisk_block_is_load_bearing():
+    # Removing the consumption block leaks 2022-W39's leading asterisk back.
+    arts = [{"title": "Alpha", "url": "https://x.com/a"}]
+    out = gen.link_titles("Amidst fear, *“Alpha”* reassured.", arts)
+    assert "*" not in out

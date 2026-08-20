@@ -119,7 +119,9 @@ surfaces that survive.
 1. **Output home:** vault `synthesis/` subdir (part of the archive itself). 
 2. **Cadence:** Sunday 20:00 local.
 3. **Digest length/voice:** 300-500 words, woven themes, no listicle.
-4. **Domain:** reading.adamthede.com.
+4. **Domain:** reading.adamthede.com. **PRIVATE-FIRST (settled 2026-08-19):**
+   behind Cloudflare Access like the rest of the personal portfolio; public
+   is a later one-way choice Adam can make per-audience.
 5. **Week-page visual set:** chosen at the Phase 2 mockup review, not before.
 6. **Big Letter hook:** monthly, the four weekly digests are ingredients —
    manual pull at first, automation later.

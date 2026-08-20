@@ -23,6 +23,24 @@ wrangler pages deploy _site --project-name reading-adamthede --branch main
 #    already on Cloudflare, so this is one click + automatic CNAME).
 ```
 
+## Private-first (DECIDED 2026-08-19: Adam - like the rest of the portfolio)
+
+The site launches behind Cloudflare Access; flipping public later is one
+policy deletion, while unpublishing an indexed site is not.
+
+Dashboard -> Zero Trust -> Access -> Applications -> Add application:
+
+- Type: Self-hosted; domain `reading.adamthede.com`
+- ALSO add the `reading-adamthede.pages.dev` domain to the same application,
+  or the *.pages.dev URL stays a public side door around Access.
+- Policy: Allow -> Include -> Emails -> athede@gmail.com (or the One-time
+  PIN login method, same identity)
+- Session duration: 1 month is reasonable for a personal site.
+
+Wrangler deploys are unaffected - Access gates viewers, not deploys, so the
+future nightly deploy leg needs no credentials for this.
+
+
 ## Nightly wiring (after the first deploy works)
 
 Per the audit: the Matter plist should invoke a wrapper script rather than

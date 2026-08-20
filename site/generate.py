@@ -133,8 +133,11 @@ def split_prose(prose):
             # the digest CLOSE with the thread, so the final sentence is the
             # thread by construction - lift it when it is sentence-sized.
             pieces = re.split(r"(?<=[.!?])\s+(?=[A-Z\u201c])", paras[-1])
-            if len(pieces) > 1 and 60 <= len(pieces[-1]) <= 400:
-                m = re.search(re.escape(pieces[-1]) + r"\s*$", paras[-1])
+            candidate = pieces[-1]
+            balanced = (candidate.count("\u201c") == candidate.count("\u201d")
+                        and candidate.count('"') % 2 == 0)
+            if len(pieces) > 1 and 60 <= len(candidate) <= 400 and balanced:
+                m = re.search(re.escape(candidate) + r"\s*$", paras[-1])
             elif (len(pieces) == 1 and len(paras) > 1
                     and 60 <= len(paras[-1]) <= 400):
                 # 17 corpus weeks close with the thread as its own one-
@@ -200,8 +203,8 @@ STYLE = """
   --ink-3:#78716c; --rule:#44403c; --amber:#fbbf24; --amber-dim:#92700c;
   --brand:#FF8F3B; }
 * { margin:0; padding:0; box-sizing:border-box; }
+html, body { overflow-x:hidden; overflow-x:clip; }
 body { background:var(--bg); color:var(--ink); line-height:1.5;
-  overflow-x:clip;
   font-family:ui-sans-serif,-apple-system,"Helvetica Neue",sans-serif; }
 a { color:inherit; }
 .page { max-width:720px; margin:0 auto; padding:64px 24px 96px; }
