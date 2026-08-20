@@ -100,12 +100,33 @@ def test_hero_escapes_and_never_lets_an_era_bar_exceed_the_row():
     assert all(0 <= w <= 100 for w in widths)
 
 
+def week(article_count=4, **over):
+    base = {"week": "2012-W10", "week_start": "2012-03-05",
+            "week_end": "2012-03-11", "article_count": article_count,
+            "total_words": 900, "reading_time_hours": 1.5, "prose": "p",
+            "articles": [], "top_topics": []}
+    base.update(over)
+    return base
+
+
+def test_index_reports_synthesis_coverage_not_a_second_copy_of_the_totals():
+    """The week files sum to exactly the archive totals after a full backfill,
+    so echoing them was a redundant row. Coverage is the thing the hero cannot
+    already tell you."""
+    c = build([row() for _ in range(4)])
+    html = gen.render_index([week(article_count=4)], corpus_data=c)
+    assert "Every one of these articles sits in one of the 1 weekly syntheses" in html
+    assert "17,259,758" not in html
+
+
+def test_a_partial_backfill_reports_the_gap_rather_than_claiming_coverage():
+    c = build([row() for _ in range(10)])
+    html = gen.render_index([week(article_count=4)], corpus_data=c)
+    assert "cover 4 of these 10 articles" in html
+
+
 def test_index_without_a_corpus_falls_back_to_week_derived_stats():
-    weeks = [{"week": "2012-W10", "week_start": "2012-03-05",
-              "week_end": "2012-03-11", "article_count": 4, "total_words": 900,
-              "reading_time_hours": 1.5, "prose": "p", "articles": [],
-              "top_topics": []}]
-    html = gen.render_index(weeks, corpus_data=None)
+    html = gen.render_index([week()], corpus_data=None)
     assert "Weeks" in html and "erabar" not in html
 
 
@@ -163,6 +184,39 @@ def test_complexity_delta_is_against_the_previous_year_with_data():
     # 2014 is empty, so 2015 compares against 2013 - the last year that had one.
     assert series[2014]["avg"] is None and series[2014]["delta"] is None
     assert series[2015]["delta"] == -1.5
+
+
+def test_a_three_article_year_cannot_be_crowned_the_densest():
+    """The real 2021: three articles averaging grade 14.00, the highest figure
+    in a twenty-two year series. It must be drawn, marked, and ineligible."""
+    fat = [row(date_archived="2012-%02d-01" % (m + 1), grade_level=11.0)
+           for m in range(12)] * 3
+    thin = [row(date_archived="2013-01-01", grade_level=19.0)] * 3
+    c = build(fat + thin)
+    series = {r["year"]: r for r in corpus.complexity_by_year(c)}
+    assert series[2013]["low"] is True and series[2013]["graded"] == 3
+    assert series[2012]["low"] is False
+    html, top, bottom = trends.complexity_band(corpus.complexity_by_year(c))
+    assert top["year"] == 2012 and bottom["year"] == 2012
+    assert "thin" in html                       # drawn and marked, not hidden
+    assert "read as noise" in html
+
+
+def test_the_page_names_the_thin_years_it_refused_to_crown():
+    fat = [row(date_archived="2012-%02d-01" % (m + 1), grade_level=11.0)
+           for m in range(12)] * 3
+    thin = [row(date_archived="2013-01-01", grade_level=19.0)] * 3
+    html = trends.render_trends(build(fat + thin))
+    assert "not eligible to be named the densest" in html
+    assert "2013" in html
+
+
+def test_every_year_is_eligible_when_none_of_them_are_thin():
+    thin = [row(date_archived="2012-01-01", grade_level=11.0)] * 3
+    series = corpus.complexity_by_year(build(thin))
+    # all thin: the callout falls back to the whole series rather than vanishing
+    _, top, bottom = trends.complexity_band(series)
+    assert top["year"] == 2012 and bottom["year"] == 2012
 
 
 def test_complexity_by_year_keeps_empty_years_in_the_series():

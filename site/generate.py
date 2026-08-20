@@ -685,13 +685,23 @@ def render_index(weeks, year_pages=(), facets=False, excluded=0, corpus_data=Non
 
     if corpus_data is not None and len(corpus_data):
         hero = render_hero(corpus_data)
-        # The weeks are a VIEW of the index above, not its sum. Saying so in
-        # one line is cheaper than letting a reader subtract two stat rows and
-        # conclude the site is broken.
-        weeks_line = (
-            f'  <div class="provenance label" style="margin-top:26px">'
-            f'{e(f"{n(len(weeks))} of those weeks have a written synthesis below — {n(total_articles)} articles, {n(total_words)} words, {total_hours:,.1f} hours")}'
-            f'</div>\n')
+        # The weeks are a VIEW of the index above, not a second measurement of
+        # it. Printing the week-sum totals next to the archive totals was worse
+        # than useless: as of the Phase 4 backfill they are the same numbers
+        # (16,346 articles, 17,259,758 words), so the row read as a redundant
+        # echo. What a reader actually cannot tell from the hero is COVERAGE -
+        # how much of the archive has been written about - so that is what this
+        # line reports, and it is measured rather than assumed, because a
+        # partial backfill makes the two diverge again.
+        archive_articles = corpus_mod.stats(corpus_data.rows)["articles"]
+        if total_articles >= archive_articles:
+            covered = (f"Every one of these articles sits in one of the "
+                       f"{n(len(weeks))} weekly syntheses below")
+        else:
+            covered = (f"{n(len(weeks))} weekly syntheses below cover "
+                       f"{n(total_articles)} of these {n(archive_articles)} articles")
+        weeks_line = (f'  <div class="provenance label" style="margin-top:26px">'
+                      f'{e(covered)}</div>\n')
     else:
         hero = f"""  <div class="stats">
     <div class="stat"><div class="v num">{n(len(weeks))}</div><div class="l label">Weeks</div></div>

@@ -20,7 +20,8 @@ Three rulings are enforced here rather than merely respected:
   720px column on a phone. Each one lives in its own overflow-x container; the
   PAGE never scrolls sideways (generate.py pins html/body to overflow-x:clip).
 """
-from corpus import (GRADE_MAX, GRADE_MIN, SENTIMENT_MIN_RATED, SENTIMENTS,
+from corpus import (COMPLEXITY_MIN_GRADED, GRADE_MAX, GRADE_MIN,
+                    SENTIMENT_MIN_RATED, SENTIMENTS,
                     complexity_by_year, complexity_stats, domain_year_matrix,
                     entity_year_matrix, sentiment_by_year, stats,
                     vocabulary_report)
@@ -38,25 +39,28 @@ TRENDS_STYLE = """
 .hm { border-collapse:separate; border-spacing:2px; }
 .hm caption { caption-side:top; text-align:left; padding-bottom:10px; }
 .hm th { font-weight:400; }
-.hm th.hmn { width:132px; min-width:132px; max-width:132px; text-align:left;
+.hm th.hmn { width:156px; min-width:156px; max-width:156px; text-align:left;
   font-size:13px; color:var(--ink-2); overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap; padding-right:8px; }
-.hm th.hmy { width:26px; min-width:26px; color:var(--ink-3); font-size:9.5px;
+.hm th.hmy { width:20px; min-width:20px; color:var(--ink-3); font-size:9.5px;
   letter-spacing:0; text-align:center; padding-bottom:2px; }
-.hm td.hc { width:26px; min-width:26px; height:24px; border-radius:2px;
+.hm td.hc { width:20px; min-width:20px; height:20px; border-radius:2px;
   background:rgba(251,191,36,var(--i,0)); position:relative; }
 .hm td.hc.zero { background:#231f1d; }
 .hm td.hc:hover { outline:1px solid var(--brand); }
 /* Low-confidence cells carry a glyph, never a colour difference alone. */
 .hm td.hc.lown::before { content:"·"; position:absolute; inset:0;
   display:flex; align-items:center; justify-content:center; color:var(--ink-2);
-  font-size:15px; line-height:1; }
+  font-size:14px; line-height:1; }
 .hm tfoot th.hmn { color:var(--ink-3); font-family:ui-monospace,"SF Mono",Menlo,monospace;
   font-size:10px; letter-spacing:.1em; text-transform:uppercase; }
-.hm tfoot td.ht { height:26px; vertical-align:bottom; }
+.hm tfoot td.ht { height:22px; vertical-align:bottom; }
 .hm tfoot td.ht span { display:block; background:var(--rule); border-radius:1px;
   min-height:1px; }
 .hm tbody tr:hover th.hmn { color:var(--amber); }
+/* The column header is set tighter than the house label so "Organization"
+   fits the track instead of ellipsizing into "ORGANIZAT...". */
+.hm thead th.hmn { font-size:10px; letter-spacing:.06em; }
 /* complexity band */
 .band { display:flex; gap:3px; align-items:flex-end; height:130px; margin-top:10px; }
 .band .col { flex:1; display:flex; flex-direction:column; justify-content:flex-end;
@@ -65,6 +69,10 @@ TRENDS_STYLE = """
   min-height:2px; }
 .band .col.hi .bar { background:var(--amber); }
 .band .col.none .bar { background:#231f1d; }
+/* Thin years are drawn but marked: the glyph, not the shade, carries it. */
+.band .col.thin .bar { background:repeating-linear-gradient(135deg,
+  var(--amber-dim) 0 3px, #2b2622 3px 6px); }
+.band .col.thin .bl::after { content:"·"; color:var(--amber); margin-left:2px; }
 .band .col .bl { text-align:center; margin-top:7px; font-size:9px;
   color:var(--ink-3); letter-spacing:0; }
 .band .col:hover .bar { background:var(--brand); }
@@ -76,7 +84,7 @@ TRENDS_STYLE = """
 .legend .sw i { width:20px; height:11px; border-radius:2px; display:block;
   background:rgba(251,191,36,var(--i)); }
 @media (max-width:560px){
-  .hm th.hmn { width:104px; min-width:104px; max-width:104px; font-size:12px; }
+  .hm th.hmn { width:112px; min-width:112px; max-width:112px; font-size:12px; }
   .band { height:96px; } .band .col .bl { display:none; }
 }
 """
@@ -134,7 +142,7 @@ def heatmap(matrix, caption, row_label, unit="articles", empty=""):
     foot = ""
     for y in years:
         total = matrix["year_totals"].get(y, 0)
-        h = max((total / vpeak) ** 0.5 * 24, 1) if total else 1
+        h = max((total / vpeak) ** 0.5 * 18, 1) if total else 1
         foot += (f'<td class="ht" data-tip="{e(f"{y} - {n(total)} articles read")}">'
                  f'<span style="height:{h:.0f}px"></span></td>')
 
@@ -158,12 +166,20 @@ def heatmap(matrix, caption, row_label, unit="articles", empty=""):
 # ---------------------------------------------------------------------------
 
 def complexity_band(series):
-    """Average clipped grade level per year, on a stated non-zero axis."""
+    """Average clipped grade level per year, on a stated non-zero axis.
+
+    The densest/plainest callout is drawn only from years with enough graded
+    articles to mean anything. 2021 holds three articles averaging grade 14.00
+    - the highest number in the series - and naming it the archive's densest
+    year would be a twenty-year claim resting on three files. Thin years are
+    still DRAWN, and marked, because hiding them would be the other lie.
+    """
     rendered = [row for row in series if row["avg"] is not None]
     if not rendered:
         return '    <div class="empty">no reading-level data in the index</div>\n', None, None
-    top = max(rendered, key=lambda r: r["avg"])
-    bottom = min(rendered, key=lambda r: r["avg"])
+    solid = [row for row in rendered if not row["low"]] or rendered
+    top = max(solid, key=lambda r: r["avg"])
+    bottom = min(solid, key=lambda r: r["avg"])
     span = GRADE_AXIS_HI - GRADE_AXIS_LO
     out = ""
     for row in series:
@@ -177,11 +193,15 @@ def complexity_band(series):
             continue
         pct = max(min((avg - GRADE_AXIS_LO) / span, 1.0), 0.02) * 100
         cls = " hi" if row is top else ""
+        if row["low"]:
+            cls += " thin"
         move = "" if delta is None else (
             f", {'+' if delta > 0 else '−'}{abs(delta):.2f} vs {row['year'] - 1}"
             if delta else f", level with {row['year'] - 1}")
         tip = (f"{row['year']} — grade {avg:.2f} average across "
                f"{n(row['graded'])} of {n(row['articles'])} articles{move}")
+        if row["low"]:
+            tip += f" · under {COMPLEXITY_MIN_GRADED}, read as noise"
         out += (f'      <div class="col{cls}" data-tip="{e(tip)}">'
                 f'<div class="bar" style="height:{pct:.1f}%"></div>'
                 f'<div class="bl num">{e(year_label)}</div></div>\n')
@@ -253,6 +273,9 @@ def render_trends(corpus, site_title="The Week in Reading", domain=""):
     comp_all = complexity_stats(rows)
     graded = comp_all["graded"]
     all_avg = comp_all["avg"]
+    thin = [r for r in comp_series if r["low"] and r["avg"] is not None]
+    thin_years = [r["year"] for r in thin]
+    thin_top = max(thin, key=lambda r: r["avg"]) if thin else None
 
     sent_series = sentiment_by_year(corpus)
     sent_html = sentiment_strip(sent_series, years)
@@ -278,6 +301,15 @@ def render_trends(corpus, site_title="The Week in Reading", domain=""):
             f"Plainest: {comp_bottom['year']} at {comp_bottom['avg']:.2f}. Measured over "
             f"the {n(graded)} articles that carry a reading level."
         )
+        if thin_years:
+            comp_note += (
+                f" Hatched and dotted: {', '.join(str(y) for y in thin_years)} - fewer "
+                f"than {COMPLEXITY_MIN_GRADED} graded articles apiece. They are drawn "
+                f"because hiding a year is its own distortion, but they are not "
+                f"eligible to be named the densest or the plainest: {thin_top['year']} "
+                f"averages {thin_top['avg']:.2f} across {n(thin_top['graded'])} "
+                f"article{'s' if thin_top['graded'] != 1 else ''}, which is the highest "
+                f"number in the series and the least evidence behind one.")
     else:
         comp_note = "No reading-level data in this index."
 

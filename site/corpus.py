@@ -40,6 +40,11 @@ GRADE_MIN, GRADE_MAX = 0.0, 20.0
 # 19.8 is one long sentence in a stub, not a demanding article. 800 sits just
 # above the corpus median length (761 words).
 DENSEST_MIN_WORDS = 800
+# Below this many graded articles a year's average reading level is a fact
+# about three articles, not about a year. 2021 holds three and averages 14.00,
+# which is the highest figure in the whole series - it must not be allowed to
+# be crowned "the densest year" or to set the top of the axis.
+COMPLEXITY_MIN_GRADED = 25
 
 # Top-20 ARTICLE coverage a list-valued column must clear before the site will
 # rank it on a page of its own. The two precedents the audit set: orgs at 42.9%
@@ -479,7 +484,8 @@ def complexity_by_year(corpus):
             avg = round(float(valid.mean()), 2) if graded else None
         delta = None if (avg is None or prev is None) else round(avg - prev, 2)
         out.append({"year": int(y), "articles": len(rows),
-                    "graded": graded, "avg": avg, "delta": delta})
+                    "graded": graded, "avg": avg, "delta": delta,
+                    "low": bool(graded) and graded < COMPLEXITY_MIN_GRADED})
         if avg is not None:
             prev = avg
     return out
