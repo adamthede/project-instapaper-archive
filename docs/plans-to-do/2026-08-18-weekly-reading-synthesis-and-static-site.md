@@ -33,6 +33,9 @@ depends_on:
 > audit). Phase 4 backfill was running concurrently and rewriting
 > `synthesis/`, so week-page counts in that PR's evidence are a moving
 > snapshot.
+>
+> **2026-08-20 (later):** Phase 5b — the trends layer — in review at PR #10,
+> branched off PR #9 rather than main. See the Phase 5b section below.
 
 ## Problem
 
@@ -116,6 +119,101 @@ Then optionally the deep past: ~1,100 weekly digests across 22 years as an
 unattended Qwen batch job — memoir raw material. Respect the audit's
 footnote: legacy-era read dates are publication-date proxies; historical
 digests should say so on the page.
+
+### Phase 5b — The trends layer (scope settled with Adam 2026-08-20)
+
+The second half of the Streamlit port: the surfaces that need the whole
+archive at year grain rather than one week at a time. Six pieces.
+
+1. **Index hero.** All-time totals from the Parquet index (16,346 articles,
+   17.3M words, 1,209 hours, median 761 words) plus the **era split** told
+   honestly — legacy files 64.1%, Instapaper 34.5%, Matter 1.4%. Roughly two
+   thirds of this archive predates any read-it-later service, and a hero row
+   that says "16,346 articles" without saying so claims a tracking history
+   the corpus does not have.
+
+2. **Complexity.** `grade_level` clipped to 0–20 everywhere (385 corpus rows
+   parse outside that band, the highest at 857; the unclipped mean reads
+   11.75 against an honest 11.31). Each year page gains an average reading
+   level, a delta against the previous year with data, and that year's
+   densest substantial read. `/trends/` gains a complexity band at year
+   grain. The article payload gains a clipped grade.
+
+3. **`/trends/`.** Year-grain **heatmaps**, not multi-line spaghetti: rows are
+   top-15 entities, columns are the years, cell intensity is amber by count,
+   single hue only. Three of them — sources (from URL host), organizations,
+   places — plus the complexity band and a sentiment-mix strip. Every matrix
+   scrolls inside its own container; the page never scrolls sideways.
+
+4. **Facets.** `/locations/` modelled on `/orgs/`. **No `/concepts/` page** —
+   measured and failed, see the decision below.
+
+5. **People cleanup.** The audit's fabricated Co.Design cast, excluded at
+   index-build level, and `/people/` built on the cleaned data.
+
+6. This section, and the PR linked below.
+
+#### Phase 5b decisions
+
+- **Concepts are not rankable — measured, not assumed.** Top-20 *article*
+  coverage of **22.0%** over a **50,601**-string vocabulary, **74.0%** of it
+  used exactly once. That is worse than `topics` (25.3%), which the audit
+  already ruled unrankable, against `orgs` at 45.2%. The bar is now a stated
+  constant (`RANKABLE_HEAD_COVERAGE = 40%`) and the verdict is **recomputed on
+  every build** rather than frozen into a comment — if the audit's
+  recommendation #9 (a topic/concept normalization pass) ever lands, the
+  numbers move and the page starts building itself.
+- **Locations clear the bar comfortably**: 57.0% top-20 coverage over 8,658
+  strings, better than organizations on both counts. Page built.
+- **People do NOT clear the bar** (18.0%, the archive's thinnest field) and the
+  page is built anyway, because it was explicitly in scope and because it is
+  where the cleanup is visible. The page states its own coverage in the same
+  measured voice and gets **no heatmap row** on `/trends/` — the bar governs
+  whether a field can carry a time series, which 18% cannot. **Open for Adam:**
+  if the bar should apply uniformly, `/people/` is the page that goes.
+- **Grade clipping is stated wherever a grade is printed**, including the
+  unclipped figure, so "we clipped the data" costs the reader nothing to check.
+- **Thin years are drawn and marked, never hidden.** 2021 holds three articles
+  averaging grade 14.00 — the highest number in the series. It is rendered,
+  hatched, dotted, named in the note, and ineligible to be called the densest
+  year. Same rule for sentiment years under 25 rated articles.
+
+#### The people cleanup, and where it actually bites
+
+The rule is generic rather than a name blocklist: an identical **multi-name**
+cast + one **host** + one exact **word count**, at or above 8 rows. The
+threshold was chosen from a measured sweep and the verdict is flat across it —
+every value from 8 to 50 catches the same 2 groups and the same **283 rows**.
+Below 5 it starts eating genuine two-author bylines, which is the failure worth
+avoiding: a false positive erases a real person from the archive's memory.
+
+**The two corpora disagree about the effect, and both numbers are published.**
+
+- On the **raw index** — which `dashboard/app.py` reads with no
+  `content_corrupted` filter at all — it is the audit's fix: Todd Sherman
+  (286), Todd Kaplan (286), Deb Haaland (285), Antonia Iamartino (285) and
+  Josh Earnest (285) all leave the top 15, Jony Ive drops 301 → 15, and Warren
+  Buffett, Bill Clinton, Sarah Palin, Tim Cook, Sergey Brin and Henry Paulson
+  take their places.
+- On the **site corpus** it changes nothing, because all 283 rows are *also*
+  flagged `content_corrupted` and were already being dropped. `/people/` says
+  so on the page rather than taking credit for a ranking that was already
+  clean.
+
+The ordering (hygiene runs **before** the corrupted filter) stays regardless:
+for any cluster only partly flagged, scrubbing afterwards would shrink it below
+any threshold, and the unflagged survivors are exactly the rows that would leak.
+
+**Known residue:** one uncorrupted row carries a cast mixing the furniture
+names with real subjects. Its fingerprint is unique, so it forms no cluster and
+keeps its people — "Todd Kaplan" survives on `/people/` with a count of 1 out
+of 41,514 names. Removing it would take a name blocklist, which would also
+erase Jony Ive from the articles genuinely about him. Pinned by a test so the
+trade-off stays a decision.
+
+**Open item:** the same furniture populated `orgs`, `locations` and `concepts`
+on those same rows. Those columns are not scrubbed — a wider call than the one
+settled here, and 283 rows is 1.6% of the index.
 
 ### Phase 5 — Retire Streamlit
 
