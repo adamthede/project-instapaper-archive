@@ -23,6 +23,16 @@ depends_on:
 > **2026-08-19 (evening):** Phase 3 generator SHIPPED via PR #4 (two-round
 > adversarial review). Remaining: Adam's first deploy (site/DEPLOY.md),
 > nightly deploy wiring, Phase 4 deep backfill, Phase 5 Streamlit retirement.
+>
+> **2026-08-20:** Phase 5 deep dives in review at PR #8 - year rollups
+> (`/years/YYYY/`), an orgs facet (`/orgs/`), and a client-side article
+> browser (`/articles/` over one 2.5 MB payload), all rendering from the
+> Parquet index rather than synthesis frontmatter. This is the port half of
+> Phase 5; retiring the Streamlit app itself waits on Adam confirming the
+> surfaces he still uses (Spaced Review stays local either way, per the
+> audit). Phase 4 backfill was running concurrently and rewriting
+> `synthesis/`, so week-page counts in that PR's evidence are a moving
+> snapshot.
 
 ## Problem
 
