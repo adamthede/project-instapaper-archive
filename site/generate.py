@@ -527,11 +527,14 @@ def render_hero(corpus_data):
 
     bar, labels = "", ""
     # Oldest era darkest through newest brightest: the ramp encodes the
-    # ordering, so the three segments never rely on hue to be told apart, and
-    # each one is named in text directly beneath it.
-    steps = [0.30, 0.62, 1.0]
+    # ordering, so the segments never rely on hue to be told apart, and each
+    # one is named in text directly beneath it. Generated from the number of
+    # eras present rather than a fixed list of three - the real index carries a
+    # fourth ("Unattributed", 1 row), and clamping to the last step handed it
+    # and Matter the same shade, which is the one thing the ramp must not do.
+    ramp = max(len(eras) - 1, 1)
     for i, era in enumerate(eras):
-        shade = steps[min(i, len(steps) - 1)]
+        shade = round(0.30 + (1.0 - 0.30) * (i / ramp), 3)
         tip = (f"{era['label']} — {n(era['articles'])} articles, "
                f"{era['share']:.1f}% of the archive")
         bar += (f'      <span style="width:{era["share"]:.2f}%;--i:{shade}" '

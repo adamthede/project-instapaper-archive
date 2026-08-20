@@ -92,6 +92,20 @@ def test_hero_totals_come_from_the_index_not_the_week_files():
     assert '2</div><div class="l label">Articles' in html
 
 
+def test_every_era_gets_its_own_shade_however_many_there_are():
+    """The ramp encodes chronology, so two eras sharing a shade is the one
+    thing it must not do. The real index carries four (one row is
+    unattributed), and a fixed three-step list clamped the last two together."""
+    c = build([row(source="legacy_pdf")] * 4 + [row(source="instapaper")] * 3
+              + [row(source="matter", date_archived="2023-05-05")] * 2
+              + [row(source="wat")])
+    html = gen.render_hero(c)
+    shades = re.findall(r"--i:([\d.]+)", html)
+    bar_shades = shades[:4]
+    assert len(set(bar_shades)) == 4, bar_shades
+    assert float(bar_shades[0]) < float(bar_shades[-1])   # oldest darkest
+
+
 def test_hero_escapes_and_never_lets_an_era_bar_exceed_the_row():
     c = build([row(source="legacy_pdf")] * 7 + [row(source="instapaper")])
     html = gen.render_hero(c)
@@ -263,6 +277,30 @@ def test_year_page_omits_the_reading_level_when_there_is_none():
     assert "Densest read" not in html
 
 
+def test_the_densest_read_link_passes_the_scheme_allowlist_at_render_time():
+    """corpus blanks a non-http URL and the renderer checks again. Both ends
+    matter: these are third-party scraped URLs, and e() escapes quotes but not
+    a javascript: scheme."""
+    c = build([row(date_archived="2013-06-01", title="Nasty", grade_level=15.0,
+                   word_count=2000, url="javascript:alert(1)")])
+    html = deepdives.render_year(c, 2013)
+    assert "javascript:" not in html
+    assert "<strong class=\"atitle\">Nasty</strong>" in html   # rendered, not linked
+
+    ok = build([row(date_archived="2013-06-01", title="Fine", grade_level=15.0,
+                    word_count=2000, url="https://example.com/a")])
+    assert 'href="https://example.com/a"' in deepdives.render_year(ok, 2013)
+
+
+def test_all_thin_years_do_not_produce_a_note_that_contradicts_itself():
+    """complexity_band falls back to ranking thin years when every year is
+    thin. The note must not then call the year it just crowned ineligible."""
+    c = build([row(date_archived="2012-01-01", grade_level=11.0)] * 3)
+    html = trends.render_trends(c)
+    assert "Densest year: 2012" in html
+    assert "not eligible to be named the densest" not in html
+
+
 def test_densest_read_title_is_escaped_on_the_year_page():
     c = build([row(date_archived="2013-06-01", title=HOSTILE, grade_level=15.0,
                    word_count=2000)])
@@ -315,6 +353,62 @@ def test_thin_years_are_flagged_low_and_marked_in_the_strip():
     # Named in text, never by colour alone.
     for label in corpus.SENTIMENTS:
         assert f">{label}</th>" in html
+
+
+def test_the_sentiment_strip_shares_the_contiguous_axis_with_every_other_band():
+    """One grammar means one axis. Asserted on the RENDERED PAGE, not by
+    handing sentiment_strip an axis here - passing the right axis in the test
+    proves nothing about which axis render_trends chooses. With a 2010/2014
+    corpus a sparse axis puts the strip's 5th column over the heatmaps' 3rd."""
+    c = build([row(date_archived="2010-06-01", sentiment="Positive",
+                   orgs=["Google"], locations=["London"]),
+               row(date_archived="2014-06-01", sentiment="Neutral",
+                   orgs=["Google"], locations=["London"])])
+    html = trends.render_trends(c)
+    tables = re.findall(r"<table class=\"hm\">.*?</table>", html, re.S)
+    assert len(tables) == 4
+    widths = {t.count('scope="col"') for t in tables}
+    assert widths == {6}, widths          # one label column + 2010..2014
+    assert all("’12" in t for t in tables)
+    assert len(c.years) == 2 and len(c.year_axis) == 5
+
+
+def test_a_thin_year_does_not_set_a_sentiment_row_scale():
+    """2021 rates 2 of 3 articles Negative. Left in the denominator it owns the
+    Negative row at full intensity and flattens 2020's real spike."""
+    fat_2020 = ([row(date_archived="2020-01-%02d" % (i + 1), sentiment="Negative")
+                 for i in range(12)]
+                + [row(date_archived="2020-02-%02d" % (i + 1), sentiment="Neutral")
+                   for i in range(18)])
+    thin_2021 = [row(date_archived="2021-01-01", sentiment="Negative")] * 2
+    c = build(fat_2020 + thin_2021)
+    series = corpus.sentiment_by_year(c)
+    html = trends.sentiment_strip(series, c.year_axis)
+    neg = html.split(">Negative</th>")[1].split("</tr>")[0]
+    intensities = [float(v) for v in re.findall(r"--i:([\d.]+)", neg)]
+    # 2020 is 40% Negative over 30 rated; 2021 is 100% over 2. The real year
+    # sets the scale and reaches full intensity; the thin one is clamped.
+    assert intensities[0] == 1.0
+    assert "lown" in html
+
+
+def test_sentiment_tooltips_report_the_true_share_not_the_rounded_one():
+    """`shares` absorbs rounding residue so the three add to 100. Nothing here
+    is stacked, so the tooltip - which the note calls the real share - must be
+    computed from the counts instead."""
+    # An even three-way split is the case that leaves residue: 33.3 x 3 = 99.9,
+    # so one label is nudged to 33.4 to make the mix add up.
+    c = build([row(date_archived="2012-01-01", sentiment=s)
+               for s in corpus.SENTIMENTS for _ in range(10)])
+    series = corpus.sentiment_by_year(c)
+    year = series[0]
+    assert sum(year["shares"].values()) == 100.0
+    assert 33.4 in year["shares"].values()        # the fudge exists
+    html = trends.sentiment_strip(series, c.year_axis)
+    for label in corpus.SENTIMENTS:
+        exact = year["counts"][label] / year["rated"] * 100
+        assert f"{label} — 2012: {exact:.1f}%" in html    # 33.3 for all three
+    assert "33.4%" not in html
 
 
 def test_sentiment_strip_scales_within_a_row_not_across_rows():
@@ -381,6 +475,42 @@ def test_heatmap_escapes_hostile_entity_names_in_cells_and_tooltips():
     assert "alert(1)" in html          # present, but neutered
     assert html.count("&lt;script&gt;") >= 2   # row header AND tooltips
     assert 'data-tip="Bad &lt;' in html or "&quot;quote&quot;" in html
+
+
+def test_the_zero_cell_tooltip_escapes_too():
+    """The absent-year branch is the one a top-15 entity hits most often, and
+    an earlier test never reached it because its hostile org appeared in every
+    year of the fixture."""
+    c = build([row(date_archived="2012-06-01", orgs=[HOSTILE]),
+               row(date_archived="2013-06-01", orgs=["Google"])])
+    html = trends.heatmap(corpus.entity_year_matrix(c, "orgs", 10), "cap", "Org")
+    zero_cells = re.findall(r'<td class="hc zero"[^>]*>', html)
+    assert zero_cells, "fixture never reached the zero branch"
+    assert not any("<script>" in cell for cell in zero_cells)
+    assert any("&lt;script&gt;" in cell for cell in zero_cells)
+
+
+def test_an_attribute_breaking_entity_name_cannot_escape_the_tooltip():
+    """A name crafted to close data-tip and open an event handler."""
+    evil = '" onmouseover="alert(1)" x="'
+    c = build([row(date_archived="2012-06-01", orgs=[evil]),
+               row(date_archived="2013-06-01", orgs=["Google"])])
+    html = trends.heatmap(corpus.entity_year_matrix(c, "orgs", 10), "cap", "Org")
+    # The name is allowed to APPEAR as text; what it must never do is close the
+    # attribute it sits in and open a live handler. That needs a raw quote.
+    assert ' onmouseover="' not in html
+    assert '="alert(1)"' not in html
+    assert "&quot; onmouseover=&quot;" in html
+
+
+def test_every_heatmap_cell_carries_its_value_without_hover():
+    """The base stylesheet hides tooltips under (hover:none). Without a
+    non-hover label, four matrices would be encoded by colour alone."""
+    c = build([row(date_archived="2012-06-01", orgs=["Google"]),
+               row(date_archived="2013-06-01", orgs=["Apple"])])
+    html = trends.heatmap(corpus.entity_year_matrix(c, "orgs", 10), "cap", "Org")
+    assert html.count("aria-label=") == html.count('class="hc')
+    assert 'aria-label="Google — 2012: 1 article' in html
 
 
 def test_heatmap_tooltip_carries_the_count_and_the_share_of_that_year():
@@ -472,11 +602,12 @@ FABRICATED = ["Josh Earnest", "Antonia Iamartino", "Deb Haaland",
               "Todd Sherman", "Todd Kaplan", "Jony Ive"]
 
 
-def codesign_rows(n=12, corrupted=True, **over):
+def codesign_rows(n=12, corrupted=True, people=None, **over):
     """The measured shape of the defect: one host, one exact word count, one
     identical extracted cast."""
+    cast = list(FABRICATED if people is None else people)
     return [row(title=f"Co.Design {i}", url=f"https://www.fastcodesign.com/{i}",
-                word_count=642, people=list(FABRICATED),
+                word_count=642, people=list(cast),
                 content_corrupted=corrupted, **over) for i in range(n)]
 
 
@@ -509,6 +640,37 @@ def test_scrub_never_drops_the_names_from_articles_that_really_are_about_them():
             word_count=4200, people=["Jony Ive"])])
     out, _ = entity_hygiene.scrub(df, log=lambda m: None)
     assert list(out["people"])[12] == ["Jony Ive"]
+
+
+def test_a_genuine_two_author_byline_survives_at_the_shipped_threshold():
+    """The floor guard-rail, pinned to an ABSOLUTE size rather than to the
+    constant itself - `MIN_CLUSTER - 1` rows would follow the constant down and
+    prove nothing. Five is the largest genuine byline group on the real index
+    (pando.com); Adventure Cycling and National Geographic have four each.
+    Lowering the threshold to 3 eats all of them, and a false positive here
+    erases a real person from the archive's memory."""
+    byline = [row(title=f"Bikepacking {i}",
+                  url=f"https://adventurecycling.org/{i}", word_count=1139,
+                  people=["Alissa Bell", "Brielle Wacker"]) for i in range(5)]
+    out, clusters = entity_hygiene.scrub(pd.DataFrame(byline), log=lambda m: None)
+    assert clusters == []
+    assert all(p == ["Alissa Bell", "Brielle Wacker"] for p in out["people"])
+
+
+def test_the_threshold_sits_inside_the_measured_flat_band():
+    """Measured on the 2026-08-20 index: every value from 6 to 50 catches the
+    same 2 groups and the same 283 rows. Below 6 the rule eats real bylines;
+    at 100 the 54-row variant escapes. The constant must stay in the band."""
+    assert 6 <= entity_hygiene.MIN_CLUSTER <= 50
+    assert entity_hygiene.MIN_NAMES >= 2
+
+
+def test_a_bare_string_is_one_name_not_a_list_of_letters():
+    """build_index reads this straight from YAML, where `ai_people: Steve Jobs`
+    is a string. list() over it enters ten single letters into the vocabulary."""
+    assert entity_hygiene.as_names("Steve Jobs") == ["Steve Jobs"]
+    assert entity_hygiene.as_names("  ") == []
+    assert entity_hygiene.fingerprint("Steve Jobs") == ("Steve Jobs",)
 
 
 def test_a_recurring_single_name_is_a_person_not_boilerplate():
@@ -647,6 +809,69 @@ def test_people_page_escapes_hostile_names():
     assert "<script>" not in html and "&lt;script&gt;" in html
 
 
+def test_the_cleanup_disclosure_escapes_the_names_it_quotes():
+    """The disclosure interpolates the fabricated cast and the host - both
+    third-party - and the ranking-only escaping test never reached it."""
+    c = build(codesign_rows(12, people=[HOSTILE, "Second Name"]))
+    disclosure = deepdives.render_people(c).split("What was taken out of this list")[1]
+    assert "<script>" not in disclosure
+    assert "&lt;script&gt;" in disclosure
+
+
+def test_the_disclosure_reports_each_cast_separately_never_their_union():
+    """Two variants of the Co.Design cast differ by one name. Unioning them and
+    calling the result identical is the unearned claim this page exists to
+    refuse: 229 of the 283 real rows never listed JD Vance."""
+    six = ["Antonia Iamartino", "Deb Haaland", "Jony Ive", "Josh Earnest",
+           "Todd Kaplan", "Todd Sherman"]
+    c = build(codesign_rows(9, people=list(six))
+              + [row(title=f"variant {i}", url=f"https://www.fastcodesign.com/v{i}",
+                     word_count=642, people=six + ["JD Vance"],
+                     content_corrupted=True) for i in range(8)])
+    assert len(c.people_clusters) == 2
+    disclosure = deepdives.render_people(c).split("What was taken out of this list")[1]
+    assert "2 near-identical casts" in disclosure
+    assert "9 of them" in disclosure and "8 of them" in disclosure
+    # the union would have put JD Vance in front of all 17
+    assert "every one of them lists the identical people" not in disclosure
+
+
+def test_the_evidence_survives_an_index_that_was_already_cleaned():
+    """The trap: once build_index writes a scrubbed parquet, a second scrub
+    finds nothing, and a page sourced from live detection would announce that
+    the archive never had a defect. The quarantine column is the record."""
+    import entity_hygiene as eh
+    df = pd.DataFrame(codesign_rows(12) + [row(people=["Tim Cook"])])
+    cleaned, clusters = eh.scrub(df, column="people",
+                                 quarantine_column=corpus.PEOPLE_QUARANTINE,
+                                 log=lambda m: None)
+    assert clusters                      # first pass finds it
+    again, clusters2 = eh.scrub(cleaned, column="people",
+                                quarantine_column=corpus.PEOPLE_QUARANTINE,
+                                log=lambda m: None)
+    assert clusters2 == []               # second pass has nothing left to find
+
+    again["date_saved"] = pd.to_datetime(again["date_saved"])
+    again["date_archived"] = pd.to_datetime(again["date_archived"])
+    c = corpus.prepare(again)
+    assert c.scrubbed_people == 12
+    assert len(c.people_clusters) == 1
+    disclosure = deepdives.render_people(c).split("What was taken out of this list")[1]
+    assert "12 articles in the index carry a cast that was never in them" in disclosure
+    assert "No boilerplate entity clusters were found" not in disclosure
+
+
+def test_the_quarantine_holds_the_cast_it_took_and_nothing_else():
+    import entity_hygiene as eh
+    df = pd.DataFrame(codesign_rows(12) + [row(people=["Tim Cook"])])
+    out, _ = eh.scrub(df, column="people",
+                      quarantine_column=corpus.PEOPLE_QUARANTINE, log=lambda m: None)
+    quarantined = list(out[corpus.PEOPLE_QUARANTINE])
+    assert all(set(q) == set(FABRICATED) for q in quarantined[:12])
+    assert quarantined[12] == []         # the real person is not quarantined
+    assert list(out["people"])[12] == ["Tim Cook"]
+
+
 # ---------------------------------------------------------------------------
 # facets + payload
 # ---------------------------------------------------------------------------
@@ -658,6 +883,26 @@ def test_locations_page_ranks_and_states_its_coverage():
     assert "London" in html and "Paris" in html
     assert "Distinct places" in html
     assert "66.7" in html          # tagged share, measured not quoted
+
+
+def test_an_empty_facet_says_which_facet_is_empty():
+    """The ranked-row helper is shared by three pages now, so its empty note
+    cannot keep saying "organizations" on all of them."""
+    c = build([row(locations=[], people=[], orgs=[])])
+    assert "no places tagged" in deepdives.render_locations(c)
+    assert "no people tagged" in deepdives.render_people(c)
+    assert "no organizations tagged" in deepdives.render_orgs(c)
+
+
+def test_safe_url_is_the_allowlist_the_pages_rely_on():
+    """Every render-time href goes through this. e() escapes quotes but not a
+    javascript: scheme, and these are third-party scraped URLs."""
+    from htmlkit import safe_url
+    assert safe_url("https://example.com/a") == "https://example.com/a"
+    assert safe_url("http://example.com/a") == "http://example.com/a"
+    for bad in ("javascript:alert(1)", "JavaScript:alert(1)", "data:text/html,x",
+                "vbscript:x", "//example.com", "ftp://example.com", "", None):
+        assert safe_url(bad) == ""
 
 
 def test_locations_page_escapes_hostile_place_names():
@@ -712,9 +957,14 @@ def test_trends_page_renders_every_band():
     html = trends.render_trends(c, domain="reading.example.com")
     assert "<h1>Trends</h1>" in html
     for heading in ("average grade level per year", "sentiment mix by year",
-                    "top 15 sources by year", "top 15 organizations by year",
-                    "top 15 places by year"):
+                    "sources by year", "organizations by year", "places by year"):
         assert heading in html
+    # The heading counts what it actually drew. This corpus has one source, one
+    # org and one place - a page headed "top 15" over one row is a small lie
+    # told fifteen times.
+    assert "top 1 sources by year" in html
+    assert "top 1 organizations by year" in html
+    assert "top 15" not in html
     assert html.count('class="hmwrap"') == 4        # sentiment + three heatmaps
     assert "<!DOCTYPE html>" in html
 

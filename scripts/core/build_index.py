@@ -285,7 +285,8 @@ def build_index():
     # before to_parquet so every downstream reader - the static site, the
     # Streamlit dashboard (which does not filter content_corrupted at all) -
     # inherits the fix without repeating it.
-    df, _ = entity_hygiene.scrub(df, column="people")
+    df, _ = entity_hygiene.scrub(df, column="people",
+                                 quarantine_column="people_boilerplate")
 
     # Save
     DATA_DIR.mkdir(exist_ok=True)

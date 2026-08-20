@@ -52,6 +52,11 @@ COMPLEXITY_MIN_GRADED = 25
 # stated here so a new column's verdict is a measurement rather than a taste.
 RANKABLE_HEAD_COVERAGE = 40.0
 
+# Where a scrubbed-away fabricated cast is kept. Quarantine rather than
+# deletion: /people/ tells the story of this defect and needs the evidence to
+# outlive the fix. See scripts/core/entity_hygiene.py.
+PEOPLE_QUARANTINE = "people_boilerplate"
+
 # `source` carries eight values; readers care about three eras.
 ERA_ORDER = ("legacy", "instapaper", "matter")
 ERA_LABELS = {
@@ -157,11 +162,16 @@ def prepare(df):
     # the site displays. It is load-bearing for the raw index instead, which
     # dashboard/app.py reads with no corrupted filter at all - there it moves
     # five fabricated names out of the top 15 and six real ones in.
-    people_clusters = []
     if "people" in df.columns:
-        df, people_clusters = entity_hygiene.scrub(
-            df, column="people",
+        df, _ = entity_hygiene.scrub(
+            df, column="people", quarantine_column=PEOPLE_QUARANTINE,
             log=lambda msg: print(msg, file=sys.stderr))
+    # Read the evidence back out of the index rather than out of what THIS run
+    # happened to catch. Once build_index writes a cleaned parquet there is
+    # nothing left here to detect, and a page sourced from the live detection
+    # would go from "here is the archive's one fabrication" to "no fabrication
+    # was ever found" the moment the fix took effect.
+    people_clusters = entity_hygiene.quarantined_clusters(df, PEOPLE_QUARANTINE)
 
     if "content_corrupted" in df.columns:
         df = df[df["content_corrupted"] != True]  # noqa: E712

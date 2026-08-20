@@ -16,19 +16,39 @@ and one exact word count is site chrome, not a subject. Real articles about
 Steve Jobs do not agree on their word count to the character.
 
 Measured on the 2026-08-20 index (17,416 rows), the threshold has a wide flat
-band - every value of `min_cluster` from 8 to 50 catches the same 2 groups and
+band - every value of `min_cluster` from 6 to 50 catches the same 2 groups and
 the same 283 rows:
 
-    n>=3:  5 groups,  296 rows   (adds real bylines: National Geographic,
-    n>=4:  5 groups,  296 rows    Adventure Cycling - two-author pieces)
-    n>=5:  3 groups,  288 rows   (adds pando.com, 5 rows, ambiguous)
-    n>=8:  2 groups,  283 rows   <- the Co.Design cluster, and nothing else
-    n>=50: 2 groups,  283 rows
+    n>=2:   24 groups,  335 rows
+    n>=3:    6 groups,  299 rows   (adds a 3-row news.yahoo.com digest)
+    n>=4:    5 groups,  296 rows   (adds genuine two-author bylines: National
+    n>=5:    3 groups,  288 rows    Geographic, Adventure Cycling; then pando)
+    n>=6:    2 groups,  283 rows   <- the Co.Design cluster, and nothing else
+    n>=50:   2 groups,  283 rows
+    n>=100:  1 group,   229 rows   (band ends: the 54-row variant escapes)
 
-MIN_CLUSTER sits at 8 because the verdict does not move anywhere in 8..50.
+MIN_CLUSTER sits at 8 - inside the flat band, with headroom on both sides.
 Below 5 the rule starts eating genuine two-author bylines, which is the failure
 mode worth avoiding: a false positive here erases a real person from the
 archive's memory of itself.
+
+QUARANTINE, NOT DELETION. The scrubbed cast moves to a second column instead of
+being dropped. That is not tidiness; it fixes a bug. The site's /people/ page
+tells the story of this defect, and it was reading that story out of whatever
+the CURRENT run happened to find - so the first time an already-scrubbed index
+reached the page, the page would have announced that no fabrication was ever
+found. Evidence that vanishes once it is acted on is not evidence. Second
+reason, plainer: a later reader should be able to check this call rather than
+take it on trust.
+
+Known limit - RECALL IS FRAGILE TO CAST DRIFT. Grouping is exact-set, so one
+extra name splits a cluster. fastcodesign.com/642 is really three groups
+(229 / 54 / 2); the 2-row tail escapes, and a site that reshuffled its nav
+forty times would yield forty sub-threshold groups and be caught by none of
+them. Precision was the thing worth buying here - a false positive erases a
+real person - but if a driftier cluster ever shows up, the fix is to group on
+host + word count first and then require high overlap between casts rather
+than equality.
 
 Scope note: this scrubs `people`, the defect the audit measured. The same
 furniture populated `orgs`, `locations` and `concepts` on the same rows, and
@@ -62,11 +82,19 @@ def source_host(url):
 
 
 def as_names(value):
-    """Entity cells arrive as lists, numpy arrays, None, or NaN."""
+    """Entity cells arrive as lists, numpy arrays, strings, None, or NaN.
+
+    A bare string is ONE name, not a list of characters. build_index reads this
+    column straight out of YAML frontmatter, where `ai_people: Steve Jobs` is a
+    string, and list("Steve Jobs") would quietly enter ten single letters into
+    the vocabulary and fingerprint the row against every other one-name string.
+    """
     if value is None:
         return []
     if isinstance(value, float):
         return []
+    if isinstance(value, str):
+        return [value.strip()] if value.strip() else []
     try:
         return [str(x).strip() for x in list(value) if str(x).strip()]
     except TypeError:
@@ -107,8 +135,12 @@ def find_clusters(records, min_cluster=MIN_CLUSTER, min_names=MIN_NAMES):
 
 
 def scrub(df, column="people", hosts=None, min_cluster=MIN_CLUSTER,
-          min_names=MIN_NAMES, log=None):
+          min_names=MIN_NAMES, log=None, quarantine_column=None):
     """Blank `column` on every boilerplate-cluster row. Returns (df, clusters).
+
+    With `quarantine_column`, the removed cast is written there rather than
+    lost, so the exclusion stays auditable after the index has been rebuilt -
+    see the module docstring.
 
     Never silent: every cluster is reported through `log` (default: print) with
     its names, host, word count and row count, so a future cluster appearing in
@@ -143,7 +175,7 @@ def scrub(df, column="people", hosts=None, min_cluster=MIN_CLUSTER,
 
     victims = [rid for c in clusters for rid in c["row_ids"]]
     total = sum(len(c["row_ids"]) for c in clusters)
-    emit(f"entity hygiene: dropping {column!r} on {total} rows in "
+    emit(f"entity hygiene: quarantining {column!r} on {total} rows in "
          f"{len(clusters)} boilerplate cluster(s) "
          f"(identical {column} + host + word count, >= {min_cluster} rows):")
     for c in clusters:
@@ -152,8 +184,41 @@ def scrub(df, column="people", hosts=None, min_cluster=MIN_CLUSTER,
 
     df = df.copy()
     # A column of lists cannot be assigned an empty list per row through .loc
-    # without pandas trying to broadcast it, so rebuild the column outright.
+    # without pandas trying to broadcast it, so rebuild both columns outright.
     dropped = set(victims)
+    original = list(df[column])
     df[column] = [[] if idx in dropped else val
-                  for idx, val in zip(df.index, df[column])]
+                  for idx, val in zip(df.index, original)]
+    if quarantine_column:
+        prior = list(df[quarantine_column]) if quarantine_column in df.columns \
+            else [[] for _ in range(len(df))]
+        # Union with anything already quarantined: this may be the second pass
+        # over an index a previous run already cleaned, and the record of that
+        # earlier call is the only remaining proof the defect existed.
+        df[quarantine_column] = [
+            list(val) if idx in dropped else (as_names(was) or [])
+            for idx, val, was in zip(df.index, original, prior)]
     return df, clusters
+
+
+def quarantined_clusters(df, quarantine_column="people_boilerplate", hosts=None):
+    """Rebuild the cluster report from a quarantine column.
+
+    The clusters a given run detects are not the clusters an index CONTAINS:
+    once build_index has written a cleaned parquet, a later pass finds nothing
+    to do and would report an archive with no defects in it. Reading the record
+    back gives the same answer whoever did the work and whenever.
+    """
+    if quarantine_column not in df.columns:
+        return []
+    if hosts is None:
+        hosts = [source_host(u) for u in df["url"]] if "url" in df.columns \
+            else [""] * len(df)
+    words = df["word_count"] if "word_count" in df.columns else [0] * len(df)
+    records = [(idx, val, host, wc)
+               for idx, val, host, wc in zip(df.index, df[quarantine_column],
+                                             hosts, words)
+               if as_names(val)]
+    # min_cluster=1: these rows were already judged. Re-thresholding them would
+    # hide a cluster that a bigger corpus once justified.
+    return find_clusters(records, min_cluster=1, min_names=1)

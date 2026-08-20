@@ -148,9 +148,9 @@ def _stat(value_html, label, sub=""):
             f'<div class="l label">{e(label)}</div>{sub_html}</div>')
 
 
-def _org_rows(orgs, denominator, scope="the year"):
+def _org_rows(orgs, denominator, scope="the year", noun="organizations"):
     if not orgs:
-        return '      <span class="empty">no organizations tagged</span>\n'
+        return f'      <span class="empty">no {e(noun)} tagged</span>\n'
     top = max((o["count"] for o in orgs), default=1) or 1
     out = ""
     for i, o in enumerate(orgs, start=1):
@@ -402,7 +402,7 @@ def render_locations(corpus, limit=100, site_title="The Week in Reading", domain
         "articles used, not as a census of places."
     )
     note = (
-        f"Places are the archive's most rankable entity field: the top {report['head_k']} "
+        f"Places rank as cleanly as anything in this archive: the top {report['head_k']} "
         f"cover {report['head_coverage']:,.1f}% of the {n(len(rows))} articles counted "
         f"here, over a vocabulary of {n(report['vocabulary'])} strings, "
         f"{report['singleton_share']:,.1f}% of them used exactly once. "
@@ -424,7 +424,7 @@ def render_locations(corpus, limit=100, site_title="The Week in Reading", domain
   <section>
     <div class="label viz-title">Ranked by articles · top {len(places)}</div>
     <div class="roster">
-{_org_rows(places, len(rows), scope='the archive')}    </div>
+{_org_rows(places, len(rows), scope='the archive', noun='places')}    </div>
     <div class="note">{e(note)}</div>
     <div class="note">{e(footnote)}</div>
     <div class="note"><a href="../trends/">Places by year, as a heatmap →</a></div>
@@ -463,7 +463,7 @@ def render_people(corpus, limit=100, site_title="The Week in Reading", domain=""
     locs_cov = vocabulary_report(rows, "locations")["head_coverage"]
 
     note = (
-        f"The archive's thinnest rankable field, and it is ranked here with that said "
+        f"The thinnest of the ranked fields, and it is ranked here with that said "
         f"out loud: the top {report['head_k']} names appear in {report['head_coverage']:,.1f}% "
         f"of the {n(len(rows))} articles counted here, against {orgs_cov:,.1f}% for "
         f"organizations and {locs_cov:,.1f}% for places. "
@@ -475,17 +475,28 @@ def render_people(corpus, limit=100, site_title="The Week in Reading", domain=""
     )
 
     if corpus.people_clusters:
-        names = sorted({name for c in corpus.people_clusters for name in c["names"]})
         hosts = sorted({c["host"] for c in corpus.people_clusters})
         leaked = corpus.scrubbed_people_in_corpus
+        # One sentence PER CLUSTER. Unioning the casts and then calling them
+        # identical is exactly the unearned claim this page exists to refuse:
+        # the archive holds two variants, and 229 of the 283 rows never listed
+        # the name that a union would put in front of all of them.
+        casts = []
+        for c in sorted(corpus.people_clusters,
+                        key=lambda c: (-len(c["row_ids"]), c["host"])):
+            casts.append(f"{n(len(c['row_ids']))} of them, all "
+                         f"{n(c['word_count'])} words long, list "
+                         f"{', '.join(c['names'])}")
+        variants = ("in one cast" if len(casts) == 1
+                    else f"in {len(casts)} near-identical casts")
         cleanup = (
             f"{n(corpus.scrubbed_people)} articles in the index carry a cast that was "
-            f"never in them. They come from {', '.join(hosts)}, they share one exact "
-            f"word count, and every one of them lists the identical people — "
-            f"{', '.join(names)}. The scraper captured the site's navigation furniture "
-            f"instead of the article and the enrichment pass then read entities out of "
-            f"the furniture. Nobody read those articles about those people, and their "
-            f"people lists are dropped before anything on this page is counted."
+            f"never in them, {variants}, all from "
+            f"{', '.join(hosts)}. {'; '.join(casts)}. The scraper captured the site's "
+            f"navigation furniture instead of the article and the enrichment pass then "
+            f"read entities out of the furniture. Nobody read those articles about "
+            f"those people, and their casts are set aside before anything on this page "
+            f"is counted."
         )
         # Credit only for what this actually changed HERE. On the current index
         # every one of those rows is also flagged as corrupted content, so this
@@ -531,7 +542,7 @@ def render_people(corpus, limit=100, site_title="The Week in Reading", domain=""
   <section>
     <div class="label viz-title">Ranked by articles · top {len(people)}</div>
     <div class="roster">
-{_org_rows(people, len(rows), scope='the archive')}    </div>
+{_org_rows(people, len(rows), scope='the archive', noun='people')}    </div>
     <div class="note">{e(note)}</div>
   </section>
 
@@ -539,6 +550,7 @@ def render_people(corpus, limit=100, site_title="The Week in Reading", domain=""
     <div class="label viz-title">What was taken out of this list</div>
     <div class="note">{e(cleanup)}</div>
     <div class="note">{e(footnote)}</div>
+    <div class="note"><a href="../orgs/">Organizations</a> · <a href="../locations/">Places</a> · <a href="../trends/">Both by year, as heatmaps →</a></div>
   </section>
 
   <div class="yearnav"><span></span><a class="home" href="../">All weeks</a><span></span></div>

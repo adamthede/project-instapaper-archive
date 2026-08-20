@@ -58,6 +58,13 @@ TRENDS_STYLE = """
 .hm tfoot td.ht span { display:block; background:var(--rule); border-radius:1px;
   min-height:1px; }
 .hm tbody tr:hover th.hmn { color:var(--amber); }
+/* The base stylesheet suppresses every tooltip under (hover:none), which on a
+   page that is four matrices would leave the cell values encoded by colour
+   alone. Cells carry an aria-label for assistive tech, and tap-and-hold gets
+   the tooltip back here. */
+@media (hover:none) {
+  .hm td.hc:active::after, .hm th.hmn:active::after { display:block; opacity:1; }
+}
 /* The column header is set tighter than the house label so "Organization"
    fits the track instead of ellipsizing into "ORGANIZAT...". */
 .hm thead th.hmn { font-size:10px; letter-spacing:.06em; }
@@ -121,20 +128,23 @@ def heatmap(matrix, caption, row_label, unit="articles", empty=""):
     body = ""
     for name in names:
         total = matrix["row_totals"][name]
-        rtip = f"{name} — {n(total)} {unit} across {len(years)} years"
+        runit = unit[:-1] if (total == 1 and unit.endswith("s")) else unit
+        rtip = f"{name} — {n(total)} {runit} across {len(years)} years"
         cells = ""
         for y in years:
             count = matrix["cells"][name][y]
             year_total = matrix["year_totals"].get(y, 0)
             if count:
                 share = (count / year_total * 100) if year_total else 0
-                tip = (f"{name} — {y}: {n(count)} {unit}, "
+                noun = unit[:-1] if (count == 1 and unit.endswith("s")) else unit
+                tip = (f"{name} — {y}: {n(count)} {noun}, "
                        f"{share:.1f}% of that year's {n(year_total)}")
                 cells += (f'<td class="hc" style="--i:{_intensity(count, peak)}" '
-                          f'data-tip="{e(tip)}"></td>')
+                          f'data-tip="{e(tip)}" aria-label="{e(tip)}"></td>')
             else:
                 tip = f"{name} — {y}: none"
-                cells += f'<td class="hc zero" data-tip="{e(tip)}"></td>'
+                cells += (f'<td class="hc zero" data-tip="{e(tip)}" '
+                          f'aria-label="{e(tip)}"></td>')
         body += (f'      <tr><th class="hmn" scope="row" data-tip="{e(rtip)}">'
                  f'{e(str(name))}</th>{cells}</tr>\n')
 
@@ -143,7 +153,8 @@ def heatmap(matrix, caption, row_label, unit="articles", empty=""):
     for y in years:
         total = matrix["year_totals"].get(y, 0)
         h = max((total / vpeak) ** 0.5 * 18, 1) if total else 1
-        foot += (f'<td class="ht" data-tip="{e(f"{y} - {n(total)} articles read")}">'
+        read = f"{y} - {n(total)} article{'' if total == 1 else 's'} read"
+        foot += (f'<td class="ht" data-tip="{e(read)}">'
                  f'<span style="height:{h:.0f}px"></span></td>')
 
     swatches = "".join(f'<i style="--i:{v}"></i>' for v in (0.15, 0.35, 0.55, 0.78, 1.0))
@@ -222,29 +233,44 @@ def sentiment_strip(series, years):
     by_year = {row["year"]: row for row in series}
     body = ""
     for label in SENTIMENTS:
-        vals = [by_year[y]["shares"][label] for y in years
+        # Thin years are excluded from the SCALE, not from the strip. 2021 rates
+        # two of three articles Negative and would otherwise own that row at
+        # full intensity, pushing 2020's real 39.8% spike - 51 of 128 - down to
+        # a middling shade. That is the precise failure within-row scaling
+        # exists to prevent, reintroduced by the denominator.
+        solid = [by_year[y]["shares"][label] for y in years
+                 if by_year.get(y) and by_year[y]["rated"] and not by_year[y]["low"]]
+        thin = [by_year[y]["shares"][label] for y in years
                 if by_year.get(y) and by_year[y]["rated"]]
-        rmax = max(vals, default=0) or 1
+        rmax = max(solid, default=0) or max(thin, default=0) or 1
         cells = ""
         for y in years:
             row = by_year.get(y)
             if not row or not row["rated"]:
-                cells += (f'<td class="hc zero" data-tip="'
-                          f'{e(f"{label} - {y}: nothing rated")}"></td>')
+                nil = f"{label} - {y}: nothing rated"
+                cells += (f'<td class="hc zero" data-tip="{e(nil)}" '
+                          f'aria-label="{e(nil)}"></td>')
                 continue
             share = row["shares"][label]
             count = row["counts"][label]
             low = " lown" if row["low"] else ""
-            tip = (f"{label} — {y}: {share:.1f}% "
+            # The tooltip reports the TRUE share, computed from the counts
+            # beside it. `shares` carries a tenth of rounding residue so the
+            # three add to exactly 100; nothing here is stacked, so spending
+            # that fudge on a number the note calls "the real share" would buy
+            # nothing and cost the one claim this page makes about itself.
+            exact = count / row["rated"] * 100
+            tip = (f"{label} — {y}: {exact:.1f}% "
                    f"({n(count)} of {n(row['rated'])} rated)")
             if row["low"]:
                 tip += f" · under {SENTIMENT_MIN_RATED}, read as noise"
             if share <= 0:
-                cells += f'<td class="hc zero{low}" data-tip="{e(tip)}"></td>'
+                cells += (f'<td class="hc zero{low}" data-tip="{e(tip)}" '
+                          f'aria-label="{e(tip)}"></td>')
             else:
                 i = round(min(share / rmax, 1.0), 3)
                 cells += (f'<td class="hc{low}" style="--i:{i}" '
-                          f'data-tip="{e(tip)}"></td>')
+                          f'data-tip="{e(tip)}" aria-label="{e(tip)}"></td>')
         body += (f'      <tr><th class="hmn" scope="row">{e(label)}</th>'
                  f'{cells}</tr>\n')
 
@@ -278,7 +304,7 @@ def render_trends(corpus, site_title="The Week in Reading", domain=""):
     thin_top = max(thin, key=lambda r: r["avg"]) if thin else None
 
     sent_series = sentiment_by_year(corpus)
-    sent_html = sentiment_strip(sent_series, years)
+    sent_html = sentiment_strip(sent_series, corpus.year_axis)
     low_years = [r["year"] for r in sent_series if r["rated"] and r["low"]]
     rated_total = sum(r["rated"] for r in sent_series)
 
@@ -296,12 +322,17 @@ def render_trends(corpus, site_title="The Week in Reading", domain=""):
             f"outside that band, the highest of them {comp_all['raw_max']:,.0f}, and an "
             f"unclipped mean reads {comp_all['raw_avg']:.2f} where the honest figure is "
             f"{all_avg:.2f}. The axis runs {GRADE_AXIS_LO:.0f} to {GRADE_AXIS_HI:.0f} "
-            f"rather than from zero, because twenty-two years of averages live inside "
-            f"three grades. Densest year: {comp_top['year']} at {comp_top['avg']:.2f}. "
+            f"rather than from zero, because every yearly average in the series sits "
+            f"inside a span of {comp_top['avg'] - comp_bottom['avg']:.2f} grades. "
+            f"Densest year: {comp_top['year']} at {comp_top['avg']:.2f}. "
             f"Plainest: {comp_bottom['year']} at {comp_bottom['avg']:.2f}. Measured over "
             f"the {n(graded)} articles that carry a reading level."
         )
-        if thin_years:
+        # When EVERY year is thin, complexity_band ranks them anyway rather
+        # than naming nothing - so the note must not then go on to call those
+        # same years ineligible. It would be arguing with the sentence before
+        # it.
+        if thin_years and comp_top not in thin:
             comp_note += (
                 f" Hatched and dotted: {', '.join(str(y) for y in thin_years)} - fewer "
                 f"than {COMPLEXITY_MIN_GRADED} graded articles apiece. They are drawn "
@@ -313,13 +344,21 @@ def render_trends(corpus, site_title="The Week in Reading", domain=""):
     else:
         comp_note = "No reading-level data in this index."
 
+    solid_sent = [r for r in sent_series if r["rated"] and not r["low"]]
+    if solid_sent:
+        lo = min(r["shares"]["Neutral"] for r in solid_sent)
+        hi = max(r["shares"]["Neutral"] for r in solid_sent)
+        neutral_range = (f" - Neutral runs between {lo:.0f}% and {hi:.0f}% of every "
+                         f"year with enough articles to say")
+    else:
+        neutral_range = ""
     sent_note = (
         f"Sentiment is one label per article from the enrichment pass, not a score. "
         f"{n(rated_total)} of {n(len(rows))} articles carry one. Each row is scaled "
-        f"against its own busiest year, not against the other two rows - Neutral runs "
-        f"between half and three quarters of every year in the archive, so a shared "
-        f"scale would render one permanently bright row and hide the swings inside "
-        f"Positive and Negative that are the reason to draw this at all. Hover any "
+        f"against its own busiest year, not against the other two rows{neutral_range}, "
+        f"so a shared scale would render one permanently bright row and hide the "
+        f"swings inside Positive and Negative that are the reason to draw this at "
+        f"all. Thin years are drawn but do not set any row's scale. Hover or tap any "
         f"cell for the real share and count."
     )
     if low_years:
@@ -347,8 +386,8 @@ def render_trends(corpus, site_title="The Week in Reading", domain=""):
     loc_note = (
         f"Places clear the same bar as organizations and then some - the top 20 cover "
         f"{loc_v['head_coverage']:,.1f}% of articles against "
-        f"{org_v['head_coverage']:,.1f}% for organizations, over a vocabulary a third "
-        f"the size ({n(loc_v['vocabulary'])} against {n(org_v['vocabulary'])}). Also "
+        f"{org_v['head_coverage']:,.1f}% for organizations, over a smaller vocabulary "
+        f"({n(loc_v['vocabulary'])} against {n(org_v['vocabulary'])}). Also "
         f"uncontrolled: 'United States', 'U.S.' and 'America' are separate rows, and "
         f"'New York' does not distinguish the city from the state."
     )
@@ -385,20 +424,20 @@ def render_trends(corpus, site_title="The Week in Reading", domain=""):
   </section>
 
   <section>
-    <div class="label viz-title">Where the reading came from · top 15 sources by year</div>
+    <div class="label viz-title">Where the reading came from · top {len(src['names'])} sources by year</div>
 {heatmap(src, "Articles per source per year", "Source", "articles",
          "no URLs in this archive - nothing to rank")}    <div class="note">{e(src_note)}</div>
   </section>
 
   <section>
-    <div class="label viz-title">Who the reading was about · top 15 organizations by year</div>
+    <div class="label viz-title">Who the reading was about · top {len(orgs['names'])} organizations by year</div>
 {heatmap(orgs, "Articles per organization per year", "Organization", "articles",
          "no organizations tagged")}    <div class="note">{e(org_note)}</div>
     <div class="note"><a href="../orgs/">All {n(org_v["vocabulary"])} organizations →</a></div>
   </section>
 
   <section>
-    <div class="label viz-title">Where the reading was set · top 15 places by year</div>
+    <div class="label viz-title">Where the reading was set · top {len(locs['names'])} places by year</div>
 {heatmap(locs, "Articles per place per year", "Place", "articles",
          "no locations tagged")}    <div class="note">{e(loc_note)}</div>
     <div class="note"><a href="../locations/">All {n(loc_v["vocabulary"])} places →</a></div>
