@@ -203,7 +203,7 @@ section { padding:36px 0 0; }
 .thread { margin-top:28px; padding:18px 20px; background:var(--bg-raise);
   border-left:2px solid var(--brand); font-family:Charter,Georgia,serif;
   font-size:16px; }
-.prose .atitle, .thread .atitle { font-weight:700; color:#f5f0eb;
+.prose .atitle, .thread .atitle { font-weight:700; color:var(--amber);
   text-decoration:none; }
 a.atitle:hover { color:var(--brand); }
 .viz-title { margin-bottom:18px; }
