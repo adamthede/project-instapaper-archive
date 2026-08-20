@@ -216,7 +216,7 @@ header .kicker { color:var(--brand); text-decoration:none; display:inline-block;
 h1 { font-size:56px; font-weight:200; letter-spacing:-.02em; margin-top:10px; }
 h1 .wk { color:var(--amber); }
 .daterange { margin-top:6px; color:var(--ink-2); font-size:15px; }
-.provenance { margin-top:10px; color:#8a6d1f; }
+.provenance { margin-top:10px; color:var(--ink-2); }
 .stats { display:flex; gap:40px; flex-wrap:wrap; padding:32px 0;
   border-bottom:1px solid var(--rule); }
 .stat .v { font-size:40px; font-weight:200; }
@@ -430,13 +430,16 @@ def render_week(meta, prev_wk=None, next_wk=None, prev_meta=None):
     left = f'<a href="../{prev_wk}/">← {prev_wk}</a>' if prev_wk else "<span></span>"
     right = f'<a href="../{next_wk}/">{next_wk} →</a>' if next_wk else "<span></span>"
     precision = str(meta.get("date_precision") or "")
-    proxy_n = meta.get("proxy_dated_articles") or 0
+    try:
+        proxy_n = int(meta.get("proxy_dated_articles") or 0)
+    except (TypeError, ValueError):
+        proxy_n = 0
     if precision == "publication-proxy":
         provenance = ('\n    <div class="provenance label">Dates approximate - '
-                      'this pre-tracking-era week is dated by publication, not by reading</div>')
+                      'this pre-tracking-era week is dated by publication or save, not by reading</div>')
     elif precision == "mixed" and proxy_n:
-        provenance = (f'\n    <div class="provenance label">{proxy_n} of the '
-                      f'articles carry approximate publication-proxy dates</div>')
+        provenance = (f'\n    <div class="provenance label">{e(str(proxy_n))} of the '
+                      f'articles carry approximate dates (saved or published, not read)</div>')
     else:
         provenance = ""
 
