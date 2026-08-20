@@ -302,3 +302,40 @@ def test_asterisk_wrapped_titles_are_linked_and_requoted():
 def test_unmatched_asterisk_spans_stay_verbatim():
     out = gen.link_titles("Just *plain emphasis* here.", [])
     assert "*plain emphasis*" in out
+
+
+def test_prose_quoting_a_hostile_title_still_escapes(synth_dir):
+    # Review M4: both security mutants survived because no fixture ever
+    # QUOTED the hostile title - link_titles was never entered.
+    m = gen.load_weeks(synth_dir)[0]
+    m["prose"] = 'See “One <script>alert(1)</script>” today.'
+    html_out = gen.render_week(m)
+    assert "<script>alert(1)</script>" not in html_out
+    assert "&lt;script&gt;" in html_out
+
+
+def test_prose_quoting_a_javascript_url_title_bolds_not_links(synth_dir):
+    m = gen.load_weeks(synth_dir)[0]
+    m["articles"][1]["url"] = "javascript:alert(1)"
+    m["prose"] = "See “Two” today."
+    html_out = gen.render_week(m)
+    assert "javascript:" not in html_out
+    assert '<strong class="atitle">“Two”</strong>' in html_out
+
+
+def test_asterisk_hugging_quoted_title_consumes_both(synth_dir):
+    # *"Title"* - the model's doubled dialect. No leaked asterisks, no ““””.
+    arts = [{"title": "Two", "url": "https://sub.example.org/two"}]
+    out = gen.link_titles('Amidst fear, *“Two”* reassured readers.', arts)
+    assert "*" not in out
+    assert "““" not in out and "””" not in out
+    assert ">“Two”</a>" in out
+
+
+def test_thread_callout_links_quoted_titles(synth_dir):
+    m = gen.load_weeks(synth_dir)[0]
+    m["prose"] = ("Alpha paragraph here.\n\nBeta. The thread of the week "
+                  "runs through “Two” entirely.")
+    html_out = gen.render_week(m)
+    assert 'thread"><span' in html_out
+    assert html_out.count('class="atitle"') >= 1

@@ -86,7 +86,9 @@ def link_titles(paragraph, articles):
     markup; all 127 existing weeks get it at render time."""
     by_norm = {}
     for a in articles:
-        by_norm[_norm_title(a.get("title"))] = a
+        key = _norm_title(a.get("title"))
+        if key and key != "none":
+            by_norm[key] = a
     out = []
     last = 0
     # Three dialects the model actually writes: curly quotes, straight
@@ -94,18 +96,24 @@ def link_titles(paragraph, articles):
     # titles render with curly quotes so every page reads the same.
     pattern = r"[\u201c\"]([^\u201d\u201c\"\n]+)[\u201d\"]|\*([^*\n]+)\*"
     for m in re.finditer(pattern, paragraph):
-        quoted = m.group(1) or m.group(2)
+        quoted = (m.group(1) or m.group(2)).strip().strip("\u201c\u201d\"")
         art = by_norm.get(_norm_title(quoted))
         if art is None:
             continue
-        out.append(e(paragraph[last:m.start()]))
+        start, end = m.start(), m.end()
+        # *"Title"* - the quote branch matches inside the asterisks; consume
+        # the hugging asterisks too so they never leak into the prose.
+        if start > 0 and paragraph[start - 1] == "*" and end < len(paragraph) and paragraph[end] == "*":
+            start -= 1
+            end += 1
+        out.append(e(paragraph[last:start]))
+        last = end
         inner = "\u201c" + e(quoted) + "\u201d"
         url = str(art.get("url") or "")
         if url.lower().startswith(("http://", "https://")):
             out.append(f'<a class="atitle" href="{e(url)}">{inner}</a>')
         else:
             out.append(f'<strong class="atitle">{inner}</strong>')
-        last = m.end()
     out.append(e(paragraph[last:]))
     return "".join(out)
 
@@ -193,6 +201,7 @@ STYLE = """
   --brand:#FF8F3B; }
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:var(--bg); color:var(--ink); line-height:1.5;
+  overflow-x:clip;
   font-family:ui-sans-serif,-apple-system,"Helvetica Neue",sans-serif; }
 a { color:inherit; }
 .page { max-width:720px; margin:0 auto; padding:64px 24px 96px; }
@@ -245,6 +254,7 @@ a.atitle:hover { color:var(--brand); }
   letter-spacing:.02em; white-space:nowrap; opacity:0; pointer-events:none;
   transition:opacity .12s; z-index:6; }
 [data-tip]:hover::after { opacity:1; }
+@media (hover:none) { [data-tip]::after { display:none; } }
 .roster { margin-top:8px; }
 .row { display:grid; grid-template-columns:44px 1fr 64px; gap:12px;
   align-items:baseline; padding:7px 0; border-bottom:1px solid #2a2523;
@@ -331,7 +341,7 @@ def render_week(meta, prev_wk=None, next_wk=None, prev_meta=None):
     thread_html = ""
     if thread:
         thread_html = (f'    <div class="thread"><span class="label" '
-                       f'style="color:var(--brand)">Thread of the week&nbsp;&nbsp;</span>{e(thread)}</div>\n')
+                       f'style="color:var(--brand)">Thread of the week&nbsp;&nbsp;</span>{link_titles(thread, arts)}</div>\n')
 
     days = day_series(meta)
     peak = max((d["words"] for d in days), default=0)
@@ -381,7 +391,7 @@ def render_week(meta, prev_wk=None, next_wk=None, prev_meta=None):
             # Type scale carries the count: a x4 topic reads twice the
             # size of a x2 - size IS the datum, the xN confirms it.
             try:
-                size = min(13 + (int(count) - 2) * 3, 24)
+                size = max(11, min(13 + (int(count) - 2) * 3, 24))
             except (TypeError, ValueError):
                 size = 13
             out += (f'        <span class="chip" style="font-size:{size}px">{e(str(name))}'
