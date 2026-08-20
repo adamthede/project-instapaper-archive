@@ -40,8 +40,10 @@ depends_on:
 > `synthesis/`, so week-page counts in that PR's evidence are a moving
 > snapshot.
 >
-> **2026-08-20 (later):** Phase 5b — the trends layer — in review at PR #10,
-> branched off PR #9 rather than main. See the Phase 5b section below.
+> **2026-08-20 (later):** Phase 5b — the trends layer — in review at PR #10.
+> Branched off `feat/index-scale` while PR #9 was still open; #9 merged
+> mid-build, so #10 targets `main` with `main` merged in. See the Phase 5b
+> section below.
 
 ## Problem
 
