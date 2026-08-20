@@ -308,14 +308,14 @@ def test_org_note_reports_the_same_head_coverage_as_the_stat_tile(small):
 def test_org_note_measures_the_topic_vocabulary_rather_than_quoting_it(small):
     vocab, singles = corpus.topic_vocabulary(small.rows)
     assert (vocab, singles) == (1, 0.0)  # every fixture row is tagged "AI"
-    note = deepdives.org_note(small)
+    note = deepdives.org_note(small.rows)
     assert "1 free-text strings, 0.0% of them used exactly once" in note
     assert "29,882" not in note and "73.3%" not in note
 
 
 def test_topic_vocabulary_counts_distinct_strings_and_singletons():
     c = corpus.prepare(frame([
-        row(topics=["AI", "Rust"]), row(topics=["AI"]), row(topics=["Solo"]),
+        row(topics=["AI", "Rust", "AI"]), row(topics=["AI"]), row(topics=["Solo"]),
     ]))
     assert corpus.topic_vocabulary(c.rows) == (3, round(2 / 3 * 100, 1))
 
@@ -363,7 +363,11 @@ def test_a_year_with_no_urls_never_prints_a_bare_zero_under_sources():
     out = deepdives.render_year(legacy, 2007)
     assert corpus.stats(legacy.year(2007))["url_bearing"] == 0
     assert ">0</div><div class=\"l label\">Sources" not in out
-    assert "no urls in this era" in out.lower()
+    # The stat tile's sub-label and the provenance line are two separate
+    # elements; assert each on its own wording so one cannot cover for the
+    # other going missing.
+    assert 'class="delta">no URLs in this era' in out              # the tile
+    assert "there is no source to count" in out                    # the provenance line
 
 
 def test_a_partially_urled_year_states_the_subset_it_counted():
@@ -575,6 +579,8 @@ def test_unreadable_index_degrades_instead_of_killing_the_build(synth_dir, tmp_p
     pytest.param(lambda df: df.drop(columns=["word_count"]), id="missing-word_count"),
     pytest.param(lambda df: df.drop(columns=["reading_time_min"]), id="missing-reading_time"),
     pytest.param(lambda df: df.assign(word_count=["a", "b", "c", "d"]), id="word_count-as-strings"),
+    pytest.param(lambda df: df.assign(reading_time_min=["a", "b", "c", "d"]),
+                 id="reading_time-as-strings"),
 ])
 def test_index_schema_drift_costs_the_deep_dives_not_the_week_pages(
         synth_dir, index_file, tmp_path, capsys, break_it):
@@ -625,3 +631,87 @@ def test_generated_pages_never_scroll_horizontally(synth_dir, index_file, tmp_pa
     for html_file in out.rglob("index.html"):
         text = html_file.read_text()
         assert "width=device-width" in text
+
+
+# ---------------------------------------------------------------------------
+# round-3: the fixture-blind gaps the round-2 mutation run found
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def wide():
+    """A corpus with more than 20 distinct orgs, so head-20 and head-100 differ.
+
+    The `small` fixture has two orgs, which makes top-20 and top-100 the same
+    number - a mutant swapping k=20 for k=100 in org_note survived against it.
+    """
+    rows = []
+    for i in range(30):
+        # org i appears on (30 - i) articles, so rank order is stable and the
+        # tail past rank 20 is non-empty.
+        for j in range(30 - i):
+            rows.append(row(title=f"A{i}-{j}", orgs=[f"Org{i:02d}"],
+                            date_archived="2012-04-01"))
+    return corpus.prepare(frame(rows))
+
+
+def test_head_coverage_at_20_differs_from_the_whole_vocabulary(wide):
+    assert corpus.head_coverage(wide.rows, "orgs", 20) < 99.0
+    assert corpus.head_coverage(wide.rows, "orgs", 100) == pytest.approx(100.0)
+
+
+def test_org_note_uses_the_top_20_not_the_whole_vocabulary(wide):
+    head = corpus.head_coverage(wide.rows, "orgs", 20)
+    assert f"top 20 cover {head:,.1f}%" in deepdives.org_note(wide.rows)
+
+
+def test_year_org_note_describes_the_year_not_the_whole_archive():
+    """The round-1 fix measured the note on the whole Corpus, so all 22 year
+    pages printed the archive's coverage under twenty year-scoped rows."""
+    c = corpus.prepare(frame(
+        [row(title=f"y12-{i}", orgs=[f"Org{i:02d}"], date_archived="2012-04-01")
+         for i in range(30)]
+        + [row(title=f"y13-{i}", orgs=["Solo"], date_archived="2013-04-01")
+           for i in range(40)]))
+    year_rows = c.year(2013)
+    out = deepdives.render_year(c, 2013)
+    assert f"of the {len(year_rows):,} articles counted here" in out
+    assert f"of the {len(c.rows):,} articles counted here" not in out
+    # 2013 is one org over 40 articles: fully covered by its own top 20.
+    assert "top 20 cover 100.0%" in out
+
+
+def test_a_median_over_no_numeric_words_reports_zero_not_a_crash():
+    c = corpus.prepare(frame([row(word_count=None), row(word_count=None)]))
+    assert corpus.stats(c.rows)["median_words"] == 0
+
+
+def test_a_numeric_column_of_strings_is_drift_not_a_zero(small):
+    """errors="coerce" alone turned a retyped column into a complete, swapped
+    site reporting 0 words. The likelier drift must not be the quieter one."""
+    lying = small.rows.assign(word_count=["x"] * len(small.rows))
+    with pytest.raises(ValueError, match="schema drift"):
+        corpus.stats(lying)
+
+
+def test_a_sparse_numeric_column_is_not_mistaken_for_drift():
+    c = corpus.prepare(frame([row(word_count=1000), row(word_count=None),
+                              row(word_count=None)]))
+    assert corpus.stats(c.rows)["words"] == 1000
+
+
+def test_string_typed_word_count_costs_the_deep_dives(synth_dir, index_file,
+                                                      tmp_path, capsys):
+    drifted = tmp_path / "drifted.parquet"
+    df = pd.read_parquet(index_file)
+    df.assign(word_count=["a"] * len(df)).to_parquet(drifted)
+    out = tmp_path / "_site"
+    gen.generate(synth_dir, out, index_path=drifted)
+    assert (out / "weeks").exists() and (out / "index.html").exists()
+    assert not (out / "years").exists()
+    assert not (out / "articles.json").exists()
+    assert "rendering weeks only" in capsys.readouterr().err
+
+
+def test_article_links_open_in_a_new_tab(small):
+    out = deepdives.render_articles_page(small)
+    assert "target = '_blank'" in out and "rel = 'noreferrer'" in out

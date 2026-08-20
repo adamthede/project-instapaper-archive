@@ -29,25 +29,26 @@ from htmlkit import e, n, page
 MAX_PAYLOAD_BYTES = 6 * 1024 * 1024
 
 
-def org_note(corpus_data):
-    """Why orgs are ranked here and topics are not - measured on THIS corpus.
+def org_note(rows):
+    """Why orgs are ranked here and topics are not - measured on THESE rows.
 
-    An earlier draft pasted the audit's 42.9% and 73.3% into a constant, and
-    the orgs page then printed 42.9% in prose fourteen lines under a stat tile
-    reading 45.2%. A page whose argument is "this is the field we can measure
-    honestly" cannot carry a stale number.
+    Two ways to get this wrong, both shipped once. First: pasting the audit's
+    42.9% into a constant, so the orgs page printed 42.9% in prose fourteen
+    lines under a stat tile reading 45.2%. Second: measuring the whole corpus
+    and printing the result under a year page's twenty org rows, where "the
+    top 20 cover 45.2% of the articles counted here" described 16,346 rows
+    instead of the 513 above it. The note describes whatever rows it is given,
+    so callers pass the rows their page actually ranks.
+
+    Output is int and float interpolation only - no corpus strings reach it -
+    but callers still escape it, because that is not a property to rely on.
     """
-    cached = getattr(corpus_data, "_org_note", None)
-    if cached:
-        return cached
-    head = head_coverage(corpus_data.rows, "orgs", 20)
-    vocab, singles = topic_vocabulary(corpus_data.rows)
-    note = (f"Organizations are the one entity field this archive can rank honestly: "
-            f"the top 20 cover {head:,.1f}% of the {n(len(corpus_data))} articles "
+    head = head_coverage(rows, "orgs", 20)
+    vocab, singles = topic_vocabulary(rows)
+    return (f"Organizations are the one entity field this archive can rank honestly: "
+            f"the top 20 cover {head:,.1f}% of the {n(len(rows))} articles "
             f"counted here. Topics cannot be ranked this way - that vocabulary is "
             f"{n(vocab)} free-text strings, {singles:,.1f}% of them used exactly once.")
-    corpus_data._org_note = note
-    return note
 
 
 EXTRA_STYLE = """
@@ -258,7 +259,7 @@ def render_year(corpus, year, weeks_in_year=(), prev_year=None, next_year=None,
     <div class="label viz-title">Organizations in the year's reading · top {len(orgs)} by articles</div>
     <div class="roster">
 {_org_rows(orgs, st['articles'], scope='the year')}    </div>
-    <div class="note">{e(org_note(corpus))}</div>
+    <div class="note">{e(org_note(rows))}</div>
   </section>
 
   <section>
@@ -314,7 +315,7 @@ def render_orgs(corpus, limit=100, site_title="The Week in Reading", domain=""):
     <div class="label viz-title">Ranked by articles · top {len(orgs)}</div>
     <div class="roster">
 {_org_rows(orgs, len(rows), scope='the archive')}    </div>
-    <div class="note">{e(org_note(corpus))}</div>
+    <div class="note">{e(org_note(rows))}</div>
     <div class="note">{e(footnote)}</div>
   </section>
 

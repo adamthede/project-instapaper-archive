@@ -113,9 +113,29 @@ def safe_int(v):
         return 0
 
 
+def numeric_column(rows, name):
+    """Coerce an index column to numbers, treating wholesale coercion failure
+    as schema drift.
+
+    A rewritten Parquet emitting word_count as strings is a likelier drift
+    than the column vanishing, and errors="coerce" alone turns it into a
+    complete, deployable site reporting 0 words. Raising here hands the
+    failure to generate()'s deep-dive guard, which degrades to weeks-only -
+    loud, and the same outcome as a missing column.
+    """
+    raw = rows[name]
+    col = pd.to_numeric(raw, errors="coerce")
+    present = int(raw.notna().sum())
+    if present and int(col.notna().sum()) * 2 < present:
+        raise ValueError(
+            f"index column {name!r}: only {int(col.notna().sum())} of {present} "
+            f"values are numeric - schema drift, refusing to report zeros")
+    return col
+
+
 def stats(rows):
-    words_col = pd.to_numeric(rows.get("word_count"), errors="coerce")
-    minutes = pd.to_numeric(rows.get("reading_time_min"), errors="coerce").fillna(0).sum()
+    words_col = numeric_column(rows, "word_count")
+    minutes = numeric_column(rows, "reading_time_min").fillna(0).sum()
     domains = {d for d in rows["domain"] if d}
     median = words_col.dropna().median()
     return {
