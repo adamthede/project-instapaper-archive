@@ -19,6 +19,10 @@ depends_on:
 > complete (127 weeks, zero failures); Phase 3 build underway - Python
 > generate.py per the audit (Hugo reconsidered and re-declined by Adam).
 > First production deploy is Adam's; nightly deploy wiring follows it.
+>
+> **2026-08-19 (evening):** Phase 3 generator SHIPPED via PR #4 (two-round
+> adversarial review). Remaining: Adam's first deploy (site/DEPLOY.md),
+> nightly deploy wiring, Phase 4 deep backfill, Phase 5 Streamlit retirement.
 
 ## Problem
 
