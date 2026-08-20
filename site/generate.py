@@ -36,7 +36,7 @@ from htmlkit import e, n, page  # noqa: E402,F401
 
 SITE_TITLE = "The Week in Reading"
 # Weeks before this are publication-date stragglers (1-8 weeks/year,
-# 1953-2004, 27 files) - catalog artifacts, not reading history. Sustained
+# 1953-2004, 28 files) - catalog artifacts, not reading history. Sustained
 # weekly density starts 2005 (31 weeks) - measured 2026-08-20, Adam's call.
 SITE_EPOCH_WEEK = "2005-W01"
 DOMAIN = "reading.adamthede.com"
@@ -733,7 +733,7 @@ def render_index(weeks, year_pages=(), facets=False, excluded=0, corpus_data=Non
 {rows}  </section>
 
   <footer>
-    <span class="label">Synthesized on-device · qwen · one page per ISO week{f" · {excluded} pre-2005 publication-dated weeks excluded" if excluded else ""}</span>
+    <span class="label">Synthesized on-device · qwen · one page per ISO week{f" · {excluded} pre-{SITE_EPOCH_WEEK[:4]} publication-dated weeks excluded" if excluded else ""}</span>
     <span class="label num">Generated {dt.date.today().isoformat()}</span>
   </footer>"""
     return page(SITE_TITLE, body, depth=0)

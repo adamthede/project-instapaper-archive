@@ -420,5 +420,35 @@ def test_pre_epoch_stragglers_are_excluded_with_a_note(two_year_dir, tmp_path):
     assert count == 2  # 1953 excluded
     assert not (out / "weeks" / "1953-W37").exists()
     idx = (out / "index.html").read_text()
-    assert "1 pre-2005 publication-dated weeks excluded" in idx
+    assert f"1 pre-{gen.SITE_EPOCH_WEEK[:4]} publication-dated weeks excluded" in idx
     assert "1953" not in idx
+
+
+def test_quiet_year_peak_week_still_renders_full_height(two_year_dir):
+    # MINOR-2: the load-bearing property of this PR - per-YEAR peak scaling.
+    # A quiet year's peak week must hit 100%, not flatten to the floor as it
+    # would under the old global-peak scale.
+    d = two_year_dir
+    quiet = (WEEK_MD.replace("2026-W33", "2024-W10")
+             .replace("total_words: 3570", "total_words: 90")
+             .replace("'2026-08-10'", "'2024-03-04'").replace("'2026-08-16'", "'2024-03-10'")
+             .replace("'2026-08-11'", "'2024-03-05'").replace("'2026-08-14'", "'2024-03-08'"))
+    (d / "2024-W10.md").write_text(quiet, encoding="utf-8")
+    html_out = gen.render_index(gen.load_weeks(d))
+    import re
+    strip_2024 = html_out.split('id="y2024"')[1].split("yearhead")[0]
+    assert 'style="height:100%"' in strip_2024
+    assert 'class="wb peakw"' in strip_2024
+
+
+def test_every_details_element_closes(two_year_dir):
+    # MINOR-3: an unclosed <details> swallows every later year into one
+    # collapsed block; the suite only ever counted openings.
+    d = two_year_dir
+    for wk, ds in [("2024-W10", "2024-03-04"), ("2023-W05", "2023-01-30")]:
+        (d / f"{wk}.md").write_text(
+            WEEK_MD.replace("2026-W33", wk).replace("'2026-08-10'", f"'{ds}'")
+            .replace("'2026-08-16'", "'2024-03-10'").replace("'2026-08-11'", f"'{ds}'")
+            .replace("'2026-08-14'", f"'{ds}'"), encoding="utf-8")
+    html_out = gen.render_index(gen.load_weeks(d))
+    assert html_out.count("<details") == html_out.count("</details>") == 2
