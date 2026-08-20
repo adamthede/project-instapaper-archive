@@ -141,7 +141,8 @@ def test_index_lists_every_week_with_year_grouping(two_year_dir):
     weeks = gen.load_weeks(two_year_dir)
     html_out = gen.render_index(weeks)
     for w in ("2026-W33", "2025-W50"):
-        assert html_out.count(f'href="weeks/{w}/"') == 2, w  # trend + row
+        # trend bar + year-strip cell + row = 3 links per week
+        assert html_out.count(f'href="weeks/{w}/"') == 3, w
     assert '>2026</div>' in html_out and '>2025</div>' in html_out
 
 
@@ -235,3 +236,131 @@ def test_plain_string_topic_fallback_is_whole_word(synth_dir):
     m["top_topics"] = ["Artificial Intelligence"]
     html_out = gen.render_index([m])
     assert "Artificial Intelligence" in html_out
+
+
+def test_prose_titles_are_bolded_and_linked(synth_dir):
+    m = gen.load_weeks(synth_dir)[0]
+    m["prose"] = "A quoted “Two” appears here.\n\nUnknown “Not An Article” stays plain."
+    html_out = gen.render_week(m)
+    assert '<a class="atitle" href="https://sub.example.org/two">“Two”</a>' in html_out
+    assert "“Not An Article”" in html_out
+    assert 'atitle">“Not An Article' not in html_out
+
+
+def test_prose_title_without_url_is_bold_not_link(synth_dir):
+    m = gen.load_weeks(synth_dir)[0]
+    m["articles"][1]["url"] = ""
+    m["prose"] = "See “Two” today."
+    html_out = gen.render_week(m)
+    assert '<strong class="atitle">“Two”</strong>' in html_out
+
+
+def test_stat_deltas_render_against_previous_week(two_year_dir):
+    weeks = gen.load_weeks(two_year_dir)
+    html_out = gen.render_week(weeks[1], prev_meta=weeks[0])
+    assert 'class="delta">= 2025-W50' in html_out  # identical fixture stats
+
+
+def test_week_page_links_home(synth_dir):
+    m = gen.load_weeks(synth_dir)[0]
+    html_out = gen.render_week(m)
+    assert '<a class="home" href="../../">All weeks</a>' in html_out
+
+
+def test_year_strip_marks_absent_weeks_as_stubs(two_year_dir):
+    weeks = gen.load_weeks(two_year_dir)
+    html_out = gen.render_index(weeks)
+    assert html_out.count('<div class="ystrip">') == 2
+    assert "<span></span>" in html_out  # absent-week stubs
+    assert 'data-tip="2026-W33' in html_out
+
+
+def test_paraphrased_closing_sentence_still_becomes_the_thread():
+    # 31 of 127 real weeks close with the thread but without the literal
+    # phrase - the final sentence is lifted by construction.
+    paras, thread = gen.split_prose(
+        "Alpha paragraph.\n\nBeta happened. Gamma followed. "
+        "The week explored how adventure travel serves as a lens for "
+        "examining environmentalism in contested landscapes.")
+    assert thread.startswith("The week explored how")
+    assert paras[-1].endswith("Gamma followed.")
+
+
+def test_single_sentence_last_paragraph_is_not_emptied_by_fallback():
+    paras, thread = gen.split_prose("Only one closing sentence here, too short.")
+    assert thread is None and len(paras) == 1
+
+
+def test_asterisk_wrapped_titles_are_linked_and_requoted():
+    # 16 corpus weeks wrap titles in markdown emphasis instead of quotes.
+    arts = [{"title": "How AI Learned to Speak", "url": "https://x.com/a"}]
+    out = gen.link_titles("While *How AI Learned to Speak* traces things.", arts)
+    assert '<a class="atitle" href="https://x.com/a">“How AI Learned to Speak”</a>' in out
+    assert "*" not in out.replace("*traces", "")  # matched asterisks consumed
+
+
+def test_unmatched_asterisk_spans_stay_verbatim():
+    out = gen.link_titles("Just *plain emphasis* here.", [])
+    assert "*plain emphasis*" in out
+
+
+def test_prose_quoting_a_hostile_title_still_escapes(synth_dir):
+    # Review M4: both security mutants survived because no fixture ever
+    # QUOTED the hostile title - link_titles was never entered.
+    m = gen.load_weeks(synth_dir)[0]
+    m["prose"] = 'See “One <script>alert(1)</script>” today.'
+    html_out = gen.render_week(m)
+    assert "<script>alert(1)</script>" not in html_out
+    assert "&lt;script&gt;" in html_out
+
+
+def test_prose_quoting_a_javascript_url_title_bolds_not_links(synth_dir):
+    m = gen.load_weeks(synth_dir)[0]
+    m["articles"][1]["url"] = "javascript:alert(1)"
+    m["prose"] = "See “Two” today."
+    html_out = gen.render_week(m)
+    assert "javascript:" not in html_out
+    assert '<strong class="atitle">“Two”</strong>' in html_out
+
+
+def test_asterisk_hugging_quoted_title_consumes_both(synth_dir):
+    # *"Title"* - the model's doubled dialect. No leaked asterisks, no ““””.
+    arts = [{"title": "Two", "url": "https://sub.example.org/two"}]
+    out = gen.link_titles('Amidst fear, *“Two”* reassured readers.', arts)
+    assert "*" not in out
+    assert "““" not in out and "””" not in out
+    assert ">“Two”</a>" in out
+
+
+def test_thread_callout_links_quoted_titles(synth_dir):
+    m = gen.load_weeks(synth_dir)[0]
+    m["prose"] = ("Alpha paragraph here.\n\nBeta. The thread of the week "
+                  "runs through “Two” entirely.")
+    html_out = gen.render_week(m)
+    assert 'thread"><span' in html_out
+    assert html_out.count('class="atitle"') >= 1
+
+
+def test_unbalanced_quote_final_sentence_is_not_lifted():
+    # The splitter can cut inside a quotation (real case: 2025-W25) - a
+    # fragment starting mid-quote must never become the thread callout.
+    paras, thread = gen.split_prose(
+        "Alpha paragraph.\n\nHe said “Two things. It’s actually an original.” "
+        "to discoveries that intelligence evolved independently in birds and mammals across eras.")
+    assert thread is None
+
+
+def test_degenerate_titles_never_link():
+    arts = [{"title": "", "url": "https://x.com/e"}, {"title": None, "url": "https://x.com/n"}]
+    out = gen.link_titles("A quoted “—” and “None” stay plain.", arts)
+    assert "atitle" not in out
+
+
+def test_hugging_asterisk_block_is_load_bearing():
+    # The block fires only when an earlier unbalanced asterisk desyncs the
+    # pairing so the QUOTE branch wins at a hugged title (2022-W39's real
+    # shape - 9 asterisks, odd count). A balanced input is handled by the
+    # asterisk regex branch and would pass with the block deleted.
+    arts = [{"title": "Alpha", "url": "https://x.com/a"}]
+    out = gen.link_titles('A *stray opener here. Then *“Alpha”* reassured.', arts)
+    assert "*" not in out.split("Then")[1]  # the stray opener is intentional
