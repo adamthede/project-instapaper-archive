@@ -97,3 +97,4 @@ BLOG_POST_PROJECT_NARRATIVE.md
 # but guard against a stray copy landing here.
 .matter_manifest.json
 .matter_url_index.json
+_site/

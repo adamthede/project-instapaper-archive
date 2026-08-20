@@ -14,6 +14,11 @@ depends_on:
 > **Status note (2026-08-19):** Phase 1 SHIPPED via PR #3 (merged after a
 > two-round adversarial review; plist installed same day). Phases 2-5 remain;
 > next gate is the Phase 2 week-page mockup for Adam's approval.
+>
+> **2026-08-19 (later):** Phase 2 mockup APPROVED; Matter-era backfill
+> complete (127 weeks, zero failures); Phase 3 build underway - Python
+> generate.py per the audit (Hugo reconsidered and re-declined by Adam).
+> First production deploy is Adam's; nightly deploy wiring follows it.
 
 ## Problem
 
