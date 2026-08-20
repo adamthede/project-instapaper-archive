@@ -272,6 +272,16 @@ def _run(args):
         return 0
 
     words = int(rows["word_count"].fillna(0).sum())
+    # Date provenance (audit footnote): legacy-era rows have no archive
+    # date - their date_read is a publication/save proxy, so historical
+    # digests must say so on the page rather than imply a read diary.
+    proxy = int((rows["date_archived"].isna() | rows["source"].astype(str).str.startswith("legacy")).sum())
+    if proxy == 0:
+        precision = "read-dates"
+    elif proxy == len(rows):
+        precision = "publication-proxy"
+    else:
+        precision = "mixed"
     stats = {
         "week": week,
         "week_start": start.isoformat(),
@@ -285,6 +295,8 @@ def _run(args):
         "top_people": top_values(rows["people"]),
         "top_orgs": top_values(rows["orgs"]),
         "rereads_recorded": week_rereads(vault, start, end) if vault else 0,
+        "date_precision": precision,
+        "proxy_dated_articles": proxy,
         "sources": top_sources(rows),
         "articles": [
             {"title": str(r["title"]), "url": "" if pd.isna(r.get("url")) else str(r.get("url")),
