@@ -779,16 +779,25 @@ def test_year_note_keeps_head_coverage_local_and_the_vocabulary_archive_wide():
     assert "100.0% of them used exactly once" not in out
 
 
-def test_long_entity_names_can_ellipsize_instead_of_widening_their_row():
-    """Found in the browser at 390px: "Department of Homeland Security" grew
-    the 1fr grid track (auto min-size beats nowrap+ellipsis), pushing the
-    count column - the thing the row exists to report - off screen. The row
-    did not scroll the page only because the body clips overflow, so it read
-    as a silently truncated name with no ellipsis and no count."""
+def test_long_entity_names_ellipsize_instead_of_widening_their_row():
+    """A long org name must not grow the 1fr grid track and push the count -
+    the one number the row exists to report - off a 390px screen.
+
+    Three properties are involved and only one of them is load-bearing.
+    Per CSS Grid 6.6 a grid item's automatic minimum size applies only while
+    `overflow` is `visible`, so `overflow:hidden` is what actually suppresses
+    the blowout; `min-width:0` would do the same job alone and is kept as
+    defensive practice, but on this stylesheet it is inert. An earlier version
+    of this test pinned only `min-width:0` - deleting `overflow:hidden` left
+    it green while a 66-character name painted straight across the count.
+    Assert the properties that do the work, not the one that reads like a fix.
+    """
     for selector in (".orow .on", ".arow .at"):
         block = deepdives.EXTRA_STYLE.split(selector, 1)[1].split("}", 1)[0]
-        assert "min-width:0" in block, f"{selector} can still widen its track"
+        assert "overflow:hidden" in block, f"{selector} can widen its grid track"
+        assert "white-space:nowrap" in block
         assert "text-overflow:ellipsis" in block
+        assert "min-width:0" in block
 
 
 @pytest.mark.parametrize("column", ["word_count", "reading_time_min"])
