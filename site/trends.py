@@ -68,6 +68,18 @@ TRENDS_STYLE = """
 /* The column header is set tighter than the house label so "Organization"
    fits the track instead of ellipsizing into "ORGANIZAT...". */
 .hm thead th.hmn { font-size:10px; letter-spacing:.06em; }
+/* Tooltips must stay inside the scroll box. overflow-x:auto forces overflow-y
+   to auto as well, so anything escaping sideways is CLIPPED, not overflowed -
+   measured on the real build, 433 of 1,101 tips lost an edge, the worst by
+   187px. Two changes keep them in: they wrap to a fixed measure instead of
+   running 600px on one nowrap line, and the cells near either end anchor to
+   their own edge rather than centring on a 20px target. */
+.hm [data-tip]::after { white-space:normal; width:max-content; max-width:230px;
+  text-align:left; line-height:1.45; }
+.hm td.hc:nth-child(-n+5)::after, .hm th.hmn::after {
+  left:0; right:auto; transform:none; }
+.hm td.hc:nth-last-child(-n+5)::after {
+  left:auto; right:0; transform:none; }
 /* complexity band */
 .band { display:flex; gap:3px; align-items:flex-end; height:130px; margin-top:10px; }
 .band .col { flex:1; display:flex; flex-direction:column; justify-content:flex-end;

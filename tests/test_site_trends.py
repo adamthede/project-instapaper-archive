@@ -532,6 +532,18 @@ def test_heatmap_renders_an_empty_note_rather_than_a_headless_table():
     assert "no organizations tagged" in html
 
 
+def test_tooltips_are_constrained_to_fit_inside_the_scroll_box():
+    """overflow-x:auto forces overflow-y to auto, so a tooltip escaping the
+    container sideways is clipped rather than overflowed. Measured on the real
+    build before this rule: 433 of 1,101 tips lost an edge, the worst by 187px.
+    Geometry cannot be asserted here, so the three rules that fix it are."""
+    css = trends.TRENDS_STYLE
+    assert "max-width:230px" in css          # wraps instead of one 600px line
+    assert "white-space:normal" in css
+    assert "nth-child(-n+5)::after" in css   # near-left cells anchor left
+    assert "nth-last-child(-n+5)::after" in css   # near-right anchor right
+
+
 def test_wide_matrices_scroll_inside_their_own_container():
     c = build([row(date_archived="2012-06-01", orgs=["Google"])])
     html = trends.heatmap(corpus.entity_year_matrix(c, "orgs", 10), "cap", "Org")
