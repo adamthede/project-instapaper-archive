@@ -299,3 +299,37 @@ def test_prev_week_delta_is_carried(fake_run, monkeypatch):
                            "--out-dir", str(fake_run), "--no-heartbeat"])
     text = (fake_run / "2026-W33.md").read_text()
     assert "prev_week:" in text and "articles: 7" in text
+
+
+def test_date_precision_flags_proxy_dated_weeks(fake_run, monkeypatch, tmp_path):
+    import pandas as pd
+    df = make_df([
+        {"title": "L", "source": "legacy_pdf", "date_saved": "2026-08-12",
+         "word_count": 500, "topics": ["t"], "summary": "s"},
+        {"title": "M", "date_archived": "2026-08-13", "word_count": 500,
+         "topics": ["t"], "summary": "s"},
+    ])
+    idx = tmp_path / "archive_index.parquet"
+    df.to_parquet(idx)
+    monkeypatch.setattr(ws, "INDEX_PATH", idx)
+    run_main(monkeypatch, ["--week", "2026-W33", "--out-dir",
+                           str(tmp_path / "syn"), "--no-heartbeat"])
+    text = (tmp_path / "syn" / "2026-W33.md").read_text()
+    assert "date_precision: mixed" in text
+    assert "proxy_dated_articles: 1" in text
+
+
+def test_legacy_source_is_proxy_even_with_an_archive_date(fake_run, monkeypatch, tmp_path):
+    # Exercises the startswith("legacy") clause specifically: no real legacy
+    # row carries date_archived today, but the guard must hold if one ever
+    # does - a legacy date is a conversion artifact, not a read event.
+    df = make_df([{"title": "L", "source": "legacy_doc",
+                   "date_archived": "2026-08-12", "word_count": 100,
+                   "topics": ["t"], "summary": "s"}])
+    idx = tmp_path / "archive_index.parquet"
+    df.to_parquet(idx)
+    monkeypatch.setattr(ws, "INDEX_PATH", idx)
+    run_main(monkeypatch, ["--week", "2026-W33", "--out-dir",
+                           str(tmp_path / "syn"), "--no-heartbeat"])
+    text = (tmp_path / "syn" / "2026-W33.md").read_text()
+    assert "date_precision: publication-proxy" in text

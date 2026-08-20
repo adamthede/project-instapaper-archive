@@ -364,3 +364,24 @@ def test_hugging_asterisk_block_is_load_bearing():
     arts = [{"title": "Alpha", "url": "https://x.com/a"}]
     out = gen.link_titles('A *stray opener here. Then *“Alpha”* reassured.', arts)
     assert "*" not in out.split("Then")[1]  # the stray opener is intentional
+
+
+def test_provenance_note_renders_for_proxy_weeks(synth_dir):
+    m = gen.load_weeks(synth_dir)[0]
+    m["date_precision"] = "publication-proxy"
+    html_out = gen.render_week(m)
+    assert "dated by publication" in html_out
+    m["date_precision"] = "read-dates"
+    assert "dated by publication" not in gen.render_week(m)
+
+
+def test_mixed_provenance_note_renders_count_and_escapes(synth_dir):
+    # Round-1 review: the mixed branch fires most often on real weeks AND
+    # carried the unescaped interpolation - it had zero coverage.
+    m = gen.load_weeks(synth_dir)[0]
+    m["date_precision"] = "mixed"
+    m["proxy_dated_articles"] = 3
+    html_out = gen.render_week(m)
+    assert "3 of the articles carry approximate dates" in html_out
+    m["proxy_dated_articles"] = "<img src=x onerror=alert(1)>"
+    assert "onerror" not in gen.render_week(m)  # coerces to 0, renders nothing
