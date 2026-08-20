@@ -19,14 +19,18 @@ Two audit rulings are enforced here rather than merely respected:
 """
 import json
 
-from corpus import (entity_coverage, head_coverage, month_series, payload_rows,
-                    stats, top_entities, topic_vocabulary)
-from htmlkit import e, n, page
+from corpus import (RANKABLE_HEAD_COVERAGE, complexity_stats, entity_coverage,
+                    head_coverage, month_series, payload_rows, stats,
+                    top_entities, topic_vocabulary, vocabulary_report)
+from htmlkit import e, n, page, safe_url
 
 # The payload ships on every load of /articles/. The measured raw size at
 # 17.9k rows is ~2.8 MB; this cap is the tripwire for a future corpus that
 # grows a summary column by accident, not a prediction.
 MAX_PAYLOAD_BYTES = 6 * 1024 * 1024
+
+# How many boilerplate casts /people/ spells out before it summarises.
+MAX_CASTS_NAMED = 4
 
 
 def org_note(rows, vocab_rows=None):
@@ -147,9 +151,9 @@ def _stat(value_html, label, sub=""):
             f'<div class="l label">{e(label)}</div>{sub_html}</div>')
 
 
-def _org_rows(orgs, denominator, scope="the year"):
+def _org_rows(orgs, denominator, scope="the year", noun="organizations"):
     if not orgs:
-        return '      <span class="empty">no organizations tagged</span>\n'
+        return f'      <span class="empty">no {e(noun)} tagged</span>\n'
     top = max((o["count"] for o in orgs), default=1) or 1
     out = ""
     for i, o in enumerate(orgs, start=1):
@@ -159,7 +163,8 @@ def _org_rows(orgs, denominator, scope="the year"):
         # `scope` is the denominator's noun: the same helper renders a year
         # page and the all-time facet, and a share of the whole archive
         # labelled "of the year" is simply a wrong number.
-        tip = f"{o['name']} - {n(o['count'])} articles, {share:.1f}% of {scope}"
+        unit = "article" if o["count"] == 1 else "articles"
+        tip = f"{o['name']} - {n(o['count'])} {unit}, {share:.1f}% of {scope}"
         out += (f'      <div class="orow{lead}" data-tip="{e(tip)}">'
                 f'<span class="rk">{i}</span>'
                 f'<span class="on">{e(str(o["name"]))}'
@@ -203,11 +208,48 @@ def _provenance(st):
 # year rollups
 # ---------------------------------------------------------------------------
 
+def _densest_line(comp):
+    """The year's hardest substantial read, linked when it has a URL.
+
+    Restricted to in-band grades and articles of `min_words`+ on purpose: the
+    unclipped maximum in this corpus is grade 857, and at no word floor at all
+    the winner is reliably a 300-word stub with one runaway sentence.
+    """
+    densest = comp.get("densest")
+    if not densest:
+        return ""
+    title = e(str(densest["title"]))
+    href = safe_url(densest["url"])
+    linked = f'<a class="atitle" href="{href}">{title}</a>' if href else \
+        f'<strong class="atitle">{title}</strong>'
+    lead = e(f"Densest read of the year, among articles over "
+             f"{n(comp['min_words'])} words: ")
+    tail = e(f" — grade {densest['grade']:.1f}, {n(densest['words'])} words")
+    return f'    <div class="note">{lead}{linked}{tail}</div>\n'
+
+
 def render_year(corpus, year, weeks_in_year=(), prev_year=None, next_year=None,
                 site_title="The Week in Reading", domain=""):
     year = int(year)
     rows = corpus.year(year)
     st = stats(rows)
+    comp = complexity_stats(rows)
+    # vs the previous year that HAS a page - corpus-adjacent, matching the
+    # week page's delta idiom rather than inventing a calendar-adjacent one.
+    prev_comp = complexity_stats(corpus.year(prev_year)) if prev_year else None
+    if comp["avg"] is not None and prev_comp and prev_comp["avg"] is not None:
+        diff = round(comp["avg"] - prev_comp["avg"], 2)
+        if diff:
+            arrow = "▲" if diff > 0 else "▼"
+            grade_sub = f"{arrow} {abs(diff):.2f} vs {prev_year}"
+        else:
+            grade_sub = f"= {prev_year}"
+    elif comp["avg"] is not None:
+        grade_sub = f"grade, clipped 0–20 · {n(comp['graded'])} articles"
+    else:
+        grade_sub = ""
+    grade_tile = (_stat(f"{comp['avg']:.1f}", "Average reading level", grade_sub)
+                  if comp["avg"] is not None else "")
     months = month_series(rows, year)
     peak = max((m["words"] for m in months), default=0)
     month_html = ""
@@ -255,6 +297,7 @@ def render_year(corpus, year, weeks_in_year=(), prev_year=None, next_year=None,
     {_stat(n(st['words']), 'Words')}
     <div class="stat time"><div class="v num">{st['hours']:,.1f}<em> hrs</em></div><div class="l label">Reading time</div></div>
     {_stat(n(st['median_words']), 'Median length · words')}
+    {grade_tile}
     {sources_tile}
   </div>
 
@@ -262,7 +305,7 @@ def render_year(corpus, year, weeks_in_year=(), prev_year=None, next_year=None,
     <div class="label viz-title">The year's rhythm · words per month</div>
     <div class="months">
 {month_html}    </div>
-  </section>
+{_densest_line(comp)}  </section>
 
   <section>
     <div class="label viz-title">Organizations in the year's reading · top {len(orgs)} by articles</div>
@@ -337,6 +380,216 @@ def render_orgs(corpus, limit=100, site_title="The Week in Reading", domain=""):
 
 
 # ---------------------------------------------------------------------------
+# locations facet
+# ---------------------------------------------------------------------------
+
+def render_locations(corpus, limit=100, site_title="The Week in Reading", domain=""):
+    """Modelled on /orgs/, and it earns the same treatment on the same test.
+
+    Places clear the ranking bar more comfortably than organizations do - top-20
+    article coverage of 57.0% against 45.2%, over a vocabulary a third the size
+    - so this page ranks rather than hedges. Everything it prints about that is
+    measured here at build time, not quoted.
+    """
+    rows = corpus.rows
+    places = top_entities(rows, "locations", limit)
+    report = vocabulary_report(rows, "locations")
+
+    footnote = (
+        "Like organizations and unlike anything keyed on a URL, this covers the whole "
+        "archive: entity extraction ran over both corpora, so the file-sourced legacy "
+        "era is counted here even though it carries no URLs. The same caveat applies "
+        "as everywhere else in this enrichment - there is no controlled vocabulary, so "
+        "a place named several ways is ranked several times. 'United States', 'U.S.' "
+        "and 'America' are three separate rows below, and 'New York' does not "
+        "distinguish the city from the state. Read the ranking as which names the "
+        "articles used, not as a census of places."
+    )
+    note = (
+        f"Places rank as cleanly as anything in this archive: the top {report['head_k']} "
+        f"cover {report['head_coverage']:,.1f}% of the {n(len(rows))} articles counted "
+        f"here, over a vocabulary of {n(report['vocabulary'])} strings, "
+        f"{report['singleton_share']:,.1f}% of them used exactly once. "
+        f"{report['tagged_share']:,.1f}% of articles carry at least one."
+    )
+
+    body = f"""  <header>
+    <a class="label kicker" href="../">{e(site_title)}</a>
+    <h1>Places</h1>
+    <div class="daterange">Where the reading was set, across {n(len(rows))} articles.</div>
+  </header>
+
+  <div class="stats">
+    {_stat(n(report['vocabulary']), 'Distinct places')}
+    {_stat(f"{report['tagged_share']:,.1f}<em>%</em>", 'Articles tagged')}
+    {_stat(f"{report['head_coverage']:,.1f}<em>%</em>", 'Covered by the top 20')}
+  </div>
+
+  <section>
+    <div class="label viz-title">Ranked by articles · top {len(places)}</div>
+    <div class="roster">
+{_org_rows(places, len(rows), scope='the archive', noun='places')}    </div>
+    <div class="note">{e(note)}</div>
+    <div class="note">{e(footnote)}</div>
+    <div class="note"><a href="../trends/">Places by year, as a heatmap →</a></div>
+  </section>
+
+  <div class="yearnav"><span></span><a class="home" href="../">All weeks</a><span></span></div>
+  <footer>
+    <span class="label">Computed from the archive index · corrupted rows excluded</span>
+    <span class="label num">{e(domain)}</span>
+  </footer>"""
+    return page(f"Places — {site_title}", body, depth=1)
+
+
+def render_people(corpus, limit=100, site_title="The Week in Reading", domain=""):
+    """Who the reading was about - and the page where the cleanup is visible.
+
+    This field does NOT clear the ranking bar the rest of the site holds itself
+    to: the top 20 people appear in ~18% of articles, against 45% for
+    organizations and 57% for places, and four fifths of the 41,514 names are
+    used exactly once. It is ranked here anyway, for a reason the page states in
+    its own words: a top-15 list is a weaker claim than a river, the head is
+    made of proper nouns rather than the generic abstractions that sank the
+    concepts page, and this is the surface where the archive's one measured
+    fabrication was visible. Two Fast Company staffers used to rank above Tim
+    Cook here. They no longer appear at all, and the page says why.
+
+    People deliberately gets NO heatmap row on /trends/. The bar governs
+    whether a field can carry a time series, and 18% cannot.
+    """
+    rows = corpus.rows
+    people = top_entities(rows, "people", limit)
+    report = vocabulary_report(rows, "people")
+    # Measured here, not quoted: the comparison is the whole argument of this
+    # paragraph, and a pasted figure drifts away from the corpus it describes.
+    orgs_cov = vocabulary_report(rows, "orgs")["head_coverage"]
+    locs_cov = vocabulary_report(rows, "locations")["head_coverage"]
+
+    note = (
+        f"The thinnest of the ranked fields, and it is ranked here with that said "
+        f"out loud: the top {report['head_k']} names appear in {report['head_coverage']:,.1f}% "
+        f"of the {n(len(rows))} articles counted here, against {orgs_cov:,.1f}% for "
+        f"organizations and {locs_cov:,.1f}% for places. "
+        f"The vocabulary runs {n(report['vocabulary'])} names, "
+        f"{report['singleton_share']:,.1f}% of them mentioned exactly once, and "
+        f"{report['tagged_share']:,.1f}% of articles carry any name at all. A long tail "
+        f"like that means the list below is a real head over a very wide base - not a "
+        f"summary of the archive."
+    )
+
+    if corpus.people_clusters:
+        hosts = sorted({c["host"] for c in corpus.people_clusters})
+        leaked = corpus.scrubbed_people_in_corpus
+        # One sentence PER CLUSTER. Unioning the casts and then calling them
+        # identical is exactly the unearned claim this page exists to refuse:
+        # the archive holds two variants, and 229 of the 283 rows never listed
+        # the name that a union would put in front of all of them.
+        # Capped. The rule groups on an EXACT cast, so a site that reshuffled
+        # its navigation would split one defect into dozens of near-identical
+        # groups - and this paragraph would become dozens of sentences saying
+        # almost the same thing. Name the big ones, count the rest.
+        ranked = sorted(corpus.people_clusters,
+                        key=lambda c: (-len(c["row_ids"]), c["host"]))
+        casts = []
+        for c in ranked[:MAX_CASTS_NAMED]:
+            casts.append(f"{n(len(c['row_ids']))} of them, all "
+                         f"{n(c['word_count'])} words long, list "
+                         f"{', '.join(c['names'])}")
+        rest = ranked[MAX_CASTS_NAMED:]
+        if rest:
+            casts.append(f"the remaining {n(sum(len(c['row_ids']) for c in rest))} "
+                         f"across {n(len(rest))} further variants of the same cast")
+        variants = ("in one cast" if len(casts) == 1
+                    else f"in {len(casts)} near-identical casts")
+        cleanup = (
+            f"{n(corpus.scrubbed_people)} articles in the index carry a cast that was "
+            f"never in them, {variants}, all from "
+            f"{', '.join(hosts)}. {'; '.join(casts)}. The scraper captured the site's "
+            f"navigation furniture instead of the article and the enrichment pass then "
+            f"read entities out of the furniture. Nobody read those articles about "
+            f"those people, and their casts are set aside before anything on this page "
+            f"is counted."
+        )
+        # Credit only for what this actually changed HERE. On the current index
+        # every one of those rows is also flagged as corrupted content, so this
+        # ranking was clean before the rule existed - and saying otherwise
+        # would be the same kind of unearned confidence the rule exists to fix.
+        if leaked:
+            cleanup += (
+                f" {n(leaked)} of them clear this site's other filters, so without that "
+                f"step they would be sitting in the ranking above.")
+        else:
+            cleanup += (
+                " None of them clear this site's corrupted-content filter, so this "
+                "particular ranking was already clean and the rule changes nothing you "
+                "can see here. It earns its place upstream, in the index itself, where "
+                "those names outranked Tim Cook.")
+    else:
+        cleanup = ("No boilerplate entity clusters were found in this index at build "
+                   "time.")
+
+    footnote = (
+        "As with organizations and places, entity extraction ran over both corpora, so "
+        "the file-sourced legacy era is counted here despite carrying no URLs — and "
+        "that is how the reader's own name reaches this list, since his own documents "
+        "came in through the legacy import and the enrichment pass extracted him as a "
+        "subject of his own archive. No controlled vocabulary: a person named several "
+        "ways ranks several times."
+    )
+
+    body = f"""  <header>
+    <a class="label kicker" href="../">{e(site_title)}</a>
+    <h1>People</h1>
+    <div class="daterange">Who the reading was about, across {n(len(rows))} articles.</div>
+  </header>
+
+  <div class="stats">
+    {_stat(n(report['vocabulary']), 'Distinct names')}
+    {_stat(f"{report['tagged_share']:,.1f}<em>%</em>", 'Articles tagged')}
+    {_stat(f"{report['head_coverage']:,.1f}<em>%</em>", 'Covered by the top 20')}
+    {_stat(n(corpus.scrubbed_people), 'Fabricated casts dropped',
+           'articles, before any other filter')}
+  </div>
+
+  <section>
+    <div class="label viz-title">Ranked by articles · top {len(people)}</div>
+    <div class="roster">
+{_org_rows(people, len(rows), scope='the archive', noun='people')}    </div>
+    <div class="note">{e(note)}</div>
+  </section>
+
+  <section>
+    <div class="label viz-title">What was taken out of this list</div>
+    <div class="note">{e(cleanup)}</div>
+    <div class="note">{e(footnote)}</div>
+    <div class="note"><a href="../orgs/">Organizations</a> · <a href="../locations/">Places</a> · <a href="../trends/">Both by year, as heatmaps →</a></div>
+  </section>
+
+  <div class="yearnav"><span></span><a class="home" href="../">All weeks</a><span></span></div>
+  <footer>
+    <span class="label">Computed from the archive index · corrupted rows excluded</span>
+    <span class="label num">{e(domain)}</span>
+  </footer>"""
+    return page(f"People — {site_title}", body, depth=1)
+
+
+def concepts_verdict(corpus):
+    """Whether /concepts/ may be built, with the numbers behind the answer.
+
+    Phase 5b measured the concepts vocabulary against the bar the audit set with
+    orgs (rankable) and topics (not), and it failed: top-20 article coverage of
+    22.0% against the 40% bar, over 50,601 strings, 74.0% of them used exactly
+    once - worse than topics, which already lost this argument. So there is no
+    concepts page. This function exists so the verdict is recomputed on every
+    build rather than frozen into a comment: if a normalization pass ever lands
+    (the audit's recommendation #9), the numbers move and the answer with them.
+    """
+    report = vocabulary_report(corpus.rows, "concepts")
+    return report, report["rankable"], RANKABLE_HEAD_COVERAGE
+
+
+# ---------------------------------------------------------------------------
 # article detail (client-side, one payload)
 # ---------------------------------------------------------------------------
 
@@ -382,6 +635,9 @@ ARTICLES_JS = """
       ['Author', a[F.author]], ['Source', a[F.domain]],
       ['Corpus', a[F.source]], ['Words', nfmt(a[F.words])],
       ['Reading time', a[F.reading_time] ? a[F.reading_time] + ' min' : ''],
+      // Null where the index has no grade. `== null` catches undefined too,
+      // which is what an older payload without the field would hand back.
+      ['Reading level', a[F.grade] == null ? '' : 'grade ' + a[F.grade]],
       ['URL', href || 'no URL recorded (pre-2012 legacy import)']
     ];
     for (var i = 0; i < pairs.length; i++) {

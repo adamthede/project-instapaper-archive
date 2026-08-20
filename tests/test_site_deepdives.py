@@ -173,7 +173,8 @@ def test_as_list_survives_arrays_none_and_nan():
 def test_payload_shape_is_a_field_header_plus_arrays(small):
     p = corpus.payload_rows(small)
     assert p["fields"] == ["title", "url", "source", "domain", "author",
-                           "date_read", "date_saved", "words", "reading_time"]
+                           "date_read", "date_saved", "words", "reading_time",
+                           "grade"]
     assert p["count"] == len(p["articles"]) == len(small)
     assert all(len(a) == len(p["fields"]) for a in p["articles"])
 
