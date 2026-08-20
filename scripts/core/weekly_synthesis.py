@@ -210,7 +210,7 @@ def build_weekly_prompt(week, rows, highlights):
 Articles read this week:
 {articles_block}
 
-Write a woven digest of this week's reading: 300-500 words of flowing prose in 2-4 paragraphs. Find the 2-4 real themes that ran through the week and the connections BETWEEN pieces - do not summarize the articles one by one, and do not write a list. Close with a single sentence naming the thread of the week. Refer to articles naturally by their titles. Plain paragraphs only: no headers, no bullets, no numbering. Use hyphens for asides, never em dashes. Do not invent articles or facts not present above."""
+Write a woven digest of this week's reading: 300-500 words of flowing prose in 2-4 paragraphs. Find the 2-4 real themes that ran through the week and the connections BETWEEN pieces - do not summarize the articles one by one, and do not write a list. Close with a single final sentence that begins exactly with “The thread of the week”. Refer to articles naturally by their titles. Plain paragraphs only: no headers, no bullets, no numbering. Use hyphens for asides, never em dashes. Do not invent articles or facts not present above."""
 
 
 def synthesize(prompt):

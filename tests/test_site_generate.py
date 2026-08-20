@@ -273,3 +273,19 @@ def test_year_strip_marks_absent_weeks_as_stubs(two_year_dir):
     assert html_out.count('<div class="ystrip">') == 2
     assert "<span></span>" in html_out  # absent-week stubs
     assert 'data-tip="2026-W33' in html_out
+
+
+def test_paraphrased_closing_sentence_still_becomes_the_thread():
+    # 31 of 127 real weeks close with the thread but without the literal
+    # phrase - the final sentence is lifted by construction.
+    paras, thread = gen.split_prose(
+        "Alpha paragraph.\n\nBeta happened. Gamma followed. "
+        "The week explored how adventure travel serves as a lens for "
+        "examining environmentalism in contested landscapes.")
+    assert thread.startswith("The week explored how")
+    assert paras[-1].endswith("Gamma followed.")
+
+
+def test_single_sentence_last_paragraph_is_not_emptied_by_fallback():
+    paras, thread = gen.split_prose("Only one closing sentence here, too short.")
+    assert thread is None and len(paras) == 1

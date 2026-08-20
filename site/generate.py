@@ -115,8 +115,23 @@ def split_prose(prose):
     if paras:
         m = re.search(r"([^.!?]*thread of the week[^.!?]*[.!?])\s*$",
                       paras[-1], re.IGNORECASE)
+        if m is None:
+            # 31 of 127 corpus weeks paraphrase instead of using the literal
+            # phrase ("The week explored how..."). The prompt mandates that
+            # the digest CLOSE with the thread, so the final sentence is the
+            # thread by construction - lift it when it is sentence-sized.
+            pieces = re.split(r"(?<=[.!?])\s+(?=[A-Z\u201c])", paras[-1])
+            if len(pieces) > 1 and 60 <= len(pieces[-1]) <= 400:
+                m = re.search(re.escape(pieces[-1]) + r"\s*$", paras[-1])
+            elif (len(pieces) == 1 and len(paras) > 1
+                    and 60 <= len(paras[-1]) <= 400):
+                # 17 corpus weeks close with the thread as its own one-
+                # sentence paragraph - lift the whole paragraph, but never
+                # when it is the digest's ONLY paragraph.
+                thread = paras.pop()
+                return paras, thread
         if m:
-            thread = m.group(1).strip()
+            thread = m.group(0).strip() if m.lastindex is None else m.group(1).strip()
             remainder = paras[-1][: m.start()].strip()
             if remainder:
                 paras[-1] = remainder
