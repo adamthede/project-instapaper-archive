@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 import os
+import sys
 import pandas as pd
 import frontmatter
 from pathlib import Path
 from datetime import datetime
 import textstat
 from dotenv import load_dotenv
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import entity_hygiene  # noqa: E402
 
 # Load environment variables from .env if present
 load_dotenv()
@@ -275,6 +279,13 @@ def build_index():
     df["date_archived"] = pd.to_datetime(df["date_archived"])
 
     df = dedupe_articles(df)
+
+    # Fabricated entity clusters, killed at the source. Scrubbed AFTER dedupe
+    # so the printed report describes the index that actually ships, and
+    # before to_parquet so every downstream reader - the static site, the
+    # Streamlit dashboard (which does not filter content_corrupted at all) -
+    # inherits the fix without repeating it.
+    df, _ = entity_hygiene.scrub(df, column="people")
 
     # Save
     DATA_DIR.mkdir(exist_ok=True)

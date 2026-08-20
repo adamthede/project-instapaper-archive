@@ -23,6 +23,7 @@ from matter.sync import SyncConfig, run_sync
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BUILD_INDEX = REPO_ROOT / "scripts" / "core" / "build_index.py"
+ENTITY_HYGIENE = REPO_ROOT / "scripts" / "core" / "entity_hygiene.py"
 DASHBOARD_APP = REPO_ROOT / "dashboard" / "app.py"
 
 
@@ -90,6 +91,9 @@ def merged_index(merged_vault, tmp_path, monkeypatch):
     (repo / "dashboard").mkdir(parents=True)
     (repo / "data").mkdir(parents=True)
     shutil.copy(BUILD_INDEX, repo / "scripts" / "core" / "build_index.py")
+    # build_index imports its sibling for the entity-hygiene pass; the temp
+    # repo is a real repo skeleton, so it needs the sibling too.
+    shutil.copy(ENTITY_HYGIENE, repo / "scripts" / "core" / "entity_hygiene.py")
     shutil.copy(DASHBOARD_APP, repo / "dashboard" / "app.py")
 
     completed = subprocess.run(
@@ -370,6 +374,9 @@ def test_an_unread_matter_row_appears_in_no_dashboard_surface(merged_vault, tmp_
     (repo / "dashboard").mkdir(parents=True)
     (repo / "data").mkdir(parents=True)
     shutil.copy(BUILD_INDEX, repo / "scripts" / "core" / "build_index.py")
+    # build_index imports its sibling for the entity-hygiene pass; the temp
+    # repo is a real repo skeleton, so it needs the sibling too.
+    shutil.copy(ENTITY_HYGIENE, repo / "scripts" / "core" / "entity_hygiene.py")
     shutil.copy(DASHBOARD_APP, repo / "dashboard" / "app.py")
     completed = subprocess.run(
         [sys.executable, str(repo / "scripts" / "core" / "build_index.py")],

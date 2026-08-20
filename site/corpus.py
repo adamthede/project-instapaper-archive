@@ -18,13 +18,58 @@ finding rather than a preference:
   pages can say so instead of quietly hiding them.
 """
 import datetime as dt
+import sys
 from collections import Counter
 from dataclasses import dataclass, field
+from pathlib import Path
 from urllib.parse import urlparse
 
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts" / "core"))
+import entity_hygiene  # noqa: E402
+
 MIN_YEAR = 2005
+
+# Flesch-Kincaid on scraped web text is noisy at the top end: 730 of 17,416
+# rows claim a reading level above grade 20 and one is negative. Every grade
+# number on the site is clipped into this band, and every page that prints one
+# says so - an unclipped mean reads 11.75 where the honest figure is 11.31.
+GRADE_MIN, GRADE_MAX = 0.0, 20.0
+# A "densest read" ought to be something substantial. Below this, a grade of
+# 19.8 is one long sentence in a stub, not a demanding article. 800 sits just
+# above the corpus median length (761 words).
+DENSEST_MIN_WORDS = 800
+
+# Top-20 ARTICLE coverage a list-valued column must clear before the site will
+# rank it on a page of its own. The two precedents the audit set: orgs at 42.9%
+# earned a ranked page, topics at 25.5% (73.3% singletons) did not. The bar is
+# stated here so a new column's verdict is a measurement rather than a taste.
+RANKABLE_HEAD_COVERAGE = 40.0
+
+# `source` carries eight values; readers care about three eras.
+ERA_ORDER = ("legacy", "instapaper", "matter")
+ERA_LABELS = {
+    "legacy": "Legacy files",
+    "instapaper": "Instapaper",
+    "matter": "Matter",
+    "unknown": "Unattributed",
+}
+
+
+def era_of(source):
+    """Which of the three saving eras a row belongs to.
+
+    The index splits the legacy import by file type (legacy_pdf, legacy_txt,
+    legacy_doc, legacy_htm, legacy_rtf). That is a useful provenance detail and
+    a terrible axis - it is one era, five scanners.
+    """
+    s = str(source or "").strip().lower()
+    if s.startswith("legacy"):
+        return "legacy"
+    if s in ("instapaper", "matter"):
+        return s
+    return "unknown"
 
 
 def derive_date_read(df):
@@ -61,6 +106,11 @@ class Corpus:
     excluded_undated: int = 0
     excluded_pre_min_year: int = 0
     years: list = field(default_factory=list)
+    # Rows whose `people` list was blanked as extraction boilerplate, and the
+    # clusters they formed. Carried rather than discarded so /people/ can state
+    # on the page what was taken out of its own ranking.
+    scrubbed_people: int = 0
+    people_clusters: list = field(default_factory=list)
 
     def __len__(self):
         return len(self.rows)
@@ -68,10 +118,37 @@ class Corpus:
     def year(self, y):
         return self.rows[self.rows["year"] == int(y)]
 
+    @property
+    def year_axis(self):
+        """Every year from the first to the last, INCLUDING any with no rows.
+
+        `years` is the years that have data, and it drives which year pages get
+        built - an empty year must not get a page. A time series is the
+        opposite case: dropping an empty 2013 from the axis draws 2012 and 2014
+        as adjacent columns and invents continuity the archive does not have.
+        """
+        if not self.years:
+            return []
+        return list(range(int(self.years[0]), int(self.years[-1]) + 1))
+
 
 def prepare(df):
     df = df.copy()
     total = len(df)
+
+    # Entity hygiene runs FIRST, on the whole population, and the order is the
+    # whole point. The corrupted-row filter below removes 288 of the 290
+    # Co.Design rows, so scrubbing afterwards would leave a 2-row cluster no
+    # threshold can see - and those two survivors are precisely the rows that
+    # carry the fabricated names into a ranked page. Measured 2026-08-20:
+    # before this call "Todd Kaplan" and "Todd Sherman" reach /people/ with a
+    # count of 1 each; after it, 0.
+    people_clusters = []
+    if "people" in df.columns:
+        df, people_clusters = entity_hygiene.scrub(
+            df, column="people",
+            log=lambda msg: print(msg, file=sys.stderr))
+
     if "content_corrupted" in df.columns:
         df = df[df["content_corrupted"] != True]  # noqa: E712
     corrupted = total - len(df)
@@ -93,7 +170,9 @@ def prepare(df):
     )
     years = sorted(int(y) for y in df["year"].unique())
     return Corpus(rows=df, excluded_corrupted=corrupted, excluded_undated=undated,
-                  excluded_pre_min_year=early, years=years)
+                  excluded_pre_min_year=early, years=years,
+                  scrubbed_people=sum(len(c["row_ids"]) for c in people_clusters),
+                  people_clusters=people_clusters)
 
 
 def load_corpus(index_path):
@@ -231,6 +310,266 @@ def head_coverage(rows, column, k=20):
     return round(hit / len(rows) * 100, 1)
 
 
+def vocabulary_report(rows, column, k=20):
+    """Everything needed to decide whether a column may be ranked on a page.
+
+    One pass, four numbers, all measured on `rows` rather than quoted from the
+    audit: vocabulary size, share of articles carrying any value, share of the
+    vocabulary used exactly once, and top-k ARTICLE coverage (a set question -
+    summing the top-k counts double-counts every article tagged with two of
+    them and inflates 45% into 83%).
+
+    `rankable` is the verdict the /concepts/ decision turned on. Measured
+    2026-08-20 over 16,346 corpus rows: orgs 45.2%, locations 57.0%,
+    topics 25.3%, concepts 22.0%.
+    """
+    empty = {"column": column, "vocabulary": 0, "tagged": 0, "tagged_share": 0.0,
+             "singleton_share": 0.0, "head_k": k, "head_coverage": 0.0,
+             "rankable": False, "articles": len(rows)}
+    if not len(rows) or column not in rows.columns:
+        return empty
+
+    counts = Counter()
+    per_row = []
+    tagged = 0
+    for v in rows[column]:
+        names = set(as_list(v))
+        per_row.append(names)
+        if names:
+            tagged += 1
+        for name in names:
+            counts[name] += 1
+    if not counts:
+        return empty
+
+    head = {name for name, _ in counts.most_common(k)}
+    hit = sum(1 for names in per_row if head & names)
+    singles = sum(1 for c in counts.values() if c == 1)
+    coverage = round(hit / len(rows) * 100, 1)
+    return {
+        "column": column,
+        "vocabulary": len(counts),
+        "tagged": tagged,
+        "tagged_share": round(tagged / len(rows) * 100, 1),
+        "singleton_share": round(singles / len(counts) * 100, 1),
+        "head_k": k,
+        "head_coverage": coverage,
+        "rankable": coverage >= RANKABLE_HEAD_COVERAGE,
+        "articles": len(rows),
+    }
+
+
+# ---------------------------------------------------------------------------
+# eras
+# ---------------------------------------------------------------------------
+
+def era_split(rows):
+    """Article counts and shares per saving era, in chronological order.
+
+    Rendered on the index rather than buried: half this archive predates the
+    read-it-later services entirely, and a hero stat row that says "16,346
+    articles" without saying so is claiming a tracking history it does not
+    have.
+    """
+    if not len(rows) or "source" not in rows.columns:
+        return []
+    counts = Counter(era_of(s) for s in rows["source"])
+    total = len(rows)
+    order = [k for k in ERA_ORDER if counts.get(k)]
+    order += [k for k in sorted(counts) if k not in ERA_ORDER and counts[k]]
+    return [{"era": k, "label": ERA_LABELS.get(k, k.title()),
+             "articles": counts[k], "share": round(counts[k] / total * 100, 1)}
+            for k in order]
+
+
+# ---------------------------------------------------------------------------
+# complexity
+# ---------------------------------------------------------------------------
+
+def grade_series(rows):
+    """`grade_level` as numbers, clipped into the trustworthy band.
+
+    Values outside GRADE_MIN..GRADE_MAX are parser noise (max in the corpus is
+    857), so they are pulled to the edge rather than dropped - dropping them
+    would silently re-weight the mean toward the easy end.
+
+    An ABSENT column degrades to all-NaN rather than raising, and the pages
+    then render no complexity at all. That is the opposite ruling to
+    numeric_column's, and deliberately so: a retyped column produces confident
+    wrong numbers that nobody can see, while a missing one produces an empty
+    band and a stderr line - it announces itself.
+    """
+    if "grade_level" not in rows.columns:
+        print("index has no 'grade_level' column: complexity omitted",
+              file=sys.stderr)
+        return pd.Series([float("nan")] * len(rows), index=rows.index,
+                         dtype="float64")
+    raw = numeric_column(rows, "grade_level")
+    return raw.clip(GRADE_MIN, GRADE_MAX)
+
+
+def complexity_stats(rows, min_words=DENSEST_MIN_WORDS):
+    """Average clipped grade level, how many rows carry one, how many were
+    clipped, and the year's densest substantial read."""
+    if not len(rows) or "grade_level" not in rows.columns:
+        return {"graded": 0, "avg": None, "clipped": 0, "densest": None,
+                "articles": len(rows)}
+    raw = numeric_column(rows, "grade_level")
+    clipped_series = raw.clip(GRADE_MIN, GRADE_MAX)
+    valid = clipped_series.dropna()
+    out_of_band = int(((raw > GRADE_MAX) | (raw < GRADE_MIN)).sum())
+
+    densest = None
+    words = numeric_column(rows, "word_count").fillna(0)
+    # The densest read is picked from IN-BAND rows only. A row clipped down
+    # from 857 would otherwise win every year on the strength of a parser bug.
+    eligible = rows[(raw >= GRADE_MIN) & (raw <= GRADE_MAX) & (words >= min_words)]
+    if len(eligible):
+        pick = raw.loc[eligible.index].idxmax()
+        row = rows.loc[pick]
+        url = str(row.get("url") or "")
+        densest = {
+            "title": str(row.get("title") or "Untitled"),
+            "grade": round(float(raw.loc[pick]), 1),
+            "words": safe_int(row.get("word_count")),
+            "url": url if url.lower().startswith(("http://", "https://")) else "",
+        }
+    raw_valid = raw.dropna()
+    return {
+        "graded": int(valid.count()),
+        "avg": round(float(valid.mean()), 2) if len(valid) else None,
+        # What the same mean would read if nobody clipped it. The pages print
+        # both, because "we clipped the data" is a claim that should cost the
+        # reader nothing to check.
+        "raw_avg": round(float(raw_valid.mean()), 2) if len(raw_valid) else None,
+        "raw_max": round(float(raw_valid.max()), 1) if len(raw_valid) else None,
+        "clipped": out_of_band,
+        "densest": densest,
+        "articles": len(rows),
+        "min_words": min_words,
+    }
+
+
+def complexity_by_year(corpus):
+    """(year, graded, avg, delta-vs-prior-year) across the whole span.
+
+    The delta compares against the last year that HAD a reading level, not
+    against the calendar year before - across an empty year, "no change" would
+    be a claim about a year with nothing in it.
+    """
+    out = []
+    prev = None
+    for y in corpus.year_axis:
+        rows = corpus.year(y)
+        graded, avg = 0, None
+        if len(rows):
+            valid = grade_series(rows).dropna()
+            graded = int(valid.count())
+            avg = round(float(valid.mean()), 2) if graded else None
+        delta = None if (avg is None or prev is None) else round(avg - prev, 2)
+        out.append({"year": int(y), "articles": len(rows),
+                    "graded": graded, "avg": avg, "delta": delta})
+        if avg is not None:
+            prev = avg
+    return out
+
+
+# ---------------------------------------------------------------------------
+# sentiment
+# ---------------------------------------------------------------------------
+
+SENTIMENTS = ("Positive", "Neutral", "Negative")
+# Below this many rated articles a year's mix is a rounding artifact - 2021
+# holds three articles and would otherwise render a confident 66.7% Negative.
+SENTIMENT_MIN_RATED = 25
+
+
+def sentiment_by_year(corpus):
+    """Share of Positive/Neutral/Negative per year, and the n behind it.
+
+    Shares are computed over RATED articles, not all articles, and both numbers
+    travel together so the page can never imply a mix it did not measure. The
+    three shares of a rated year sum to 100% by construction: anything the
+    enrichment wrote that is not one of the three known labels is counted in
+    `other` and excluded from the denominator, rather than silently folded into
+    Neutral.
+    """
+    out = []
+    for y in corpus.year_axis:
+        rows = corpus.year(y)
+        counts = Counter()
+        other = 0
+        if "sentiment" in rows.columns:
+            for s in rows["sentiment"]:
+                label = str(s).strip() if s is not None else ""
+                if label in SENTIMENTS:
+                    counts[label] += 1
+                elif label and label.lower() not in ("nan", "none"):
+                    other += 1
+        rated = sum(counts.values())
+        shares = {k: (round(counts[k] / rated * 100, 1) if rated else 0.0)
+                  for k in SENTIMENTS}
+        if rated:
+            # Rounding three shares independently can miss 100 by a tenth. The
+            # largest share absorbs the residue so the strip always fills.
+            biggest = max(SENTIMENTS, key=lambda k: (shares[k], k))
+            shares[biggest] = round(shares[biggest] + (100.0 - sum(shares.values())), 1)
+        out.append({"year": int(y), "articles": len(rows), "rated": rated,
+                    "counts": {k: counts[k] for k in SENTIMENTS},
+                    "other": other, "shares": shares,
+                    "low": rated < SENTIMENT_MIN_RATED})
+    return out
+
+
+# ---------------------------------------------------------------------------
+# entity x year matrices (the heatmaps)
+# ---------------------------------------------------------------------------
+
+def entity_year_matrix(corpus, column, limit=15):
+    """Top-`limit` values of a list-valued column, counted per year.
+
+    Rows are ranked by archive-wide article count; columns are every year the
+    corpus covers, including the empty ones - a heatmap that quietly drops 2021
+    because he read three articles that year is drawing a different archive.
+    Counted once per article, matching top_entities().
+    """
+    names = [o["name"] for o in top_entities(corpus.rows, column, limit)]
+    return _matrix(corpus, names, column,
+                   lambda row: set(as_list(row.get(column))))
+
+
+def domain_year_matrix(corpus, limit=15):
+    """The same shape for `domain`, which is single-valued rather than a list.
+
+    Covers only the URL-bearing subset; callers must say so on the page. The
+    legacy era came in as files and has no host to count.
+    """
+    counts = Counter(d for d in corpus.rows["domain"] if d)
+    names = [name for name, _ in
+             sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]]
+    return _matrix(corpus, names, "domain",
+                   lambda row: {row["domain"]} if row.get("domain") else set())
+
+
+def _matrix(corpus, names, column, values_of):
+    years = corpus.year_axis
+    cells = {name: {y: 0 for y in years} for name in names}
+    wanted = set(names)
+    totals = {}
+    for y in years:
+        rows = corpus.year(y)
+        totals[y] = len(rows)
+        if not len(rows) or not wanted:
+            continue
+        for row in rows.to_dict("records"):
+            for hit in values_of(row) & wanted:
+                cells[hit][y] += 1
+    row_totals = {name: sum(cells[name].values()) for name in names}
+    peak = max((c for name in names for c in cells[name].values()), default=0)
+    return {"column": column, "names": names, "years": years, "cells": cells,
+            "row_totals": row_totals, "year_totals": totals, "peak": peak}
+
+
 def payload_rows(corpus):
     """Compact per-article records for the client-side detail view.
 
@@ -242,9 +581,13 @@ def payload_rows(corpus):
     """
     rows = corpus.rows.sort_values("date_read", ascending=False)
     fields = ["title", "url", "source", "domain", "author",
-              "date_read", "date_saved", "words", "reading_time"]
+              "date_read", "date_saved", "words", "reading_time", "grade"]
+    # Clipped, one decimal, and null where the index has none: the detail panel
+    # prints this number next to a title, and grade 857 next to a headline is
+    # worse than no number at all. Measured cost: +0.08 MB over 16,346 rows.
+    grades = grade_series(rows).round(1)
     data = []
-    for r in rows.itertuples(index=False):
+    for r, grade in zip(rows.itertuples(index=False), grades):
         author = str(getattr(r, "author", "") or "")
         if author in ("Unknown", "By", "nan"):
             author = ""
@@ -260,5 +603,6 @@ def payload_rows(corpus):
             safe_int(r.word_count),
             round(float(getattr(r, "reading_time_min", 0) or 0), 1)
             if not pd.isna(getattr(r, "reading_time_min", 0)) else 0,
+            None if pd.isna(grade) else float(grade),
         ])
     return {"fields": fields, "count": len(data), "articles": data}
