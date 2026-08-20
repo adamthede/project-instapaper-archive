@@ -289,3 +289,16 @@ def test_paraphrased_closing_sentence_still_becomes_the_thread():
 def test_single_sentence_last_paragraph_is_not_emptied_by_fallback():
     paras, thread = gen.split_prose("Only one closing sentence here, too short.")
     assert thread is None and len(paras) == 1
+
+
+def test_asterisk_wrapped_titles_are_linked_and_requoted():
+    # 16 corpus weeks wrap titles in markdown emphasis instead of quotes.
+    arts = [{"title": "How AI Learned to Speak", "url": "https://x.com/a"}]
+    out = gen.link_titles("While *How AI Learned to Speak* traces things.", arts)
+    assert '<a class="atitle" href="https://x.com/a">“How AI Learned to Speak”</a>' in out
+    assert "*" not in out.replace("*traces", "")  # matched asterisks consumed
+
+
+def test_unmatched_asterisk_spans_stay_verbatim():
+    out = gen.link_titles("Just *plain emphasis* here.", [])
+    assert "*plain emphasis*" in out

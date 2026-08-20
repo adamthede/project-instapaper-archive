@@ -89,8 +89,12 @@ def link_titles(paragraph, articles):
         by_norm[_norm_title(a.get("title"))] = a
     out = []
     last = 0
-    for m in re.finditer(r"[\u201c\"]([^\u201d\u201c\"]+)[\u201d\"]", paragraph):
-        quoted = m.group(1)
+    # Three dialects the model actually writes: curly quotes, straight
+    # quotes, and markdown *emphasis* (16 corpus weeks). Matched asterisk
+    # titles render with curly quotes so every page reads the same.
+    pattern = r"[\u201c\"]([^\u201d\u201c\"\n]+)[\u201d\"]|\*([^*\n]+)\*"
+    for m in re.finditer(pattern, paragraph):
+        quoted = m.group(1) or m.group(2)
         art = by_norm.get(_norm_title(quoted))
         if art is None:
             continue
