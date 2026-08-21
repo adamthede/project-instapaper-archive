@@ -5,23 +5,48 @@ FIRST production deploy is Adam's (house rule: agents never deploy to
 production). After that first deploy proves out, the nightly wiring below
 makes it automatic.
 
-## One-time setup (Adam)
+## One-time setup (Adam) — PLACEHOLDER FIRST
+
+**Do not deploy the real content first.** Deploying before Access is
+configured leaves the whole archive publicly readable for as long as the
+dashboard work takes. The exposure is not hypothetical: the moment Cloudflare
+issues a certificate for `reading.adamthede.com`, that hostname is published
+to public Certificate Transparency logs, which are scraped continuously — new
+hostnames get probed within minutes. (The `.pages.dev` URL is less exposed;
+it sits under a wildcard cert and is not individually logged.)
+
+So gate everything while the only public content is a blank page.
 
 ```bash
 cd "Project - Instapaper Archive"
 
-# 1. Build the site
+# 1. Create the project and deploy the BLANK placeholder
+wrangler pages project create reading-adamthede --production-branch main
+wrangler pages deploy site/placeholder --project-name reading-adamthede --branch main
+```
+
+**2. Now do all the gating, with nothing to leak:**
+
+- Pages -> reading-adamthede -> Custom domains -> add `reading.adamthede.com`
+  (the adamthede.com zone is already on Cloudflare: one click, automatic CNAME)
+- Same screen: **"Disable access to pages.dev subdomain"** — do this BEFORE
+  the Access app. An Access policy on the custom domain alone still leaves
+  per-deployment `<hash>.reading-adamthede.pages.dev` previews open.
+- Zero Trust -> Access -> Applications -> Add application (details below)
+- **Verify**: load `https://reading.adamthede.com` in a private window and
+  confirm you hit the Access login wall. Do this on the blank page, before
+  there is anything worth protecting.
+
+```bash
+# 3. Only after the login wall is confirmed: build and deploy the real site
 INSTAPAPER_VAULT_PATH="/Volumes/AST/Library/Articles/Instapaper-Matter-Archive" \
   .venv/bin/python site/generate.py --out _site
-
-# 2. Create the Pages project and deploy (wrangler lives under volta)
-wrangler pages project create reading-adamthede --production-branch main
 wrangler pages deploy _site --project-name reading-adamthede --branch main
-
-# 3. Custom domain: Cloudflare dashboard -> Pages -> reading-adamthede ->
-#    Custom domains -> add reading.adamthede.com (the adamthede.com zone is
-#    already on Cloudflare, so this is one click + automatic CNAME).
 ```
+
+`site/placeholder/` is committed (a blank dark page plus a
+`Disallow: /` robots.txt) so this sequence is repeatable — for a rebuild of
+the project, a staging copy, or any future private launch.
 
 ## Private-first (DECIDED 2026-08-19: Adam - like the rest of the portfolio)
 
