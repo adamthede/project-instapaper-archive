@@ -372,6 +372,10 @@ def sibling_clusters(X, labels, clusters, limit, similarity, per_entry=8):
     np.add.at(sums, labels, X)
     counts = np.bincount(labels, minlength=n_clusters).reshape(-1, 1)
     centroids = sums / np.maximum(counts, 1)
+    # Re-normalise or the dot product below is not a cosine at all: a mean of
+    # unit vectors is shorter than unit, by an amount that varies with how
+    # tight the cluster is, so an unnormalised "similarity" would
+    # systematically favour singleton clusters.
     centroids /= np.maximum(np.linalg.norm(centroids, axis=1, keepdims=True), 1e-12)
 
     # clusters[] is the ranked order; map rank -> the label it came from.
@@ -395,6 +399,40 @@ def sibling_clusters(X, labels, clusters, limit, similarity, per_entry=8):
             "similarity": round(float(sims[j]), 3),
             "members": clusters[rest_ranks[j]]["members"],
         } for j in ranked]
+    return out
+
+
+def max_fold_curves(clusters, inventory, limit, points=(20, 50, 250)):
+    """The CEILING: per-column coverage if every offered sibling were folded in.
+
+    The gate can only reassemble what it shows, so "does curating this page
+    clear the 40% bar?" has an upper bound, and it is worth knowing before
+    spending an afternoon on 250 decisions rather than after. Measured on this
+    corpus the answer is no — maximal folding reaches ~31% and ~37% at top-20
+    against the two columns — which turns "merge the axes" from one option
+    into the only route to a per-column pass at k=20.
+    """
+    folded = []
+    for cluster in clusters[:limit]:
+        members = list(cluster["members"])
+        for sib in cluster.get("siblings") or []:
+            members.extend(sib["members"])
+        folded.append(members)
+
+    out = {}
+    for field in inventory.fields:
+        scored = sorted((inventory.article_set(m, field=field) for m in folded),
+                        key=len, reverse=True)
+        curve, seen = [], set()
+        at = 0
+        for n in sorted(set(points)):
+            while at < min(n, len(scored)):
+                seen |= scored[at]
+                at += 1
+            curve.append({"n": n, "articles": len(seen),
+                          "coverage": round(len(seen) / inventory.n_articles * 100, 1)
+                          if inventory.n_articles else 0.0})
+        out[field] = curve
     return out
 
 
@@ -464,9 +502,11 @@ def main(argv=None):
                     help="components: mutual-kNN connected components, seconds. "
                          "average: structured average linkage, higher quality "
                          "in principle but did not finish on 73k strings.")
-    ap.add_argument("--siblings-for", type=int, default=300,
+    ap.add_argument("--siblings-for", type=int, default=common.GATE_LIMIT,
                     help="attach off-page look-alike clusters to this many "
-                         "ranked entries, so the gate can repair fragmentation")
+                         "ranked entries, so the gate can repair fragmentation. "
+                         "Must match gate.py --limit; both default to "
+                         "common.GATE_LIMIT for that reason.")
     ap.add_argument("--sibling-similarity", type=float, default=0.80,
                     help="centroid similarity for calling two clusters "
                          "relatives; deliberately looser than --similarity")
@@ -571,6 +611,10 @@ def main(argv=None):
     print(f"\n  {len(siblings):,} of the top {args.siblings_for} entries have "
           f"off-page relatives at similarity >= {args.sibling_similarity}")
 
+    ceiling = max_fold_curves(clusters, inv, args.siblings_for)
+    print("  ceiling if EVERY offered sibling were folded in (top-20): " +
+          ", ".join(f"{f} {c[0]['coverage']}%" for f, c in ceiling.items()))
+
     out = Path(args.out or Path(args.data_dir) / "clusters.json")
     out.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -595,7 +639,11 @@ def main(argv=None):
         # figures) is the wrong one.
         "free_text_curve": free_text_baseline(inv),
         "naive_baseline": naive_baseline(inv),
-        "clusters": [{k: v for k, v in c.items() if not k.startswith("_")}
+        "max_fold_curves": ceiling,
+        # `label` is the pre-ranking row id, needed while computing centroids
+        # and meaningless afterwards; it does not belong in 54,226 records.
+        "clusters": [{k: v for k, v in c.items()
+                      if not k.startswith("_") and k != "label"}
                      for c in clusters],
     }
     out.write_text(json.dumps(payload, indent=1), encoding="utf-8")

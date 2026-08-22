@@ -8,6 +8,7 @@ the fake inspects the lock from inside the request, which is the only moment
 at which "is it held?" is a meaningful question.
 """
 import fcntl
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -84,8 +85,13 @@ class FakeEmbedSession:
         self.calls = 0
 
     def _vector(self, text):
-        rng = np.random.default_rng(abs(hash(text)) % (2 ** 32))
-        return rng.normal(size=self.dim).tolist()
+        # sha1, NOT hash(): Python randomises string hashing per process, so
+        # a hash()-seeded fake hands out different "embeddings" on every run.
+        # That made a clustering assertion pass alone and fail in the full
+        # suite, which is a test reporting on PYTHONHASHSEED rather than on
+        # the code.
+        seed = int.from_bytes(hashlib.sha1(text.encode()).digest()[:4], "big")
+        return np.random.default_rng(seed).normal(size=self.dim).tolist()
 
     def post(self, url, timeout=None, json=None):
         self.calls += 1
@@ -459,6 +465,120 @@ def test_siblings_find_off_page_relatives_and_never_on_page_ones():
     for entry_siblings in found.values():
         assert all(s["rank"] >= 2 for s in entry_siblings), \
             "a sibling must be OFF the page, never an entry already shown"
+
+
+def test_cluster_main_writes_every_block_the_gate_reads(tmp_path, monkeypatch):
+    """A smoke test over cluster.main(), which nothing covered.
+
+    Four separate regressions could ship silently for want of this: dropping
+    the chaining check from the write path, dropping siblings entirely,
+    dropping either baseline. Each is a one-line deletion in main() that no
+    unit test touches, and the artifact is what a human then decides from.
+    """
+    spec = {}
+    for i in range(1, 41):
+        spec[i] = ([f"concept {i % 7}"], [f"topic {i % 5}"])
+    rows = make_rows(spec)
+    index = tmp_path / "index.parquet"
+    rows.to_parquet(index)
+
+    inv = common.Inventory(rows)
+    data_dir = tmp_path / "vocab"
+    embed_mod.run(data_dir, inv.strings, batch_size=8,
+                  session=FakeEmbedSession(dim=6), progress=lambda *_: None)
+
+    monkeypatch.setattr(common, "load_rows", lambda *_a, **_k: rows)
+    cluster_mod.main(["--data-dir", str(data_dir), "--index", str(index),
+                      # tight enough that 12 random fake vectors stay apart,
+                      # so there are clusters BELOW the sibling window for
+                      # siblings to be drawn from
+                      "--similarity", "0.99", "--dims", "4", "--neighbors", "3",
+                      "--siblings-for", "3", "--sibling-similarity", "-1.0",
+                      "--out", str(tmp_path / "clusters.json")])
+
+    payload = json.loads((tmp_path / "clusters.json").read_text())
+    assert len(payload["clusters"]) > 3, \
+        "fixture must produce more clusters than the sibling window, or " \
+        "there is nothing off-page for siblings to come from"
+    for block in ("coverage_curve", "column_curves", "chaining",
+                  "free_text_curve", "naive_baseline", "max_fold_curves"):
+        assert payload.get(block), f"{block} missing from the written artifact"
+    assert set(payload["column_curves"]) == {"concepts", "topics"}
+    assert any(c.get("siblings") for c in payload["clusters"]), \
+        "the sibling feature can vanish and nothing would notice"
+    assert payload["params"]["method"] == "components"
+    assert "linkage" not in payload["params"], \
+        "the artifact must not name the abandoned method"
+    assert all("label" not in c for c in payload["clusters"]), \
+        "the internal pre-ranking label does not belong in the artifact"
+
+
+def test_the_sibling_window_matches_the_page_window():
+    """Off-by-fifty here makes 50 clusters invisible: not rendered, and not
+    offered as anyone's sibling either. It swallowed "Privacy Concerns"
+    (rank 279), the fourth-largest privacy cluster, on a page whose whole
+    purpose is reassembling fragmented concepts. Both defaults must come from
+    the one constant rather than being written out twice.
+    """
+    cluster_src = Path(cluster_mod.__file__).read_text()
+    gate_src = Path(gate_mod.__file__).read_text()
+    assert '"--siblings-for", type=int, default=common.GATE_LIMIT' in cluster_src
+    assert '"--limit", type=int, default=common.GATE_LIMIT' in gate_src
+
+
+def test_column_curve_reranks_within_the_field():
+    """Re-ranking is not cosmetic: it is the number the verdict turns on.
+
+    A cluster's rank in the POOLED list is not its rank among the articles
+    one column tagged. Scoring the pooled order against a single column
+    understates it — on the real corpus, concepts would read 25.4% instead of
+    28.9%.
+
+    Here: cluster "big" leads pooled (3 articles) but touches `topics` only
+    once, while "small" leads within topics. Taking the top ONE by the pooled
+    order gives 1 article; re-ranked it gives 2.
+    """
+    rows = make_rows({
+        1: (["big"], []), 2: (["big"], []), 3: (["big"], ["big"]),
+        4: ([], ["small"]), 5: ([], ["small"]),
+    })
+    inv = common.Inventory(rows)
+    clusters = cluster_mod.assemble(np.array([0, 1]), ["big", "small"], inv)
+    assert clusters[0]["members"] == ["big"], "pooled ranking puts big first"
+
+    curve = cluster_mod.column_curve(clusters, inv, "topics", points=(1,))
+    assert curve[0]["articles"] == 2, \
+        "top-1 within topics is `small` (2 articles), not `big` (1)"
+
+
+def test_max_fold_ceiling_counts_siblings_and_stays_per_column():
+    rows = make_rows({1: (["a"], []), 2: (["b"], []), 3: ([], ["c"]), 4: ([], [])})
+    inv = common.Inventory(rows)
+    clusters = [{"members": ["a"], "articles": 1,
+                 "siblings": [{"rank": 9, "articles": 1, "similarity": 0.9,
+                               "members": ["b"]}]}]
+    ceiling = cluster_mod.max_fold_curves(clusters, inv, 1, points=(20,))
+    # Folding "b" in takes the concepts column from 1 article to 2 of 4.
+    assert ceiling["concepts"][0]["coverage"] == 50.0
+    assert ceiling["topics"][0]["coverage"] == 0.0, "scored per column, not pooled"
+
+
+def test_sibling_centroids_are_normalised_before_comparison():
+    """Unnormalised centroids make the dot product favour tight clusters.
+
+    Two clusters pointing the same direction must score ~1.0 regardless of
+    how many members each has.
+    """
+    X = np.array([[1.0, 0.0]] * 10 + [[1.0, 0.0]], dtype=np.float64)
+    X[:10] += np.array([0.0, 0.3])       # a loose cluster, shorter mean
+    X /= np.linalg.norm(X, axis=1, keepdims=True)
+    labels = np.array([0] * 10 + [1], dtype=np.int64)
+    clusters = [{"label": 0, "members": ["loose"], "articles": 9, "size": 10},
+                {"label": 1, "members": ["tight"], "articles": 1, "size": 1}]
+    found = cluster_mod.sibling_clusters(X, labels, clusters, limit=1,
+                                         similarity=0.9)
+    assert found, "same-direction clusters must be recognised as relatives"
+    assert found[0][0]["similarity"] <= 1.0001, "a cosine cannot exceed 1"
 
 
 def test_siblings_are_empty_when_nothing_is_close_enough():

@@ -353,17 +353,21 @@ SCRIPT = """
         lines.push('    review: ' + yamlString(rec.decision + (rec.note ? ': ' + rec.note : '')));
       }
       lines.push('    aliases:');
-      var seen = {};
+      // A Set, not an object: a plain object drops an alias literally named
+      // "__proto__" (verified — it vanishes from the draft), and Object.keys
+      // hoists integer-like strings such as "1984" to the front. A Set has
+      // neither behaviour and keeps insertion order.
+      var seen = new Set();
       entry.querySelectorAll('.chip .s').forEach(function (chip) {
-        seen[chip.textContent] = 1;
+        seen.add(chip.textContent);
       });
       // Ticked look-alike clusters fold their strings in here. This is the
       // whole point of the sibling list: a concept fragmented across a dozen
       // clusters becomes ONE entry with all of their aliases.
       entry.querySelectorAll('.sib.on .s').forEach(function (chip) {
-        seen[chip.textContent] = 1;
+        seen.add(chip.textContent);
       });
-      Object.keys(seen).forEach(function (alias) {
+      seen.forEach(function (alias) {
         lines.push('      - ' + yamlString(alias));
       });
     });
@@ -577,6 +581,25 @@ def render(entries, payload, inventory, curve):
     caveat = ""
     if verdict == "fail":
         under = ", ".join(f"{f} {v:.1f}%" for f, v in column20.items() if v < bar)
+
+        def at(points, n):
+            return next((p["coverage"] for p in (points or []) if p["n"] == n), 0.0)
+
+        # Both escape hatches are quoted PER COLUMN. An earlier version
+        # reached for the pooled top-250 figure here, which re-committed the
+        # very category error the rest of this page exists to correct.
+        deep = ", ".join(f"{f} {at(p, 250):.1f}%" for f, p in columns.items())
+        ceiling = payload.get("max_fold_curves") or {}
+        ceiling_txt = ""
+        if ceiling:
+            best = ", ".join(f"{f} {at(p, 20):.1f}%" for f, p in ceiling.items())
+            ceiling_txt = (
+                f' And this is a ceiling, not a starting point: even if every '
+                f'look-alike cluster offered on this page were folded into its '
+                f'entry, top-20 would reach only {e(best)}. <b>No amount of '
+                f'curating this page clears {bar:.0f}% per column at k=20</b> '
+                f'&mdash; merging is the only route there.')
+
         caveat = (
             f'<div class="caveat"><b>The {bar:.0f}% bar is not cleared per '
             f'column.</b> Pooled across both fields the head reaches '
@@ -585,11 +608,9 @@ def render(entries, payload, inventory, curve):
             f'do not switch on automatically from this run</b> unless the two '
             f'axes are merged into a single vocabulary &mdash; which is '
             f'exactly the open axis question, now with a number attached to '
-            f'it. The alternative reading: at the taxonomy size actually being '
-            f'proposed the pooled head reaches '
-            f'{next((p["coverage"] for p in curve if p["n"] == 250), 0):.1f}% '
-            f'by top-250, and a 20-entry test may simply be the wrong bar for '
-            f'a curated vocabulary.</div>')
+            f'it.{ceiling_txt} The other reading is that k=20 is the wrong '
+            f'test for a curated vocabulary: at the size actually proposed, '
+            f'top-250 reaches {e(deep)} against those same columns.</div>')
 
     chain = payload.get("chaining") or {}
     banner = ""
@@ -661,8 +682,10 @@ def main(argv=None):
     ap.add_argument("--clusters", default=None)
     ap.add_argument("--names", default=None)
     ap.add_argument("--out", default=None)
-    ap.add_argument("--limit", type=int, default=250,
-                    help="how many ranked clusters to put on the page")
+    ap.add_argument("--limit", type=int, default=common.GATE_LIMIT,
+                    help="how many ranked clusters to put on the page. Must "
+                         "match cluster.py --siblings-for; both default to "
+                         "common.GATE_LIMIT so the windows cannot drift.")
     args = ap.parse_args(argv)
 
     data_dir = Path(args.data_dir)

@@ -157,6 +157,15 @@ def chat(prompt, model=None, temperature=0.2, max_tokens=400, session=None):
 
 FIELDS = ("concepts", "topics")
 
+# How many ranked entries the gate renders, and therefore how many get
+# siblings computed. The two MUST agree and so they live in one place: when
+# cluster.py computed siblings for 300 entries while gate.py rendered 250,
+# ranks 250-299 were neither shown nor offerable as anyone's sibling — a
+# 50-cluster hole that swallowed "Privacy Concerns" (rank 279, 62 articles),
+# the fourth-largest privacy cluster, from a page whose whole purpose is
+# reassembling fragmented concepts.
+GATE_LIMIT = 250
+
 
 def load_rows(index_path=None):
     """The site's corpus rows — same filters, same population, same index."""
