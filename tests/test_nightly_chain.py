@@ -44,6 +44,17 @@ def test_venv_python_honours_the_override(tmp_path, monkeypatch):
 
 # ---- deploy refuses to publish the wrong thing -----------------------------
 
+@pytest.fixture(autouse=True)
+def _no_accidental_publishing(monkeypatch):
+    """Belt and braces for the 2026-08-21 incident: no test in this file may
+    publish unless it opts in the way the nightly does."""
+    monkeypatch.delenv(sync_module.DEPLOY_OPT_IN_ENV, raising=False)
+
+
+def _allow_deploy(monkeypatch):
+    monkeypatch.setenv(sync_module.DEPLOY_OPT_IN_ENV, "1")
+
+
 def _good_site(repo: Path) -> Path:
     site = repo / sync_module.SITE_DIR_NAME
     site.mkdir(parents=True)
@@ -71,6 +82,7 @@ def test_deploy_refuses_a_marked_dir_with_no_index(tmp_path):
 
 
 def test_deploy_fails_loudly_when_wrangler_is_absent(tmp_path, monkeypatch):
+    _allow_deploy(monkeypatch)
     _good_site(tmp_path)
     monkeypatch.setattr(sync_module.shutil, "which", lambda _n: None)
     monkeypatch.setattr(sync_module.Path, "home", classmethod(lambda cls: tmp_path / "nohome"))
@@ -79,6 +91,7 @@ def test_deploy_fails_loudly_when_wrangler_is_absent(tmp_path, monkeypatch):
 
 def test_deploy_falls_back_to_volta_when_not_on_path(tmp_path, monkeypatch):
     # The launchd gotcha: minimal PATH, wrangler only under ~/.volta/bin.
+    _allow_deploy(monkeypatch)
     _good_site(tmp_path)
     volta = tmp_path / "home" / ".volta" / "bin"
     volta.mkdir(parents=True)
@@ -98,6 +111,7 @@ def test_deploy_falls_back_to_volta_when_not_on_path(tmp_path, monkeypatch):
 
 
 def test_deploy_reports_failure_on_nonzero_exit(tmp_path, monkeypatch):
+    _allow_deploy(monkeypatch)
     _good_site(tmp_path)
     monkeypatch.setattr(sync_module.shutil, "which", lambda _n: "/usr/bin/wrangler")
     monkeypatch.setattr(sync_module.subprocess, "run",
@@ -106,6 +120,7 @@ def test_deploy_reports_failure_on_nonzero_exit(tmp_path, monkeypatch):
 
 
 def test_deploy_survives_a_timeout_without_raising(tmp_path, monkeypatch):
+    _allow_deploy(monkeypatch)
     _good_site(tmp_path)
     monkeypatch.setattr(sync_module.shutil, "which", lambda _n: "/usr/bin/wrangler")
 
@@ -235,3 +250,197 @@ def test_legs_not_requested_are_absent(exporter, monkeypatch):
     legs = exporter.run_post_sync_legs(
         _Args(rebuild_site=False, deploy=False), _result(new=1))
     assert "rebuild_site" not in legs and "deploy" not in legs
+
+
+# ---- main() itself: the claim "the heartbeat covers the whole night" -------
+# Round-1 review: FOUR mutants survived because no test ever called main() -
+# leg_failed detection, outcome="fail", the exit-code term and finished_at
+# could all be reverted with the suite green. These call it for real.
+
+@pytest.fixture
+def main_harness(exporter, tmp_path, monkeypatch):
+    """main() driven past the network, with the legs swappable."""
+    from matter.state import utcnow
+    hb = tmp_path / "hb.json"
+    vault = tmp_path / "vault"
+    (vault / "matter").mkdir(parents=True)
+    monkeypatch.setenv("INSTAPAPER_VAULT_PATH", str(vault))
+
+    state = {"result": None}
+
+    def fake_run_sync(config, client=None):
+        r = sync_module.SyncResult(started_at=utcnow(), outcome="ok")
+        r.finished_at = utcnow()
+        r.new = 1
+        state["result"] = r
+        return r
+
+    monkeypatch.setattr(exporter, "run_sync", fake_run_sync)
+    monkeypatch.setattr(exporter, "load_token", lambda *a, **k: "mat_x")
+    monkeypatch.setattr(exporter, "looks_like_matter_token", lambda _t: True)
+    monkeypatch.setattr(exporter, "MatterClient", lambda *a, **k: object())
+    monkeypatch.setattr(sys, "argv", [
+        "export_matter_to_archive.py", "--full", "--enrich-local",
+        "--rebuild-index", "--rebuild-site", "--deploy",
+        "--heartbeat", str(hb), "--quiet"])
+    return exporter, hb, state
+
+
+def test_main_writes_fail_to_the_heartbeat_when_the_deploy_fails(main_harness, monkeypatch):
+    exporter, hb, _ = main_harness
+    monkeypatch.setattr(exporter.sync_module, "enrich_local", lambda _r: False)
+    monkeypatch.setattr(exporter.sync_module, "rebuild_index", lambda _r: True)
+    monkeypatch.setattr(exporter.sync_module, "rebuild_site", lambda _r: True)
+    monkeypatch.setattr(exporter.sync_module, "deploy_site", lambda _r: False)
+
+    code = exporter.main()
+
+    written = json.loads(hb.read_text())
+    assert code == 1, "a failed publish must fail the process"
+    assert written["outcome"] == "fail"
+    assert written["legs"]["deploy"] == "fail"
+    assert written["errors"] == 0, "the sync itself was clean; the night still failed"
+
+
+def test_main_reports_ok_and_zero_when_every_leg_passes(main_harness, monkeypatch):
+    exporter, hb, _ = main_harness
+    for name in ("rebuild_index", "rebuild_site", "deploy_site"):
+        monkeypatch.setattr(exporter.sync_module, name, lambda _r: True)
+    monkeypatch.setattr(exporter.sync_module, "enrich_local", lambda _r: True)
+
+    assert exporter.main() == 0
+    written = json.loads(hb.read_text())
+    assert written["outcome"] == "ok"
+    assert written["legs"] == {"enrich": "wrote", "rebuild_index": "ok",
+                               "rebuild_site": "ok", "deploy": "ok"}
+
+
+def test_main_finished_at_covers_the_legs_not_just_the_sync(main_harness, monkeypatch):
+    exporter, hb, state = main_harness
+    import time as _t
+    monkeypatch.setattr(exporter.sync_module, "enrich_local", lambda _r: False)
+    monkeypatch.setattr(exporter.sync_module, "rebuild_index", lambda _r: True)
+    monkeypatch.setattr(exporter.sync_module, "rebuild_site", lambda _r: True)
+    monkeypatch.setattr(exporter.sync_module, "deploy_site",
+                        lambda _r: (_t.sleep(1.1), True)[1])
+
+    sync_finished = None
+    exporter.main()
+    sync_finished = state["result"]
+    written = json.loads(hb.read_text())
+    # A slow publish must show up in the night's duration, or the cockpit
+    # reports a 20-minute night as a 90-second one.
+    from datetime import datetime
+    started = datetime.fromisoformat(written["started_at"].replace("Z", "+00:00"))
+    finished = datetime.fromisoformat(written["finished_at"].replace("Z", "+00:00"))
+    assert (finished - started).total_seconds() >= 1.0
+    assert sync_finished is not None
+
+
+def test_main_heartbeats_fail_when_a_leg_RAISES(main_harness, monkeypatch):
+    """Round-1 review finding (a): an exception escaping a leg skipped the
+    heartbeat write entirely, leaving yesterday's 'ok' on disk."""
+    exporter, hb, _ = main_harness
+    hb.write_text(json.dumps({"started_at": "2026-08-20T09:45:00Z",
+                              "finished_at": "2026-08-20T10:45:00Z",
+                              "outcome": "ok", "legs": {"deploy": "ok"}}))
+    monkeypatch.setattr(exporter.sync_module, "enrich_local", lambda _r: False)
+
+    def boom(_r):
+        raise PermissionError("NAS went away mid-rebuild")
+
+    monkeypatch.setattr(exporter.sync_module, "rebuild_index", boom)
+
+    with pytest.raises(PermissionError):
+        exporter.main()
+
+    written = json.loads(hb.read_text())
+    assert written["outcome"] == "fail", "yesterday's green must not survive a crash"
+    assert "PermissionError" in json.dumps(written["legs"])
+    assert "NAS went away" in (written["error"] or "")
+
+
+# ---- the detection the skip-on-failed-build logic depends on ---------------
+
+def test_rebuild_site_treats_a_nonzero_exit_as_failure(tmp_path, monkeypatch):
+    """The surviving mutant that would cause a genuine silent stale publish:
+    ignore generate.py's exit code and deploy ships the OLD site under a
+    green heartbeat."""
+    (tmp_path / "site").mkdir()
+    (tmp_path / "site" / "generate.py").write_text("")
+    venv = tmp_path / ".venv" / "bin"
+    venv.mkdir(parents=True)
+    (venv / "python").write_text("")
+    monkeypatch.setattr(sync_module.subprocess, "run",
+                        lambda cmd, **kw: subprocess.CompletedProcess(cmd, 2, "", "boom"))
+    assert sync_module.rebuild_site(tmp_path) is False
+
+
+def test_rebuild_site_survives_a_timeout(tmp_path, monkeypatch):
+    (tmp_path / "site").mkdir()
+    (tmp_path / "site" / "generate.py").write_text("")
+    venv = tmp_path / ".venv" / "bin"
+    venv.mkdir(parents=True)
+    (venv / "python").write_text("")
+
+    def boom(cmd, **kw):
+        raise subprocess.TimeoutExpired(cmd, 3600)
+
+    monkeypatch.setattr(sync_module.subprocess, "run", boom)
+    assert sync_module.rebuild_site(tmp_path) is False
+
+
+def test_rebuild_index_survives_a_timeout(tmp_path, monkeypatch):
+    """The one leg that let TimeoutExpired escape - and the most reachable
+    trigger, since the 2026-08-21 run spent 53 minutes scanning the NAS."""
+    (tmp_path / "scripts" / "core").mkdir(parents=True)
+    (tmp_path / "scripts" / "core" / "build_index.py").write_text("")
+    monkeypatch.setattr(sync_module, "resolve_vault_path", lambda: tmp_path)
+
+    def boom(cmd, **kw):
+        raise subprocess.TimeoutExpired(cmd, 3600)
+
+    monkeypatch.setattr(sync_module.subprocess, "run", boom)
+    assert sync_module.rebuild_index(tmp_path) is False
+
+
+def test_deploy_targets_the_configured_pages_project(tmp_path, monkeypatch):
+    # The old test asserted "--project-name" was present, not its value, so a
+    # typo'd destination passed.
+    _allow_deploy(monkeypatch)
+    _good_site(tmp_path)
+    monkeypatch.setattr(sync_module.shutil, "which", lambda _n: "/usr/bin/wrangler")
+    seen = {}
+
+    def fake_run(cmd, **kw):
+        seen["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0, "ok", "")
+
+    monkeypatch.setattr(sync_module.subprocess, "run", fake_run)
+    assert sync_module.deploy_site(tmp_path) is True
+    i = seen["cmd"].index("--project-name")
+    assert seen["cmd"][i + 1] == sync_module.PAGES_PROJECT == "reading-adamthede"
+    assert seen["cmd"][seen["cmd"].index("--branch") + 1] == "main"
+
+
+def test_deploy_refuses_without_the_opt_in(tmp_path, monkeypatch):
+    """The 2026-08-21 incident: an adversarial review probing the guards
+    published its fixtures to the live site seven times, because reaching
+    deploy_site at all is enough to publish."""
+    _good_site(tmp_path)
+    invoked = []
+    monkeypatch.setattr(sync_module.shutil, "which", lambda _n: "/usr/bin/wrangler")
+    monkeypatch.setattr(sync_module.subprocess, "run",
+                        lambda cmd, **kw: invoked.append(cmd) or None)
+    assert sync_module.deploy_site(tmp_path) is False
+    assert invoked == [], "no wrangler call may happen without the opt-in"
+
+
+def test_the_opt_in_must_be_exactly_one(tmp_path, monkeypatch):
+    _good_site(tmp_path)
+    monkeypatch.setattr(sync_module.shutil, "which", lambda _n: "/usr/bin/wrangler")
+    monkeypatch.setattr(sync_module.subprocess, "run",
+                        lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, "", ""))
+    for value in ("", "0", "true", "yes"):
+        monkeypatch.setenv(sync_module.DEPLOY_OPT_IN_ENV, value)
+        assert sync_module.deploy_site(tmp_path) is False, value

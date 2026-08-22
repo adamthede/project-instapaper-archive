@@ -95,6 +95,11 @@
         <string>/Users/adam_thede</string>
         <!-- Where the Markdown archive lives. Must match the value used by
              build_index.py and the rest of the pipeline. -->
+        <!-- Publishing is opt-in: deploy_site refuses without this, so a
+             test, mutation run or review that reaches it cannot publish to
+             the live site (which happened on 2026-08-21). -->
+        <key>READING_DEPLOY</key>
+        <string>1</string>
         <key>INSTAPAPER_VAULT_PATH</key>
         <string>/Volumes/AST/Library/Articles/Instapaper-Matter-Archive</string>
     </dict>
