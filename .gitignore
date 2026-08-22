@@ -98,3 +98,7 @@ BLOG_POST_PROJECT_NARRATIVE.md
 .matter_manifest.json
 .matter_url_index.json
 _site/
+
+# Controlled-vocabulary derivation artifacts (Phase A). The embedding cache is
+# ~15 GPU-minutes and 220 MB; clusters/names/gate are all reproducible from it.
+data/vocab/

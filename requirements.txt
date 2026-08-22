@@ -11,6 +11,10 @@ google-generativeai>=0.3.0
 ollama>=0.1.6
 python-frontmatter>=1.0.0
 
+# Controlled vocabulary derivation (scripts/vocab/) — PCA, kNN graph, and
+# structured agglomerative clustering over the concept/topic embeddings.
+scikit-learn>=1.5.0
+
 # Dashboard & Analytics
 streamlit>=1.32.0
 pandas>=2.0.0
