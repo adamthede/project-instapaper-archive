@@ -32,6 +32,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = REPO_ROOT / "data"
 INDEX_PATH = DATA_DIR / "archive_index.parquet"
 
+# Vault subdirectories this pipeline WRITES to, which must never be read back
+# in as articles. Keep in sync with the same-named set in matter/vaultindex.py.
+NON_ARTICLE_DIRS = {"synthesis"}
+
 def parse_article(file_path):
     """
     Parses a single Markdown file to extract frontmatter and metrics.
@@ -253,9 +257,20 @@ def build_index():
         return
 
     records = []
-    # Scan for markdown files, excluding macOS resource fork files (._*)
+    # Scan for markdown files, excluding macOS resource fork files (._*) and
+    # any vault subdirectory that holds something other than articles.
+    #
+    # synthesis/ holds the WEEKLY DIGESTS this pipeline writes about the
+    # archive - they are output, not input. Indexing them made 854 digests
+    # masquerade as articles (source "unknown", ~440 words each), inflating
+    # every count on the site by 854 articles and 374,241 words until
+    # 2026-08-22. Anything this pipeline writes INTO the vault belongs here.
     all_md_files = VAULT_PATH.rglob("*.md")
-    files = [f for f in all_md_files if not f.name.startswith("._")]
+    files = [
+        f for f in all_md_files
+        if not f.name.startswith("._")
+        and not any(part in NON_ARTICLE_DIRS for part in f.relative_to(VAULT_PATH).parts[:-1])
+    ]
     print(f"Found {len(files)} Markdown files.")
 
     for i, file_path in enumerate(files):
