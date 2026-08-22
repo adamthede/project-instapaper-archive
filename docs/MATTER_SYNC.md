@@ -708,6 +708,26 @@ The vault scan is still the fallback, and still correct. If the subprocess
 times out, crashes, or returns anything unexpected, the run degrades to the
 scan rather than failing.
 
+### What is not an article
+
+The vault holds this pipeline's own output alongside the archive, and none of
+it should be read back in as an article. `NON_ARTICLE_DIRS` in
+`scripts/matter/vaultindex.py` is the canonical list -- currently
+`{"synthesis"}`, the 854 weekly digests written *about* the archive.
+
+`build_url_index` unions that set into whatever `skip_dirs` the caller passes,
+rather than trusting callers to remember: `run_sync` passes only
+`{config.subdir}`, and a caller who forgets gets a silently wrong index. All
+three sources honour it, the Parquet ones included -- the index still contains
+every digest until `build_index.py` stops writing them and a rebuild runs.
+
+The constant lives in `vaultindex.py` and not in `build_index.py`, which needs
+the same set, because **the dependency can only point one way**: `vaultindex.py`
+uses the standard library only and so is import-safe under the launchd
+interpreter, while `build_index.py` imports pandas, frontmatter, textstat and
+dotenv at module scope. The light side owns the shared fact; the heavy side
+imports it.
+
 **Measured 2026-08-22**, against the real vault and the real index:
 
 | source | wall time | URLs |

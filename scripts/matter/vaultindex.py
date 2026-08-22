@@ -44,6 +44,17 @@ CACHE_VERSION = 1
 # of holding the 04:45 nightly open.
 PARQUET_SUBPROCESS_TIMEOUT = 300
 
+# Vault subdirectories this pipeline WRITES to, which must never be read back in
+# as articles. `synthesis/` holds the weekly digests written ABOUT the archive --
+# 854 of them as of 2026-08-22.
+#
+# Canonical here rather than in scripts/core/build_index.py, which needs the same
+# set: this module is import-safe under the launchd interpreter because it uses
+# only the standard library, while build_index.py imports pandas, frontmatter,
+# textstat and dotenv at module scope. The dependency can only point one way, so
+# the shared fact lives on the light side and the heavy side imports it.
+NON_ARTICLE_DIRS = {"synthesis"}
+
 # Matches `original_url: "https://..."` in a frontmatter block. Deliberately a
 # regex over the file head rather than a YAML parse: this runs over ~17,600
 # files and only ever needs one key.
@@ -289,7 +300,11 @@ def build_url_index(
     and a promise with an exception in it is not one Adam can act on.
     """
     vault_path = Path(vault_path)
-    skip_dirs = skip_dirs or set()
+    # Unioned in rather than left to the caller: which directories hold this
+    # pipeline's own output is a property of the vault, not of anyone's config,
+    # and a caller who forgets gets a silently wrong index. Every source below
+    # is handed the same set, so all four honour it.
+    skip_dirs = (skip_dirs or set()) | NON_ARTICLE_DIRS
 
     # Both Parquet sources return before `_vault_fingerprint` runs, and that
     # ordering is the fix. The fingerprint os.stats all 18,491 vault files over

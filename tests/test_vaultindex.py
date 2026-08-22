@@ -32,6 +32,11 @@ PAIRS = [
     ["https://example.com/two", f"{VAULT_ROOT}/2020-two.md"],
     ["", f"{VAULT_ROOT}/no-url.pdf.md"],              # ~10,560 real rows look like this
     ["https://example.com/mine", f"{VAULT_ROOT}/matter/2026-mine.md"],  # our own output
+    # A weekly digest, and deliberately given a URL. The real 854 have none, so
+    # a fixture without one would pass whether or not synthesis/ is excluded --
+    # it would be proving that normalize_url drops empty strings, which is a
+    # different test. This one fails unless the directory itself is skipped.
+    ["https://example.com/digest", f"{VAULT_ROOT}/synthesis/2026-W33.md"],
 ]
 
 
@@ -292,6 +297,65 @@ def test_the_subprocess_is_not_tried_when_there_is_no_parquet(tmp_path, vault, m
 
     assert called == []
     assert index.source.startswith("vault scan")
+
+
+# --- the pipeline's own output is not an article ---------------------------
+
+def test_the_parquet_path_does_not_surface_weekly_digests(tmp_path, vault, parquet):
+    """The index contains all 854 digests until build_index.py stops writing
+    them (PR #15) and a rebuild runs, so excluding them has to happen here too
+    rather than being assumed of the upstream file."""
+    index = build_url_index(vault, parquet_path=parquet, skip_dirs={"matter"},
+                            write_cache=False)
+
+    assert index.lookup("https://example.com/digest") is None
+    assert index.source == "parquet (2 urls)"
+
+
+def test_the_subprocess_path_does_not_surface_weekly_digests(
+    tmp_path, vault, fake_parquet, monkeypatch
+):
+    monkeypatch.setattr("matter.vaultindex._read_parquet_pairs", lambda path: None)
+    stub = make_stub_python(tmp_path, f"json.dump({json.dumps(PAIRS)}, sys.stdout)")
+
+    index = build_url_index(vault, parquet_path=fake_parquet, skip_dirs={"matter"},
+                            write_cache=False, helper_python=stub)
+
+    assert index.lookup("https://example.com/digest") is None
+    assert index.source == "parquet subprocess (2 urls)"
+
+
+def test_the_vault_scan_skips_the_synthesis_directory(vault):
+    """854 digest files, 4.6% of the SMB walk. They are also rewritten whenever
+    a week is regenerated, which moves the newest mtime the scan cache is keyed
+    on -- the same invalidation this module already fights."""
+    write_vault_article(vault, "one.md", "https://example.com/one")
+    (vault / "synthesis").mkdir()
+    write_vault_article(vault, "synthesis/2026-W33.md", "https://example.com/digest")
+
+    index = build_url_index(vault, parquet_path=None, write_cache=False)
+
+    assert index.lookup("https://example.com/digest") is None
+    # "from 1 files" is the fingerprint's count: the digest is not walked at
+    # all, so it cannot inflate the file count or the cache key either.
+    assert index.source == "vault scan (1 urls from 1 files)"
+
+
+def test_a_caller_does_not_have_to_know_about_the_pipelines_own_output(vault):
+    """run_sync passes only {config.subdir}. Everything else has to be the
+    module's job, or a forgetful caller gets a silently wrong index."""
+    from matter.vaultindex import NON_ARTICLE_DIRS
+
+    write_vault_article(vault, "one.md", "https://example.com/one")
+    for name in NON_ARTICLE_DIRS:
+        (vault / name).mkdir()
+        write_vault_article(vault, f"{name}/thing.md", f"https://example.com/{name}")
+
+    index = build_url_index(vault, parquet_path=None, skip_dirs=None, write_cache=False)
+
+    for name in NON_ARTICLE_DIRS:
+        assert index.lookup(f"https://example.com/{name}") is None
+    assert index.source == "vault scan (1 urls from 1 files)"
 
 
 # --- source 3, and the degraded report -------------------------------------
