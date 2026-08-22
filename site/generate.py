@@ -905,9 +905,20 @@ def generate(synthesis_dir, out_dir, index_path=None):
             (d / "index.html").write_text(
                 render_week(m, prev_wk, next_wk, prev_meta), encoding="utf-8")
 
+        # Retire the old site by RENAME, not rmtree-then-replace. A kill
+        # during an rmtree leaves _site half-deleted, and a half-deleted site
+        # can still carry index.html + the marker - which is exactly what the
+        # nightly's deploy guard inspects before publishing. Renaming means
+        # _site is only ever the old site, briefly absent, or the new one:
+        # never partial. (It survived rmtree only by accident of APFS
+        # unlinking index.html first - an invariant nobody chose.)
+        retired = out.parent / (out.name + ".retiring")
+        if retired.exists():
+            shutil.rmtree(retired, ignore_errors=True)
         if out.exists():
-            shutil.rmtree(out)
+            os.replace(out, retired)
         os.replace(tmp, out)
+        shutil.rmtree(retired, ignore_errors=True)
     finally:
         # A failed swap must not strand a full rendered site on disk.
         if tmp.exists():

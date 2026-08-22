@@ -277,10 +277,27 @@ def main(argv=None) -> int:
             for example in result.error_examples:
                 print(f"  - {example['id']} {example['title']}: {example['error']}")
 
-    legs = run_post_sync_legs(args, result)
+    # An exception escaping a leg used to propagate out of main(), skipping
+    # the heartbeat write entirely - so the file kept YESTERDAY's content,
+    # which says outcome "ok". The cockpit still catches that (it compares
+    # started_at against the expected fire and calls it no-run), but it names
+    # the wrong problem: you go looking at launchd instead of at the chain.
+    # Every leg failure, raised or returned, must land in the heartbeat.
+    try:
+        legs = run_post_sync_legs(args, result)
+    except BaseException as exc:  # noqa: BLE001 - incl. KeyboardInterrupt/SystemExit
+        legs = dict(getattr(result, "legs", {}) or {})
+        legs["exception"] = f"fail: {type(exc).__name__}"
+        result.legs = legs
+        result.outcome = "fail"
+        result.error_message = f"{type(exc).__name__}: {exc}"[:500]
+        result.finished_at = utcnow()
+        if config.heartbeat_path and not args.dry_run:
+            write_heartbeat(config.heartbeat_path, result)
+        raise
 
     result.legs = legs
-    leg_failed = any(v == "fail" for v in legs.values())
+    leg_failed = any(v.startswith("fail") for v in legs.values())
     if leg_failed:
         result.outcome = "fail"
     if legs:

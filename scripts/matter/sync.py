@@ -889,10 +889,20 @@ def rebuild_index(repo_root: Path) -> bool:
         return False
 
     log.info("Rebuilding Parquet index with %s", interpreter)
-    completed = subprocess.run(
-        [str(interpreter), str(script)], cwd=str(repo_root),
-        capture_output=True, text=True, timeout=3600,
-    )
+    try:
+        completed = subprocess.run(
+            [str(interpreter), str(script)], cwd=str(repo_root),
+            capture_output=True, text=True, timeout=3600,
+        )
+    except subprocess.TimeoutExpired:
+        # The other three legs already caught this; only rebuild_index let it
+        # raise, which propagated out of main() and skipped the heartbeat
+        # write - leaving yesterday's "ok" on disk. Not hypothetical: the
+        # 2026-08-21 run spent 53 minutes just scanning 18,491 vault files
+        # over SMB, and build_index.py reads the same NAS.
+        log.error("build_index.py timed out after 1h. The Markdown files are "
+                  "written and safe; re-run it by hand.")
+        return False
     if completed.returncode != 0:
         log.error(
             "build_index.py failed (exit %s). The Markdown files are written and safe; "
