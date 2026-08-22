@@ -1,5 +1,7 @@
 """End-to-end sync behaviour, driven by a fake Matter client."""
 
+from pathlib import Path
+
 import pytest
 from conftest import FakeClient, make_annotation, make_item
 
@@ -1187,3 +1189,68 @@ def test_an_observed_transition_still_wins_when_it_is_genuine(vault):
         (vault / "matter" / "2026-08-11 – Newly read.md").read_text(encoding="utf-8"))
     assert metadata["date_saved_source"] == mapping.DATE_SOURCE_OBSERVED, \
         "watching it happen beats inferring from an old highlight"
+
+
+def test_run_sync_hands_the_dedupe_index_the_venv_interpreter(vault):
+    """The wiring the nightly depends on.
+
+    The launchd interpreter has no pyarrow, so build_url_index can only reach
+    the Parquet index if run_sync supplies one that does. Without this argument
+    the nightly silently walks 18,491 vault files over SMB instead -- which is
+    what it did every night until 2026-08-22, and it cost ~50 minutes a run.
+
+    Asserted against _venv_python rather than against a literal path: a git
+    worktree has no .venv beside it, and a test that only passes in the main
+    checkout would be testing the checkout, not the wiring.
+    """
+    import matter.sync as sync_module
+    from matter.vaultindex import UrlIndex
+
+    seen = {}
+    real_build = sync_module.build_url_index
+    try:
+        def spy(*args, **kwargs):
+            seen.update(kwargs)
+            return UrlIndex(source="test")
+        sync_module.build_url_index = spy
+        run_sync(config_for(vault), client=FakeClient([]))
+    finally:
+        sync_module.build_url_index = real_build
+
+    assert "helper_python" in seen, "run_sync must pass an interpreter for the Parquet read"
+    assert seen["helper_python"] == sync_module._venv_python(sync_module.REPO_ROOT)
+
+
+def test_the_venv_interpreter_is_found_beside_the_repo(tmp_path):
+    """What run_sync resolves in the real checkout, without depending on one."""
+    import matter.sync as sync_module
+
+    interpreter = tmp_path / ".venv" / "bin" / "python"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.write_text("#!/bin/sh\n")
+
+    assert sync_module._venv_python(tmp_path) == interpreter
+
+
+def test_the_helper_interpreter_honours_the_documented_override(vault, monkeypatch, tmp_path):
+    """MATTER_INDEX_PYTHON is how the other legs are repointed when the venv
+    moves; the dedupe read has to follow the same lever rather than invent one."""
+    import matter.sync as sync_module
+    from matter.vaultindex import UrlIndex
+
+    elsewhere = tmp_path / "other-python"
+    elsewhere.write_text("#!/bin/sh\n")
+    monkeypatch.setenv("MATTER_INDEX_PYTHON", str(elsewhere))
+
+    seen = {}
+    real_build = sync_module.build_url_index
+    try:
+        def spy(*args, **kwargs):
+            seen.update(kwargs)
+            return UrlIndex(source="test")
+        sync_module.build_url_index = spy
+        run_sync(config_for(vault), client=FakeClient([]))
+    finally:
+        sync_module.build_url_index = real_build
+
+    assert Path(seen["helper_python"]) == elsewhere

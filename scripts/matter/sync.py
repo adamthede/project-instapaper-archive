@@ -60,6 +60,11 @@ from .vaultindex import build_url_index
 
 log = logging.getLogger("matter.sync")
 
+# scripts/matter/sync.py -> the repo. The nightly entry point computes the same
+# thing from scripts/core/, but run_sync needs it too, to hand the venv
+# interpreter to the dedupe index.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
 DEFAULT_VAULT_ENV = "INSTAPAPER_VAULT_PATH"
 DEFAULT_VAULT = Path("~/Obsidian/Vault/Instapaper")
 DEFAULT_SUBDIR = "matter"
@@ -323,6 +328,10 @@ def run_sync(config: SyncConfig, *, client: MatterClient | None = None) -> SyncR
         parquet_path=config.parquet_path,
         skip_dirs={config.subdir} if config.subdir else set(),
         write_cache=not config.dry_run,
+        # The nightly interpreter has no pyarrow, so without an interpreter that
+        # does, the index has no way to reach the Parquet file and falls back to
+        # walking the vault over SMB -- which was most of the 58-minute run.
+        helper_python=_venv_python(REPO_ROOT),
     )
     result.dedupe_source = url_index.source
     result.dedupe_degraded = url_index.degraded
