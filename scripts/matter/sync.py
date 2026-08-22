@@ -969,14 +969,36 @@ def _wrangler() -> Path | None:
     return volta if volta.exists() else None
 
 
+DEPLOY_OPT_IN_ENV = "READING_DEPLOY"
+
+
 def deploy_site(repo_root: Path) -> bool:
     """Publish _site to Cloudflare Pages.
 
-    Refuses to deploy anything this generator did not produce: the directory
-    must exist, carry an index.html, and carry generate.py's own marker file.
-    Publishing is the one leg with a blast radius outside this machine, so it
-    checks what it is about to ship rather than trusting the path.
+    Requires READING_DEPLOY=1. That is not ceremony: PAGES_PROJECT is a
+    hardcoded LIVE target, so ANY caller reaching this function publishes to
+    the real website - including a test, a mutation run, or an adversarial
+    review probing whether the guards below hold. That is not hypothetical.
+    On 2026-08-21 a review agent asked exactly the right question ("does the
+    guard accept a foreign directory?"), answered it by calling this function,
+    and published its fixtures to reading.adamthede.com seven times. The
+    fixture that reached the live site literally read "someone else's site".
+
+    So publishing is now opt-in, set only by the nightly plist and by a
+    deliberate hand-run. Everything else refuses and says why.
+
+    Beyond that: refuses to deploy anything this generator did not produce -
+    the directory must exist, carry an index.html, and carry generate.py's
+    own marker. Publishing is the one leg with a blast radius outside this
+    machine, so it checks what it is about to ship rather than trusting a path.
     """
+    if os.environ.get(DEPLOY_OPT_IN_ENV) != "1":
+        log.error(
+            "Refusing to deploy: %s is not set to 1. This publishes to the "
+            "live project %r, so it must be opted into explicitly (the nightly "
+            "plist sets it). Nothing was published.",
+            DEPLOY_OPT_IN_ENV, PAGES_PROJECT)
+        return False
     site = repo_root / SITE_DIR_NAME
     if not (site / "index.html").exists() or not (site / SITE_MARKER).exists():
         log.error("Refusing to deploy %s: not a generated site (missing "

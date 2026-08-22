@@ -44,6 +44,17 @@ def test_venv_python_honours_the_override(tmp_path, monkeypatch):
 
 # ---- deploy refuses to publish the wrong thing -----------------------------
 
+@pytest.fixture(autouse=True)
+def _no_accidental_publishing(monkeypatch):
+    """Belt and braces for the 2026-08-21 incident: no test in this file may
+    publish unless it opts in the way the nightly does."""
+    monkeypatch.delenv(sync_module.DEPLOY_OPT_IN_ENV, raising=False)
+
+
+def _allow_deploy(monkeypatch):
+    monkeypatch.setenv(sync_module.DEPLOY_OPT_IN_ENV, "1")
+
+
 def _good_site(repo: Path) -> Path:
     site = repo / sync_module.SITE_DIR_NAME
     site.mkdir(parents=True)
@@ -71,6 +82,7 @@ def test_deploy_refuses_a_marked_dir_with_no_index(tmp_path):
 
 
 def test_deploy_fails_loudly_when_wrangler_is_absent(tmp_path, monkeypatch):
+    _allow_deploy(monkeypatch)
     _good_site(tmp_path)
     monkeypatch.setattr(sync_module.shutil, "which", lambda _n: None)
     monkeypatch.setattr(sync_module.Path, "home", classmethod(lambda cls: tmp_path / "nohome"))
@@ -79,6 +91,7 @@ def test_deploy_fails_loudly_when_wrangler_is_absent(tmp_path, monkeypatch):
 
 def test_deploy_falls_back_to_volta_when_not_on_path(tmp_path, monkeypatch):
     # The launchd gotcha: minimal PATH, wrangler only under ~/.volta/bin.
+    _allow_deploy(monkeypatch)
     _good_site(tmp_path)
     volta = tmp_path / "home" / ".volta" / "bin"
     volta.mkdir(parents=True)
@@ -98,6 +111,7 @@ def test_deploy_falls_back_to_volta_when_not_on_path(tmp_path, monkeypatch):
 
 
 def test_deploy_reports_failure_on_nonzero_exit(tmp_path, monkeypatch):
+    _allow_deploy(monkeypatch)
     _good_site(tmp_path)
     monkeypatch.setattr(sync_module.shutil, "which", lambda _n: "/usr/bin/wrangler")
     monkeypatch.setattr(sync_module.subprocess, "run",
@@ -106,6 +120,7 @@ def test_deploy_reports_failure_on_nonzero_exit(tmp_path, monkeypatch):
 
 
 def test_deploy_survives_a_timeout_without_raising(tmp_path, monkeypatch):
+    _allow_deploy(monkeypatch)
     _good_site(tmp_path)
     monkeypatch.setattr(sync_module.shutil, "which", lambda _n: "/usr/bin/wrangler")
 
@@ -392,6 +407,7 @@ def test_rebuild_index_survives_a_timeout(tmp_path, monkeypatch):
 def test_deploy_targets_the_configured_pages_project(tmp_path, monkeypatch):
     # The old test asserted "--project-name" was present, not its value, so a
     # typo'd destination passed.
+    _allow_deploy(monkeypatch)
     _good_site(tmp_path)
     monkeypatch.setattr(sync_module.shutil, "which", lambda _n: "/usr/bin/wrangler")
     seen = {}
@@ -405,3 +421,26 @@ def test_deploy_targets_the_configured_pages_project(tmp_path, monkeypatch):
     i = seen["cmd"].index("--project-name")
     assert seen["cmd"][i + 1] == sync_module.PAGES_PROJECT == "reading-adamthede"
     assert seen["cmd"][seen["cmd"].index("--branch") + 1] == "main"
+
+
+def test_deploy_refuses_without_the_opt_in(tmp_path, monkeypatch):
+    """The 2026-08-21 incident: an adversarial review probing the guards
+    published its fixtures to the live site seven times, because reaching
+    deploy_site at all is enough to publish."""
+    _good_site(tmp_path)
+    invoked = []
+    monkeypatch.setattr(sync_module.shutil, "which", lambda _n: "/usr/bin/wrangler")
+    monkeypatch.setattr(sync_module.subprocess, "run",
+                        lambda cmd, **kw: invoked.append(cmd) or None)
+    assert sync_module.deploy_site(tmp_path) is False
+    assert invoked == [], "no wrangler call may happen without the opt-in"
+
+
+def test_the_opt_in_must_be_exactly_one(tmp_path, monkeypatch):
+    _good_site(tmp_path)
+    monkeypatch.setattr(sync_module.shutil, "which", lambda _n: "/usr/bin/wrangler")
+    monkeypatch.setattr(sync_module.subprocess, "run",
+                        lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, "", ""))
+    for value in ("", "0", "true", "yes"):
+        monkeypatch.setenv(sync_module.DEPLOY_OPT_IN_ENV, value)
+        assert sync_module.deploy_site(tmp_path) is False, value
