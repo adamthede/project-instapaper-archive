@@ -50,8 +50,13 @@ def cluster_key(members):
 
     Cluster ids are positional and shift the moment the threshold changes;
     the members are what the name actually describes.
+
+    JSON rather than a newline join: these strings come from an LLM reading
+    scraped pages, and a member containing a newline would hash identically to
+    two members split at it. No real string does today, but this key is
+    precisely what stops a name being attached to the wrong cluster.
     """
-    joined = "\n".join(members).encode("utf-8")
+    joined = json.dumps(members, ensure_ascii=False).encode("utf-8")
     return hashlib.sha1(joined).hexdigest()[:16]
 
 

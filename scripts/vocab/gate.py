@@ -158,6 +158,40 @@ details.mem summary:hover { color:var(--brand); }
 .chip .c { color:var(--amber); font-size:.78em; margin-left:5px;
   font-variant-numeric:tabular-nums; }
 .chip.solo { color:var(--ink-3); }
+.sibs { margin-top:12px; padding-top:10px; border-top:1px dashed var(--rule); }
+.sibs .why { color:var(--ink-3); font-size:12px; margin-bottom:8px;
+  max-width:64ch; }
+.sib { display:block; width:100%; text-align:left; cursor:pointer;
+  background:transparent; border:1px solid var(--rule); border-radius:4px;
+  color:var(--ink-2); padding:7px 10px; margin-bottom:5px; font:inherit;
+  font-size:13px; }
+.sib:hover { border-color:var(--ink-3); color:var(--ink); }
+.sib.on { border-color:var(--indigo); color:var(--ink);
+  background:var(--bg-raise); }
+.sib .box { font-family:ui-monospace,Menlo,monospace; color:var(--ink-3);
+  margin-right:8px; }
+.sib.on .box { color:var(--indigo); }
+.sib .n { font-variant-numeric:tabular-nums; color:var(--ink-3);
+  font-size:11.5px; margin-left:6px; }
+.banner { margin:18px 0 0; padding:12px 15px; border-radius:4px;
+  background:#2a1416; border-left:2px solid var(--rose); color:var(--ink);
+  font-size:14px; }
+.caveat { margin-top:14px; padding:12px 15px; border-radius:4px;
+  background:var(--bg-raise); border-left:2px solid var(--amber);
+  font-size:13.5px; color:var(--ink-2); max-width:78ch; }
+.caveat b { color:var(--ink); font-weight:600; }
+table.cmp { border-collapse:collapse; margin-top:14px; font-size:13.5px;
+  width:100%; }
+table.cmp th, table.cmp td { text-align:right; padding:7px 10px;
+  border-bottom:1px solid #2a2523; font-variant-numeric:tabular-nums; }
+table.cmp th:first-child, table.cmp td:first-child { text-align:left;
+  font-variant-numeric:normal; }
+table.cmp thead th { color:var(--ink-3); font-family:ui-monospace,Menlo,monospace;
+  font-size:11px; letter-spacing:.1em; text-transform:uppercase; }
+table.cmp tr.hero td { color:var(--amber); }
+table.cmp td.under { color:var(--rose); }
+table.cmp td.over { color:var(--emerald); }
+.scroll { overflow-x:auto; }
 .egs { margin-top:12px; }
 .eg { display:grid; grid-template-columns:46px 1fr; gap:10px; padding:4px 0;
   font-size:13.5px; color:var(--ink-2); text-decoration:none; }
@@ -180,8 +214,15 @@ SCRIPT = """
 
   var entries = Array.prototype.slice.call(document.querySelectorAll('.entry'));
 
+  var storageBroken = false;
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (err) { /* private mode */ }
+    try {
+      localStorage.setItem(KEY, JSON.stringify(store));
+    } catch (err) {
+      // Swallowing this silently meant a full afternoon of decisions could
+      // evaporate on reload with nothing on screen having looked wrong.
+      storageBroken = true;
+    }
     tally();
   }
 
@@ -194,6 +235,12 @@ SCRIPT = """
     });
     var note = entry.querySelector('input.note');
     if (note) { note.value = rec.note || ''; }
+    var folded = rec.folded || [];
+    entry.querySelectorAll('.sib').forEach(function (sib) {
+      var on = folded.indexOf(sib.dataset.sib) !== -1;
+      sib.classList.toggle('on', on);
+      sib.querySelector('.box').textContent = on ? '[x]' : '[ ]';
+    });
   }
 
   function tally() {
@@ -210,11 +257,18 @@ SCRIPT = """
       var rec = store[entry.dataset.key];
       return rec && rec.decision && rec.decision !== 'reject';
     });
+    var folded = 0;
+    entries.forEach(function (entry) {
+      var rec = store[entry.dataset.key];
+      if (rec && rec.folded) { folded += rec.folded.length; }
+    });
     var parts = ['decided ' + decided + '/' + entries.length];
     ['accept', 'rename', 'merge', 'split', 'reject'].forEach(function (k) {
       if (counts[k]) { parts.push(k + ' ' + counts[k]); }
     });
     parts.push('keeping ' + accepted.length);
+    if (folded) { parts.push('folded-in ' + folded); }
+    if (storageBroken) { parts.push('\\u26a0 NOT SAVING - export before leaving'); }
     document.getElementById('tally').textContent = parts.join('  \\u00b7  ');
   }
 
@@ -224,6 +278,20 @@ SCRIPT = """
       button.addEventListener('click', function () {
         var rec = store[entry.dataset.key] || {};
         rec.decision = (rec.decision === button.dataset.act) ? '' : button.dataset.act;
+        rec.name = entry.dataset.name;
+        store[entry.dataset.key] = rec;
+        apply(entry);
+        save();
+        refilter();
+      });
+    });
+    entry.querySelectorAll('.sib').forEach(function (sib) {
+      sib.addEventListener('click', function () {
+        var rec = store[entry.dataset.key] || {};
+        var folded = rec.folded || [];
+        var at = folded.indexOf(sib.dataset.sib);
+        if (at === -1) { folded.push(sib.dataset.sib); } else { folded.splice(at, 1); }
+        rec.folded = folded;
         rec.name = entry.dataset.name;
         store[entry.dataset.key] = rec;
         apply(entry);
@@ -285,8 +353,18 @@ SCRIPT = """
         lines.push('    review: ' + yamlString(rec.decision + (rec.note ? ': ' + rec.note : '')));
       }
       lines.push('    aliases:');
+      var seen = {};
       entry.querySelectorAll('.chip .s').forEach(function (chip) {
-        lines.push('      - ' + yamlString(chip.textContent));
+        seen[chip.textContent] = 1;
+      });
+      // Ticked look-alike clusters fold their strings in here. This is the
+      // whole point of the sibling list: a concept fragmented across a dozen
+      // clusters becomes ONE entry with all of their aliases.
+      entry.querySelectorAll('.sib.on .s').forEach(function (chip) {
+        seen[chip.textContent] = 1;
+      });
+      Object.keys(seen).forEach(function (alias) {
+        lines.push('      - ' + yamlString(alias));
       });
     });
     box.value = lines.join('\\n');
@@ -345,6 +423,26 @@ def entry_block(rank, entry):
         egs += (f'<a class="eg" href="{href}" target="_blank" rel="noopener">{inner}</a>'
                 if href else f'<div class="eg">{inner}</div>')
 
+    sibs = ""
+    if entry["siblings"]:
+        rows_html = ""
+        for sib in entry["siblings"]:
+            preview = ", ".join(sib["members"][:6])
+            more = (f" +{len(sib['members']) - 6}" if len(sib["members"]) > 6
+                    else "")
+            aliases = "".join(f'<span class="s" hidden>{e(m)}</span>'
+                              for m in sib["members"])
+            rows_html += (
+                f'<button class="sib" data-sib="{e(str(sib["rank"]))}">'
+                f'<span class="box">[ ]</span>{e(preview)}{e(more)}'
+                f'<span class="n">{sib["articles"]:,} art &middot; '
+                f'{sib["similarity"]:.2f}</span>{aliases}</button>')
+        sibs = (f'<div class="sibs"><div class="why">Look-alike clusters that '
+                f'did not make this page. Tick any that belong to this entry '
+                f'and their strings fold into its alias list on export &mdash; '
+                f'this is how a fragmented concept gets reassembled.</div>'
+                f'{rows_html}</div>')
+
     cum_cls = " crossed" if entry["crossed_bar"] else ""
     return f"""<div class="entry" data-key="{e(entry['key'])}" data-name="{e(entry['name'])}"
      data-axis="{e(axis_cls if axis_cls != 'unknown' else '')}"
@@ -373,6 +471,7 @@ def entry_block(rank, entry):
     <summary>{entry['size']:,} member strings &middot; {entry['solo']:,} used once</summary>
     <div class="chips">{chips}</div>
     <div class="egs">{egs}</div>
+    {sibs}
   </details>
 </div>"""
 
@@ -406,6 +505,7 @@ def build_entries(clusters, names, inventory, limit):
             "cumulative": cumulative,
             "crossed_bar": cumulative >= bar,
             "examples": common.example_articles(inventory, cluster["members"]),
+            "siblings": cluster.get("siblings") or [],
         })
     peak = max([x["articles"] for x in entries] + [1])
     for x in entries:
@@ -419,20 +519,86 @@ def render(entries, payload, inventory, curve):
     named = sum(1 for x in entries if x["definition"])
     strings_in = sum(x["size"] for x in entries)
     params = payload.get("params", {})
-    verdict = "pass" if top20 >= bar else "fail"
+
+    def at20(points):
+        return next((p["coverage"] for p in (points or []) if p["n"] == 20), 0.0)
+
+    free_text20 = at20(payload.get("free_text_curve"))
+    naive20 = at20((payload.get("naive_baseline") or {}).get("curve"))
+    columns = payload.get("column_curves") or {}
+    column20 = {field: at20(points) for field, points in columns.items()}
+    # The verdict is per COLUMN, because that is how the bar is defined and
+    # how Phase C builds the index. Pooled coverage clearing 40% while both
+    # real columns sit below it is the single most misleading thing this page
+    # could say, and it is what it used to say.
+    clears = [f for f, v in column20.items() if v >= bar]
+    verdict = "pass" if clears and len(clears) == len(column20) else "fail"
 
     rows_html = "\n".join(entry_block(i, x) for i, x in enumerate(entries, 1))
+    gain = top20 - free_text20
     stats = "".join([
         stat(f'{len(entries):,}', "entries proposed",
              f'{named:,} named by model', "hero"),
-        stat(f'{top20:.1f}<em>%</em>', "top-20 coverage",
-             f'bar is {bar:.0f}% · free-text was '
-             f'{BASELINE["concepts"]}% / {BASELINE["topics"]}%', verdict),
-        stat(f'{strings_in:,}', "raw strings folded in",
-             f'of {len(inventory):,} distinct'),
+        stat(f'{top20:.1f}<em>%</em>', "top-20, pooled",
+             f'free-text pooled was {free_text20:.1f}% · +{gain:.1f} pts'),
+        stat(" / ".join(f"{v:.1f}" for v in column20.values()) + "<em>%</em>",
+             "top-20, per column",
+             f'{" / ".join(columns)} · bar is {bar:.0f}%', verdict),
         stat(f'{inventory.n_articles:,}', "articles in corpus",
-             "site corpus rules, corrupted excluded"),
+             f'{strings_in:,} of {len(inventory):,} strings on this page'),
     ])
+
+    rows = [
+        ("free text, pooled (no clustering)", payload.get("free_text_curve")),
+        ("case-fold + de-plural only, no embeddings",
+         (payload.get("naive_baseline") or {}).get("curve")),
+        ("this derivation, pooled", curve),
+    ] + [(f"this derivation, `{f}` column only", p) for f, p in columns.items()]
+    points = (20, 50, 100, 150, 250)
+    head = "".join(f"<th>top-{n}</th>" for n in points)
+    body_rows = ""
+    for label, series in rows:
+        by_n = {p["n"]: p["coverage"] for p in (series or [])}
+        hero = ' class="hero"' if label == "this derivation, pooled" else ""
+        cells = ""
+        for n in points:
+            v = by_n.get(n)
+            cls = ""
+            if n == 20 and v is not None:
+                cls = ' class="over"' if v >= bar else ' class="under"'
+            cells += f"<td{cls}>{v:.1f}</td>" if v is not None else "<td>&mdash;</td>"
+        body_rows += f"<tr{hero}><td>{e(label)}</td>{cells}</tr>"
+    comparison = (f'<div class="label">What the derivation actually bought, '
+                  f'measured the same way in every row</div>'
+                  f'<div class="scroll"><table class="cmp"><thead><tr>'
+                  f'<th>vocabulary</th>{head}</tr></thead>'
+                  f'<tbody>{body_rows}</tbody></table></div>')
+
+    caveat = ""
+    if verdict == "fail":
+        under = ", ".join(f"{f} {v:.1f}%" for f, v in column20.items() if v < bar)
+        caveat = (
+            f'<div class="caveat"><b>The {bar:.0f}% bar is not cleared per '
+            f'column.</b> Pooled across both fields the head reaches '
+            f'{top20:.1f}%, but measured against the individual index columns '
+            f'Phase C builds it is {e(under)}. So <b>/concepts/ and /topics/ '
+            f'do not switch on automatically from this run</b> unless the two '
+            f'axes are merged into a single vocabulary &mdash; which is '
+            f'exactly the open axis question, now with a number attached to '
+            f'it. The alternative reading: at the taxonomy size actually being '
+            f'proposed the pooled head reaches '
+            f'{next((p["coverage"] for p in curve if p["n"] == 250), 0):.1f}% '
+            f'by top-250, and a 20-entry test may simply be the wrong bar for '
+            f'a curated vocabulary.</div>')
+
+    chain = payload.get("chaining") or {}
+    banner = ""
+    if chain.get("chained"):
+        banner = (f'<div class="banner"><b>Chained.</b> One cluster covers '
+                  f'{chain.get("top_share", 0)}% of the corpus with '
+                  f'{chain.get("top_size", 0):,} strings. Every coverage number '
+                  f'on this page is an artifact of that blob. Re-run '
+                  f'cluster.py at a higher --similarity before curating.</div>')
 
     body = f"""<div class="page">
 <header>
@@ -445,8 +611,11 @@ def render(entries, payload, inventory, curve):
   <span class="label">data/taxonomy/v1.yaml</span>. Nothing classifies until
   that file exists.</div>
 </header>
+{banner}
 <div class="stats">{stats}</div>
+{caveat}
 <section>{curve_block(curve, bar)}</section>
+<section>{comparison}</section>
 <section>
   <div class="controls">
     <input id="filter" type="search" placeholder="filter entries, definitions, member strings&hellip;">

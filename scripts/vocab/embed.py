@@ -34,6 +34,7 @@ import argparse
 import json
 import os
 import sys
+import uuid
 import time
 from pathlib import Path
 
@@ -45,6 +46,11 @@ from vocab import common  # noqa: E402
 
 SHARD_GLOB = "shard-*.npz"
 MANIFEST_NAME = "manifest.json"
+
+# Unique per process, and unlike a pid it cannot be recycled by the OS onto a
+# later run against the same cache. It goes in every shard filename so two
+# concurrent runs can never name the same file — see write_shard.
+RUN_TOKEN = uuid.uuid4().hex[:8]
 
 
 def shard_dir(data_dir):
@@ -89,9 +95,11 @@ def load_cache(data_dir):
 
 
 def _shard_index(path):
+    """The sequence number out of ``shard-<index>-<token>.npz``."""
+    parts = path.stem.split("-")
     try:
-        return int(path.stem.rsplit("-", 1)[-1])
-    except ValueError:
+        return int(parts[1])
+    except (IndexError, ValueError):
         return None
 
 
@@ -108,11 +116,21 @@ def write_shard(data_dir, index, keys, vectors):
     reasons that both bit on first run: ``np.savez`` force-appends ``.npz`` to
     any name lacking it, and a ``shard-N.npz.tmp.npz`` matches SHARD_GLOB — so
     a half-written checkpoint would have been loaded as a real one.
+
+    It also carries RUN_TOKEN. Two runs against one cache pick the same next
+    index (``_next_shard_index`` is read-then-write), and with a shared name
+    they interleaved ``np.savez`` calls into the same file: one wrote a
+    truncated shard, the other died on a missing rename, and the batch both
+    had already paid the GPU for was lost. A per-run token makes the
+    collision cost a duplicate shard instead, which ``load_cache`` dedupes.
     """
     d = shard_dir(data_dir)
     d.mkdir(parents=True, exist_ok=True)
-    path = d / f"shard-{index:05d}.npz"
-    tmp = d / f".tmp-shard-{index:05d}.npz"
+    # The token is in the FINAL name too, not just the temp one: two runs
+    # pick the same next index, so a shared final name means one silently
+    # replaces the other's batch. Distinct names make it a harmless duplicate.
+    path = d / f"shard-{index:05d}-{RUN_TOKEN}.npz"
+    tmp = d / f".tmp-shard-{index:05d}-{RUN_TOKEN}.npz"
     np.savez(tmp, keys=np.asarray(keys, dtype=str),
              vectors=np.asarray(vectors, dtype=np.float32))
     os.replace(tmp, path)
@@ -138,6 +156,17 @@ def check_manifest(data_dir, model, prefix):
     """Refuse to extend a cache that a different model or prefix produced."""
     m = read_manifest(data_dir)
     if not m:
+        # Shards with no manifest is the one state where the guard matters
+        # most and the one it used to wave through: delete the manifest and a
+        # different embedder could extend the cache silently. Absent evidence
+        # is not evidence of a match.
+        if any(shard_dir(data_dir).glob(SHARD_GLOB)):
+            raise SystemExit(
+                f"{data_dir} has embedding shards but no {MANIFEST_NAME}, so "
+                "the model that produced them cannot be established. Mixing "
+                "embedding spaces produces clusters that look plausible and "
+                "mean nothing. Restore the manifest, or delete the shards to "
+                "rebuild the cache.")
         return
     if m.get("model") != model or m.get("prefix", "") != prefix:
         raise SystemExit(

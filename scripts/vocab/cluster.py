@@ -17,15 +17,21 @@ agglomerative — the pairwise matrix alone is 21 GB — so:
   2. PCA to a few dozen dimensions with a deterministic solver. This is what
      makes step 3 affordable, and short noun phrases do not need 768
      dimensions to be separable.
-  3. A k-nearest-neighbour graph (exact, brute-force — it is a few BLAS matrix
-     products at this size) used as a CONNECTIVITY CONSTRAINT. Agglomerative
-     clustering with connectivity only ever considers merges along graph
-     edges, which is what turns the quadratic problem into a tractable one.
-  4. Build the merge tree ONCE, then cut it at whatever threshold is asked
-     for. The threshold is the only tuning knob, the tree is not re-computed
-     per threshold, and ``--sweep`` therefore costs almost nothing — which is
-     the point, because the threshold should be chosen from the coverage
-     curve rather than from taste.
+  3. A MUTUAL k-nearest-neighbour graph (exact, brute-force — a few BLAS
+     matrix products at this size), keeping only edges shorter than the
+     threshold, and take its connected components. Requiring both endpoints
+     to agree is the guard against single-linkage chaining; without it one
+     cluster absorbed 41,980 of the 73,099 strings and reported 99.7%
+     coverage while doing it.
+  4. Report the coverage curve BOTH pooled and per source column, and check
+     the head for chaining, because coverage alone cannot tell a working
+     vocabulary from one blob that ate the corpus.
+
+Structured average linkage (``--method average``) is kept for small inputs
+and for comparison, but it is not the default: on the real 73k strings it ran
+past ten minutes single-threaded at 5 GB resident without finishing, because
+each merge unions its members' adjacency lists. The components method does
+the same job in about three seconds.
 
 The threshold is expressed as a cosine SIMILARITY (0.78 = "merge things at
 least this alike") rather than a raw euclidean distance, because that is the
@@ -212,6 +218,9 @@ def assemble(labels, keys, inventory):
         members = sorted(members, key=lambda s: (-inventory.count(s), s))
         articles = inventory.article_set(members)
         clusters.append({
+            # The pre-ranking label, kept so centroid lookups can get back to
+            # the row this cluster came from after the sort reorders things.
+            "label": int(label),
             "members": members,
             "articles": len(articles),
             "coverage": round(len(articles) / inventory.n_articles * 100, 3)
@@ -249,6 +258,144 @@ def coverage_curve(clusters, n_articles, points=CURVE_POINTS):
             "available": min(n, len(clusters)),
         })
     return curve
+
+
+def naive_baseline(inventory, points=(20, 50, 100, 150, 250)):
+    """What case-folding and de-pluralising alone would have achieved.
+
+    The control group for the whole phase. Roughly 40% of the multi-member
+    clusters this pipeline produces are explained entirely by lowercasing and
+    dropping a trailing 's' — no embeddings, no GPU. Reporting the derived
+    coverage against raw free-text credits the embeddings with that share
+    too, so the gate shows this line as well and the honest claim becomes the
+    gap between the two, not the gap from zero.
+    """
+    groups = {}
+    for name in inventory.strings:
+        key = name.casefold().strip()
+        for suffix in ("ies", "es", "s"):
+            if len(key) > 4 and key.endswith(suffix):
+                key = key[:-len(suffix)] + ("y" if suffix == "ies" else "")
+                break
+        groups.setdefault(key, []).append(name)
+
+    scored = sorted((inventory.article_set(members) for members in groups.values()),
+                    key=len, reverse=True)
+    curve, seen = [], set()
+    at = 0
+    for n in sorted(set(points)):
+        while at < min(n, len(scored)):
+            seen |= scored[at]
+            at += 1
+        curve.append({"n": n, "articles": len(seen),
+                      "coverage": round(len(seen) / inventory.n_articles * 100, 1)
+                      if inventory.n_articles else 0.0,
+                      "available": min(n, len(scored))})
+    return {"groups": len(groups), "curve": curve}
+
+
+def free_text_baseline(inventory, points=(20, 50, 100, 150, 250)):
+    """The pooled free-text curve — the like-for-like starting point.
+
+    ``corpus.vocabulary_report`` measures each column separately (22.0% and
+    25.3% at top-20). Pooling the two fields the way this derivation does
+    scores 34.1% before any clustering at all, and THAT is the number a
+    pooled result has to beat. Quoting the per-column figures against a
+    pooled result overstates the gain by more than double.
+    """
+    scored = sorted((inventory.articles[s] for s in inventory.strings),
+                    key=len, reverse=True)
+    curve, seen = [], set()
+    at = 0
+    for n in sorted(set(points)):
+        while at < min(n, len(scored)):
+            seen |= scored[at]
+            at += 1
+        curve.append({"n": n, "articles": len(seen),
+                      "coverage": round(len(seen) / inventory.n_articles * 100, 1)
+                      if inventory.n_articles else 0.0,
+                      "available": min(n, len(scored))})
+    return curve
+
+
+def column_curve(clusters, inventory, field, points=CURVE_POINTS):
+    """The coverage curve measured against ONE source column.
+
+    Phase C builds `canonical_concepts` and `canonical_topics` as separate
+    index columns, and `corpus.RANKABLE_HEAD_COVERAGE` is defined per column.
+    A vocabulary derived over both fields pooled scores well above either
+    column alone, so reporting only the pooled figure would tell Adam he had
+    cleared a bar that neither real column clears. Both go in the artifact.
+
+    Clusters are re-ranked within the field, because a cluster's rank in the
+    pooled list is not its rank among the articles this column tagged.
+    """
+    scored = []
+    for cluster in clusters:
+        hit = inventory.article_set(cluster["members"], field=field)
+        if hit:
+            scored.append(hit)
+    scored.sort(key=len, reverse=True)
+    curve, seen = [], set()
+    at = 0
+    for n in sorted(set(points)):
+        while at < min(n, len(scored)):
+            seen |= scored[at]
+            at += 1
+        curve.append({
+            "n": n, "articles": len(seen),
+            "coverage": round(len(seen) / inventory.n_articles * 100, 1)
+            if inventory.n_articles else 0.0,
+            "available": min(n, len(scored)),
+        })
+    return curve
+
+
+def sibling_clusters(X, labels, clusters, limit, similarity, per_entry=8):
+    """For each ranked entry, the OFF-PAGE clusters that look like it.
+
+    The method's accepted failure direction is fragmentation, and on this
+    corpus it is severe: "privacy" survives as dozens of separate clusters of
+    which only a handful reach a 250-row page. A reviewer cannot merge what
+    the page does not show, so each on-page entry carries its nearest
+    off-page relatives — by centroid cosine similarity, at a looser threshold
+    than the one that built the clusters — and the gate lets them be folded in.
+
+    Without this the gate can only curate the head it happens to display,
+    which on the measured corpus leaves ~15% of articles reachable only
+    through clusters no one ever sees.
+    """
+    n_clusters = int(labels.max()) + 1 if len(labels) else 0
+    if not n_clusters:
+        return {}
+    sums = np.zeros((n_clusters, X.shape[1]), dtype=np.float64)
+    np.add.at(sums, labels, X)
+    counts = np.bincount(labels, minlength=n_clusters).reshape(-1, 1)
+    centroids = sums / np.maximum(counts, 1)
+    centroids /= np.maximum(np.linalg.norm(centroids, axis=1, keepdims=True), 1e-12)
+
+    # clusters[] is the ranked order; map rank -> the label it came from.
+    label_of_rank = [c["label"] for c in clusters]
+    head = centroids[label_of_rank[:limit]]
+    rest_ranks = list(range(limit, len(clusters)))
+    if not rest_ranks:
+        return {}
+    rest = centroids[[label_of_rank[r] for r in rest_ranks]]
+
+    out = {}
+    for i, sims in enumerate(head @ rest.T):
+        close = np.where(sims >= similarity)[0]
+        if not len(close):
+            continue
+        ranked = sorted(close, key=lambda j: (-clusters[rest_ranks[j]]["articles"],
+                                              rest_ranks[j]))[:per_entry]
+        out[i] = [{
+            "rank": rest_ranks[j],
+            "articles": clusters[rest_ranks[j]]["articles"],
+            "similarity": round(float(sims[j]), 3),
+            "members": clusters[rest_ranks[j]]["members"],
+        } for j in ranked]
+    return out
 
 
 def chaining_report(clusters, n_articles):
@@ -317,6 +464,12 @@ def main(argv=None):
                     help="components: mutual-kNN connected components, seconds. "
                          "average: structured average linkage, higher quality "
                          "in principle but did not finish on 73k strings.")
+    ap.add_argument("--siblings-for", type=int, default=300,
+                    help="attach off-page look-alike clusters to this many "
+                         "ranked entries, so the gate can repair fragmentation")
+    ap.add_argument("--sibling-similarity", type=float, default=0.80,
+                    help="centroid similarity for calling two clusters "
+                         "relatives; deliberately looser than --similarity")
     ap.add_argument("--chaining-ok", action="store_true",
                     help="accept one-sided kNN edges (components method). "
                          "Faster to merge, much easier to chain two unrelated "
@@ -387,11 +540,36 @@ def main(argv=None):
 
     clusters = assemble(labels, sel_keys, inv)
     curve = coverage_curve(clusters, inv.n_articles)
+    columns = {f: column_curve(clusters, inv, f) for f in inv.fields}
     print(f"  {len(clusters):,} clusters at similarity {args.similarity}")
-    print("\n  coverage curve (cumulative article coverage of the top N):")
-    for point in curve:
-        print(f"    top-{point['n']:<4} {point['coverage']:>6.1f}%  "
-              f"({point['articles']:,} articles)")
+
+    # The chaining check runs HERE, on the path that writes the artifact —
+    # not only under --sweep, where it used to live and where nobody making a
+    # decision would ever see it.
+    chain = chaining_report(clusters, inv.n_articles)
+    print(f"  largest cluster: {chain['top_size']:,} strings, "
+          f"{chain['top_share']}% of articles")
+    if chain["chained"]:
+        print("  !! CHAINED: one cluster covers a third of the corpus. The "
+              "coverage numbers below are an artifact of that blob, not a "
+              "working vocabulary. Raise --similarity.", file=sys.stderr)
+
+    def show(label, points):
+        print(f"\n  {label}")
+        for point in points:
+            if point["n"] in (20, 50, 100, 150, 250):
+                print(f"    top-{point['n']:<4} {point['coverage']:>6.1f}%  "
+                      f"({point['articles']:,} articles)")
+    show("pooled concepts+topics (cumulative article coverage):", curve)
+    for field, points in columns.items():
+        show(f"against the `{field}` column alone:", points)
+
+    siblings = sibling_clusters(X, labels, clusters, args.siblings_for,
+                                args.sibling_similarity)
+    for rank, found in siblings.items():
+        clusters[rank]["siblings"] = found
+    print(f"\n  {len(siblings):,} of the top {args.siblings_for} entries have "
+          f"off-page relatives at similarity >= {args.sibling_similarity}")
 
     out = Path(args.out or Path(args.data_dir) / "clusters.json")
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -400,16 +578,28 @@ def main(argv=None):
         "field_scope": args.field,
         "n_articles": inv.n_articles,
         "n_strings": len(sel_keys),
+        # Everything needed to reproduce this file from the cache. It used to
+        # claim `linkage: average` no matter what actually ran, which named
+        # the one method that was abandoned.
         "params": {"similarity": args.similarity, "dims": args.dims,
-                   "neighbors": args.neighbors, "linkage": "average",
+                   "neighbors": args.neighbors, "method": args.method,
+                   "mutual_knn": not args.chaining_ok,
+                   "sibling_similarity": args.sibling_similarity,
                    "embed_model": common.EMBED_MODEL,
                    "embed_prefix": common.EMBED_PREFIX},
         "coverage_curve": curve,
+        "column_curves": columns,
+        "chaining": chain,
+        # The two control groups. Without them "43.6%" has nothing to be
+        # better than, and the obvious comparison (the per-column free-text
+        # figures) is the wrong one.
+        "free_text_curve": free_text_baseline(inv),
+        "naive_baseline": naive_baseline(inv),
         "clusters": [{k: v for k, v in c.items() if not k.startswith("_")}
                      for c in clusters],
     }
     out.write_text(json.dumps(payload, indent=1), encoding="utf-8")
-    print(f"\nwrote {out}")
+    print(f"wrote {out}")
 
 
 if __name__ == "__main__":

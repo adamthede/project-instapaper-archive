@@ -249,6 +249,61 @@ def test_cache_refuses_a_different_embedding_model(tmp_path):
                       progress=lambda *_: None)
 
 
+def test_shards_with_no_manifest_are_refused_rather_than_extended(tmp_path):
+    """The guard used to fail OPEN in the one state where it mattered.
+
+    Deleting the manifest left shards whose provenance could not be
+    established, and `check_manifest` returned silently — so a different
+    embedder could extend the cache and the mixed space would cluster into
+    plausible-looking nonsense.
+    """
+    embed_mod.run(tmp_path, ["a"], batch_size=1, session=FakeEmbedSession(),
+                  progress=lambda *_: None)
+    (tmp_path / embed_mod.MANIFEST_NAME).unlink()
+    with pytest.raises(SystemExit, match="no manifest"):
+        embed_mod.run(tmp_path, ["b"], batch_size=1, session=FakeEmbedSession(),
+                      progress=lambda *_: None)
+
+
+def test_an_empty_cache_with_no_manifest_is_fine(tmp_path):
+    embed_mod.run(tmp_path, ["a"], batch_size=1, session=FakeEmbedSession(),
+                  progress=lambda *_: None)
+    assert len(embed_mod.load_cache(tmp_path)[0]) == 1
+
+
+def test_two_runs_cannot_overwrite_each_others_shards(tmp_path, monkeypatch):
+    """Concurrent runs pick the same next index, so the FILENAME has to differ.
+
+    With a shared name, two processes interleaved into one temp file: one
+    wrote a truncated shard, the other died renaming a file that was gone,
+    and the batch both had already paid the GPU for was lost.
+    """
+    first = embed_mod.write_shard(tmp_path, 0, ["a"], [[1.0, 2.0]])
+    # Stand in for a second process: same cache, same next index, new token.
+    monkeypatch.setattr(embed_mod, "RUN_TOKEN", "otherrun")
+    second = embed_mod.write_shard(tmp_path, 0, ["b"], [[3.0, 4.0]])
+    assert first != second, "same index must not mean same file"
+    keys, vectors = embed_mod.load_cache(tmp_path)
+    assert sorted(keys.tolist()) == ["a", "b"], "neither batch may be lost"
+    assert len(vectors) == 2
+
+
+def test_shard_index_survives_the_pid_suffix(tmp_path):
+    embed_mod.write_shard(tmp_path, 7, ["a"], [[1.0]])
+    assert embed_mod._next_shard_index(embed_mod.shard_dir(tmp_path)) == 8
+
+
+def test_legacy_shards_without_a_pid_still_load(tmp_path):
+    """The 143 shards already on disk predate the pid suffix."""
+    d = embed_mod.shard_dir(tmp_path)
+    d.mkdir(parents=True, exist_ok=True)
+    np.savez(d / "shard-00003.npz", keys=np.asarray(["old"], dtype=str),
+             vectors=np.asarray([[1.0]], dtype=np.float32))
+    keys, _ = embed_mod.load_cache(tmp_path)
+    assert keys.tolist() == ["old"]
+    assert embed_mod._next_shard_index(d) == 4
+
+
 def test_vectors_are_matched_to_strings_by_index_not_arrival_order(tmp_path):
     """A reordered response would attach every vector to the wrong string."""
     ordered = FakeEmbedSession()
@@ -352,6 +407,67 @@ def test_curve_counts_an_article_once_across_overlapping_clusters():
     assert curve[0]["coverage"] == pytest.approx(66.7, abs=0.1)
     # a covers {1,2}, b covers {1,3}; the union is all three, not four.
     assert curve[1]["coverage"] == 100.0
+
+
+def test_column_curve_scores_against_one_field_only():
+    """Pooling flatters the result; the bar is defined per column."""
+    rows = make_rows({
+        1: (["ai"], []),          # concepts only
+        2: ([], ["ai"]),          # topics only
+        3: (["ai"], ["ai"]),      # both
+        4: ([], []),
+    })
+    inv = common.Inventory(rows)
+    clusters = cluster_mod.assemble(np.array([0]), ["ai"], inv)
+    assert clusters[0]["articles"] == 3, "pooled: articles 1, 2 and 3"
+
+    concepts = cluster_mod.column_curve(clusters, inv, "concepts", (20,))
+    topics = cluster_mod.column_curve(clusters, inv, "topics", (20,))
+    assert concepts[0]["articles"] == 2, "concepts tagged only 1 and 3"
+    assert topics[0]["articles"] == 2, "topics tagged only 2 and 3"
+    assert concepts[0]["coverage"] == 50.0
+
+
+def test_naive_baseline_merges_case_and_plurals_but_not_meaning():
+    rows = make_rows({
+        1: (["Startups"], []), 2: (["startup"], []), 3: (["STARTUPS"], []),
+        4: (["Venture Capital"], []),
+    })
+    inv = common.Inventory(rows)
+    baseline = cluster_mod.naive_baseline(inv, points=(20,))
+    assert baseline["groups"] == 2, "three startup spellings collapse; VC does not"
+    assert baseline["curve"][0]["coverage"] == 100.0
+
+
+def test_free_text_baseline_is_the_pooled_starting_point():
+    rows = make_rows({1: (["a", "b"], []), 2: (["a"], []), 3: (["b"], [])})
+    inv = common.Inventory(rows)
+    curve = cluster_mod.free_text_baseline(inv, points=(1, 2))
+    assert curve[0]["coverage"] == pytest.approx(66.7, abs=0.1)
+    assert curve[1]["coverage"] == 100.0, "a union, not 4/3 = 133%"
+
+
+def test_siblings_find_off_page_relatives_and_never_on_page_ones():
+    vectors, truth = synthetic_vectors(n_groups=4, per_group=10, dim=16)
+    X = cluster_mod.reduce_dims(vectors, 8)
+    labels = truth.astype(np.int64)
+    clusters = [{"label": int(g), "members": [f"m{g}"], "articles": 10 - g,
+                 "size": 1} for g in range(4)]
+    found = cluster_mod.sibling_clusters(X, labels, clusters, limit=2,
+                                         similarity=-1.0)
+    assert set(found) <= {0, 1}, "only ranked entries get siblings"
+    for entry_siblings in found.values():
+        assert all(s["rank"] >= 2 for s in entry_siblings), \
+            "a sibling must be OFF the page, never an entry already shown"
+
+
+def test_siblings_are_empty_when_nothing_is_close_enough():
+    vectors, truth = synthetic_vectors(n_groups=4, per_group=10, dim=16)
+    X = cluster_mod.reduce_dims(vectors, 8)
+    clusters = [{"label": int(g), "members": [f"m{g}"], "articles": 10 - g,
+                 "size": 1} for g in range(4)]
+    assert cluster_mod.sibling_clusters(X, truth.astype(np.int64), clusters,
+                                        limit=2, similarity=0.999) == {}
 
 
 # --- deterministic clustering --------------------------------------------
@@ -490,6 +606,60 @@ def test_a_lower_similarity_threshold_never_splits_what_a_higher_one_merged():
         assert len(np.unique(loose[members])) == 1
 
 
+def test_reduce_dims_returns_unit_vectors():
+    """The line that makes `--similarity 0.88` mean 0.88.
+
+    ``similarity_to_distance`` is the unit-sphere identity, so the threshold
+    it produces is only meaningful if the reduced vectors are actually on the
+    unit sphere. Dropping the post-PCA re-normalisation leaves norms around
+    0.25-0.70 on real data, and every threshold becomes far too generous:
+    measured on 20k real vectors, 15,221 clusters became 271 — a 56x
+    over-merge, silently, with a green test suite.
+    """
+    vectors, _ = synthetic_vectors()
+    reduced = cluster_mod.reduce_dims(vectors, 16)
+    assert np.allclose(np.linalg.norm(reduced, axis=1), 1.0, atol=1e-9)
+
+
+def test_reduce_dims_preserves_row_order():
+    """Row i in must be row i out, or every string gets the wrong vector."""
+    vectors, _ = synthetic_vectors(n_groups=3, per_group=5)
+    reduced = cluster_mod.reduce_dims(vectors, 8)
+    again = cluster_mod.reduce_dims(vectors[::-1], 8)
+    assert np.allclose(reduced, again[::-1], atol=1e-9)
+
+
+def test_select_scope_pairs_each_string_with_its_own_vector():
+    """The string-to-vector join, which had no test at all.
+
+    ``embed_batch`` goes to real trouble to reorder responses by index
+    because a mismatch here is undetectable downstream — and then this
+    function, one layer up, re-selects rows by position. Reversing its output
+    used to pass all 52 tests.
+    """
+    rows = make_rows({1: (["gamma"], []), 2: (["alpha"], []), 3: (["beta"], [])})
+    inv = common.Inventory(rows)
+    # Cache order is shard order, deliberately NOT the inventory's sort order.
+    keys = np.array(["gamma", "alpha", "beta"])
+    vectors = np.array([[3.0, 0.0], [1.0, 0.0], [2.0, 0.0]], dtype=np.float32)
+
+    sel_keys, sel_vecs = cluster_mod.select_scope(inv, keys, vectors, "both")
+    assert sel_keys == ["alpha", "beta", "gamma"], "scope follows inventory order"
+    for key, vector in zip(sel_keys, sel_vecs):
+        expected = vectors[list(keys).index(key)]
+        assert np.array_equal(vector, expected), f"{key} got the wrong vector"
+
+
+def test_select_scope_restricts_to_one_field():
+    rows = make_rows({1: (["only_concept"], ["only_topic"])})
+    inv = common.Inventory(rows)
+    keys = np.array(["only_concept", "only_topic"])
+    vectors = np.array([[1.0], [2.0]], dtype=np.float32)
+    sel, vecs = cluster_mod.select_scope(inv, keys, vectors, "topics")
+    assert sel == ["only_topic"]
+    assert vecs.tolist() == [[2.0]]
+
+
 def test_similarity_to_distance_matches_the_unit_sphere_identity():
     assert cluster_mod.similarity_to_distance(1.0) == 0.0
     assert cluster_mod.similarity_to_distance(0.5) == pytest.approx(1.0)
@@ -561,6 +731,21 @@ def test_naming_resumes_by_member_hash_not_cluster_id(tmp_path):
     name_clusters.run(changed, inv, out, progress=lambda *_: None,
                       session=third)
     assert third.calls == 1
+
+
+def test_cluster_key_cannot_confuse_a_newline_with_a_member_boundary():
+    """The resume key is what stops a name landing on the wrong cluster.
+
+    A newline-joined key made ["alpha\\nbeta"] and ["alpha", "beta"] hash
+    identically. No real string contains a newline today, but these come from
+    an LLM reading scraped pages and Phase D keeps adding more.
+    """
+    assert name_clusters.cluster_key(["alpha\nbeta"]) != \
+        name_clusters.cluster_key(["alpha", "beta"])
+    assert name_clusters.cluster_key(["a", "b"]) == \
+        name_clusters.cluster_key(["a", "b"])
+    assert name_clusters.cluster_key(["a", "b"]) != \
+        name_clusters.cluster_key(["b", "a"])
 
 
 def test_a_torn_last_line_does_not_break_resume(tmp_path):
@@ -674,6 +859,35 @@ def test_gate_links_a_real_http_url(tmp_path):
     assert 'rel="noopener"' in html
 
 
+def test_gate_cumulative_is_a_union_over_OVERLAPPING_entries(tmp_path):
+    """The column the whole taxonomy-size decision is read from.
+
+    The fixture must OVERLAP. With disjoint clusters a running sum and a
+    running union are numerically identical, so the double-counting bug this
+    codebase is most careful about survived here undetected.
+
+    Articles 1-6 carry "a"; 4-9 carry "b"; 7-12 carry "c". Twelve articles
+    total, six per cluster. Summing gives 6/12, 12/12, 18/12 = 150%. The
+    union gives 50%, 75%, 100%.
+    """
+    spec = {}
+    for i in range(1, 13):
+        tags = []
+        if 1 <= i <= 6:
+            tags.append("a")
+        if 4 <= i <= 9:
+            tags.append("b")
+        if 7 <= i <= 12:
+            tags.append("c")
+        spec[i] = (tags, [])
+    inv = common.Inventory(make_rows(spec))
+    clusters = cluster_mod.assemble(np.arange(3), ["a", "b", "c"], inv)
+    entries = gate_mod.build_entries(clusters, {}, inv, 10)
+
+    assert [x["articles"] for x in entries] == [6, 6, 6]
+    assert [x["cumulative"] for x in entries] == [50.0, 75.0, 100.0]
+
+
 def test_gate_shows_cumulative_coverage_and_the_rankability_bar(tmp_path):
     rows = make_rows({i: ([f"c{i % 4}"], []) for i in range(1, 21)})
     inv = common.Inventory(rows)
@@ -685,6 +899,65 @@ def test_gate_shows_cumulative_coverage_and_the_rankability_bar(tmp_path):
     html = gate_mod.render(entries, {"params": {}}, inv, [])
     assert "cumulative" in html
     assert "40%" in html, "the rankability bar has to be on the page"
+
+
+def test_gate_verdict_is_per_column_not_pooled():
+    """Pooled coverage clearing the bar while both real columns sit below it
+    is the most misleading thing this page could say. Measured: pooled 43.6%,
+    concepts 32.2%, topics 34.9% — a green 'pass' there would have told Adam
+    /concepts/ switches on when it does not."""
+    rows = make_rows({1: (["a"], ["b"])})
+    inv = common.Inventory(rows)
+    clusters = [{"id": 0, "members": ["a"], "size": 1, "articles": 1,
+                 "coverage": 100.0}]
+    entries = gate_mod.build_entries(clusters, {}, inv, 10)
+    payload = {
+        "params": {},
+        "free_text_curve": [{"n": 20, "coverage": 34.1, "articles": 5}],
+        "column_curves": {
+            "concepts": [{"n": 20, "coverage": 32.2, "articles": 5}],
+            "topics": [{"n": 20, "coverage": 34.9, "articles": 5}],
+        },
+    }
+    pooled = [{"n": 20, "coverage": 43.6, "articles": 7}]
+    html = gate_mod.render(entries, payload, inv, pooled)
+
+    assert 'class="stat fail"' in html, "neither column clears 40%"
+    assert "is not cleared per column" in html
+    assert "34.1" in html, "the pooled free-text baseline must be shown"
+    assert "+9.5" in html, "the gain must be stated against the pooled baseline"
+
+
+def test_gate_warns_when_the_clustering_chained():
+    rows = make_rows({1: (["a"], [])})
+    inv = common.Inventory(rows)
+    clusters = [{"id": 0, "members": ["a"], "size": 1, "articles": 1,
+                 "coverage": 100.0}]
+    entries = gate_mod.build_entries(clusters, {}, inv, 10)
+    html = gate_mod.render(entries, {
+        "params": {},
+        "chaining": {"chained": True, "top_share": 99.7, "top_size": 41980},
+    }, inv, [])
+    assert "Chained." in html
+    assert "41,980" in html
+
+
+def test_gate_offers_off_page_siblings_for_folding_in():
+    """Fragmentation is the method's real failure mode: on the measured
+    corpus "privacy" survives as 54 separate clusters of which 3 reach a
+    250-row page. A reviewer cannot merge what the page does not show."""
+    rows = make_rows({1: (["privacy"], []), 2: (["data privacy"], [])})
+    inv = common.Inventory(rows)
+    clusters = [{"id": 0, "members": ["privacy"], "size": 1, "articles": 1,
+                 "coverage": 50.0,
+                 "siblings": [{"rank": 812, "articles": 68, "similarity": 0.86,
+                               "members": ["data privacy", "online privacy"]}]}]
+    entries = gate_mod.build_entries(clusters, {}, inv, 10)
+    html = gate_mod.render(entries, {"params": {}}, inv, [])
+    assert 'class="sib"' in html
+    assert "data privacy" in html and "online privacy" in html
+    assert 'data-sib="812"' in html
+    assert "fold into its alias list" in html
 
 
 def test_gate_flags_an_entry_whose_naming_call_failed(tmp_path):

@@ -177,10 +177,19 @@ class Inventory:
         self.fields = tuple(f for f in fields if f in rows.columns)
         self.articles = {}
         self.field_of = {}
+        # Kept per field as well as pooled. A vocabulary derived over
+        # concepts ∪ topics is scored one way; the two index columns Phase C
+        # actually builds are scored another, and the 40% rankability bar is
+        # defined per column. Reporting only the pooled number flatters the
+        # result — measured here, pooled top-20 is 43.6% while the same
+        # clusters score 32.2% and 34.9% against the individual columns.
+        self.by_field = {field: {} for field in self.fields}
         for field in self.fields:
+            per_field = self.by_field[field]
             for row_id, value in zip(rows.index, rows[field]):
                 for name in set(corpus.as_list(value)):
                     self.articles.setdefault(name, set()).add(row_id)
+                    per_field.setdefault(name, set()).add(row_id)
                     self.field_of.setdefault(name, set()).add(field)
         # Sorted so every downstream stage sees the same order for the same
         # corpus — the clustering's determinism guarantee starts here.
@@ -227,10 +236,12 @@ class Inventory:
             hit |= self.articles.get(name, set())
         return round(len(hit) / self.n_articles * 100, 1)
 
-    def article_set(self, names):
+    def article_set(self, names, field=None):
+        """Articles carrying any of ``names``; restricted to one field if given."""
+        source = self.by_field[field] if field else self.articles
         hit = set()
         for name in names:
-            hit |= self.articles.get(name, set())
+            hit |= source.get(name, set())
         return hit
 
 
