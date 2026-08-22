@@ -37,6 +37,20 @@ class FakeResponse:
         return self._payload
 
 
+@pytest.fixture(autouse=True)
+def isolate_the_fleet_lock(monkeypatch, tmp_path):
+    """Point the flock at a per-test path instead of the real fleet lock.
+
+    Autouse and unconditional. Probing the real
+    ~/.cache/tractor-silo/lmstudio-digest.lock made these tests fail whenever
+    anything else on the machine was mid-inference — the nightly enrichment
+    leg, or another stage of this very pipeline — which is a test that reports
+    on the machine's mood rather than on the code. BSD flock semantics are
+    identical on any path, so the assertions lose nothing.
+    """
+    monkeypatch.setattr(common, "LOCK_PATH", tmp_path / "fleet.lock")
+
+
 def lock_is_held():
     """True if some OTHER open file description holds the fleet flock.
 
@@ -342,7 +356,7 @@ def test_curve_counts_an_article_once_across_overlapping_clusters():
 
 # --- deterministic clustering --------------------------------------------
 
-def synthetic_vectors(n_groups=6, per_group=25, dim=32, seed=7):
+def synthetic_vectors(n_groups=6, per_group=25, dim=32, seed=7):  # noqa: E302
     rng = np.random.default_rng(seed)
     centres = rng.normal(size=(n_groups, dim))
     centres /= np.linalg.norm(centres, axis=1, keepdims=True)
@@ -383,16 +397,85 @@ def test_clustering_is_deterministic_under_a_shuffled_cache_order():
     assert partition(base, np.arange(len(vectors))) == partition(shuffled, order)
 
 
-def test_clustering_recovers_planted_groups():
+@pytest.mark.parametrize("method,neighbors", [("components", 15),
+                                              ("average", 10)])
+def test_clustering_recovers_planted_groups(method, neighbors):
     """The threshold has to actually separate — a determinism test alone
     would pass just as well if everything collapsed into one cluster."""
     vectors, truth = synthetic_vectors()
     labels = cluster_mod.cluster_once(
-        vectors, dims=16, neighbors=10,
+        vectors, dims=16, neighbors=neighbors, method=method,
         threshold=cluster_mod.similarity_to_distance(0.8))
     assert len(np.unique(labels)) == len(np.unique(truth))
     for group in np.unique(truth):
         assert len(np.unique(labels[truth == group])) == 1
+
+
+def test_components_fragments_a_group_when_k_is_too_small():
+    """The known failure direction of the mutual-kNN method, pinned on purpose.
+
+    Reciprocity is what buys immunity from chaining, and the price is that a
+    genuine group larger than its neighbour budget can split: 25 planted
+    points at k=5 come apart into a dozen pieces. Fragmentation is the SAFE
+    direction — the gate lets Adam merge two halves of a concept, whereas a
+    chained blob has to be split by hand — but `--neighbors` has to be chosen
+    with the expected entry size in mind, not left at a default.
+    """
+    vectors, truth = synthetic_vectors(per_group=25)
+    tight = cluster_mod.cluster_once(
+        vectors, dims=16, neighbors=5, method="components",
+        threshold=cluster_mod.similarity_to_distance(0.8))
+    assert len(np.unique(tight)) > len(np.unique(truth))
+    # ...and every fragment is still PURE: fragmentation never mixes groups.
+    for label in np.unique(tight):
+        assert len(np.unique(truth[tight == label])) == 1
+
+
+def test_mutual_knn_resists_the_chaining_that_one_sided_edges_allow():
+    """Two planted groups joined by a bridge point.
+
+    One-sided edges let the bridge glue both groups into one cluster;
+    requiring reciprocity refuses it. This is the 41,980-string blob that
+    similarity 0.78 produced on the real corpus, in miniature.
+    """
+    rng = np.random.default_rng(11)
+    a = rng.normal(size=(1, 24))
+    a /= np.linalg.norm(a)
+    b = -a
+    left = a + rng.normal(scale=0.05, size=(40, 24))
+    right = b + rng.normal(scale=0.05, size=(40, 24))
+    bridge = np.linspace(0, 1, 12)[:, None] * (b - a) + a
+    vectors = np.vstack([left, right, bridge])
+    vectors /= np.linalg.norm(vectors, axis=1, keepdims=True)
+    vectors = vectors.astype(np.float32)
+
+    threshold = cluster_mod.similarity_to_distance(0.55)
+    X = cluster_mod.reduce_dims(vectors, 12)
+    chained = cluster_mod.components_labels(X, 12, threshold, mutual=False)
+    guarded = cluster_mod.components_labels(X, 12, threshold, mutual=True)
+    assert len(np.unique(guarded)) > len(np.unique(chained))
+
+
+def test_chaining_report_flags_a_blob_that_coverage_alone_would_praise():
+    """High coverage from one giant cluster must not read as success."""
+    rows = make_rows({i: (["everything"], []) for i in range(1, 21)})
+    inv = common.Inventory(rows)
+    clusters = cluster_mod.assemble(np.array([0]), ["everything"], inv)
+    curve = cluster_mod.coverage_curve(clusters, inv.n_articles, (20,))
+    assert curve[0]["coverage"] == 100.0, "coverage looks perfect..."
+    report = cluster_mod.chaining_report(clusters, inv.n_articles)
+    assert report["chained"], "...but the chaining check has to catch it"
+    assert report["top_share"] == 100.0
+
+
+def test_chaining_report_is_quiet_on_a_healthy_head():
+    rows = make_rows({i: ([f"c{i % 10}"], []) for i in range(1, 101)})
+    inv = common.Inventory(rows)
+    clusters = cluster_mod.assemble(np.arange(10), [f"c{i}" for i in range(10)],
+                                    inv)
+    report = cluster_mod.chaining_report(clusters, inv.n_articles)
+    assert not report["chained"]
+    assert report["top_share"] == 10.0
 
 
 def test_a_lower_similarity_threshold_never_splits_what_a_higher_one_merged():

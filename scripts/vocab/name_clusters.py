@@ -78,9 +78,10 @@ Give this group ONE canonical vocabulary entry. Reply with a single JSON object 
 
   name       The canonical label. Title Case, a noun phrase, as short as is
              still precise. Prefer the plain established term over jargon.
-  definition ONE sentence saying what an article tagged with this entry is
-             about. Write it as a definition, not as a description of the
-             group. Do not start with "This group" or "Articles about".
+  definition ONE sentence defining the subject itself, the way a thesaurus
+             entry would. Start with the thing, not with the archive: never
+             open with "This group", "Articles about", "Articles discussing",
+             "A collection of", or any similar framing.
   axis       "topic" if this names a broad subject domain (the field an
              article is in, e.g. Economics, Public Health). "concept" if it
              names a specific idea, mechanism or phenomenon at stake within a
