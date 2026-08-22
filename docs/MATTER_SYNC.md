@@ -448,10 +448,12 @@ an article, which is worse than a visible duplicate.
 `url`; treating those as equal would collapse thousands of distinct articles
 into one.
 
-The URL index is built from `data/archive_index.parquet` when pyarrow is
-available, and otherwise from a cached scan of the vault's frontmatter. If
-neither produces anything the sync still runs, but says clearly in the log that
-cross-era detection is degraded.
+The URL index is built from `data/archive_index.parquet` -- read in-process
+when pyarrow is available, and otherwise by a subprocess under an interpreter
+that has it. Only if both fail does it fall back to a cached scan of the vault's
+frontmatter. If none of the three produces anything the sync still runs, but says
+clearly in the log that cross-era detection is degraded. `dedupe_source` in the
+run summary and the heartbeat always names which of the three ran.
 
 **Known limitation: a skipped duplicate's highlights are not captured.** If Adam
 re-reads an article in Matter that he first saved to Instapaper years ago, and
@@ -637,8 +639,11 @@ more accurate from the day this starts rather than the day it was built.
   says it does. The nightly job no longer depends on it (see
   [Nightly](#nightly)), but it is still worth settling - the one-line check is
   in the post-install runbook below.
-- **That a vault scan finds the same URLs the Parquet index does.** See
-  [Which interpreter to run](#which-interpreter-to-run).
+- ~~**That a vault scan finds the same URLs the Parquet index does.**~~
+  Settled 2026-08-22: it finds 12 more, out of 6,508, and the Parquet set is a
+  strict subset of the scan's. See
+  [Which interpreter to run](#which-interpreter-to-run) for the measurement and
+  what the 12 are.
 - **A real write.** Everything so far is `--check-auth`, read-only probes, and
   `--dry-run`. No article has been written to the vault yet.
 
@@ -660,8 +665,10 @@ Once the job is installed, two checks settle what is left:
 
 2. **Dedupe under the nightly interpreter.** After the first backfill, run
    `/opt/homebrew/bin/python3 scripts/core/export_matter_to_archive.py --full
-   --dry-run` and check the reported `dedupe_source` says `vault scan` with a
-   URL count in the same range as the Parquet index (~6,500).
+   --dry-run` and check the reported `dedupe_source` says
+   `parquet subprocess (~6,500 urls)`. If it says `vault scan` instead, the
+   subprocess did not work: the run still completes, but it is spending ~50
+   minutes to do it. The `WARNING` on the way past names the reason.
 
 ---
 
@@ -674,16 +681,50 @@ exactly once:
 |---|---|---|
 | Runs the sync | yes | yes |
 | Has pyarrow | **no** | yes |
-| Cross-era dedupe source | vault scan of `original_url` frontmatter | `data/archive_index.parquet`, exact |
+| Cross-era dedupe source | `data/archive_index.parquet`, read by a subprocess under the venv | `data/archive_index.parquet`, read in-process |
 
 The nightly job must use the homebrew interpreter, because launchd attributes
 the TCC grant for `~/Documents` to it. That interpreter cannot read the Parquet
-index, so it scans the vault instead. Both read the same `original_url` field
-out of the same files, so they should agree - but that was not confirmable while
-the archive drive was unmounted.
+index itself, so since 2026-08-22 it shells out to `.venv/bin/python` for that
+one read -- the same move `rebuild_index` and `enrich_local` already make.
+Set `MATTER_INDEX_PYTHON` if the venv moves.
 
-**Run the first backfill with the venv interpreter**, where dedupe is exact and
-measured:
+Before that it scanned the vault instead, and the cost was not small: **~50 of
+the nightly's ~58 minutes**, walking 18,491 files over SMB, every night. The
+scan was cached, but the cache never hit -- it is keyed on the vault's newest
+mtime, and the sync itself annotates re-read files as it goes, so the key moved
+on every run that did any work. Reading the Parquet index takes **under a
+second** and never touches the vault at all.
+
+The vault scan is still the fallback, and still correct. If the subprocess
+times out, crashes, or returns anything unexpected, the run degrades to the
+scan rather than failing.
+
+**Measured 2026-08-22**, against the real vault and the real index:
+
+| source | wall time | URLs |
+|---|---|---|
+| `vault scan` | 205.97s (warm SMB cache; ~50 min cold, under the nightly) | 6,508 |
+| `parquet subprocess` | 0.94s | 6,496 |
+| `parquet` (in-process) | 0.41s | 6,496 |
+
+The two Parquet routes produce **byte-identical** URL sets, which is what the
+subprocess design is for: it ships raw `(url, file_path)` rows across the
+process boundary and normalizes them in the parent, so `normalize_url` stays
+the single definition of what counts as the same URL.
+
+Parquet finds 12 fewer URLs than the scan, and the 12 are a strict subset --
+**the index never invents a duplicate, it only misses some**. That direction is
+the safe one: a false duplicate would suppress a genuinely new article, while a
+miss writes a second file that is visible and fixable. All 12 are vault-root
+files that `build_index.py` does not index at all, each with a sibling copy
+under `matter/` carrying a *different* URL string for the same article (e.g.
+`archive.nytimes.com/opinionator.blogs.nytimes.com/...` at the root vs
+`opinionator.blogs.nytimes.com/...` under `matter/`). That gap is upstream in
+`build_index.py`, it predates this change, and it is worth a look on its own.
+
+**Run any hand-run backfill with the venv interpreter**, which reads the index
+in-process and skips the subprocess hop entirely:
 
 ```bash
 .venv/bin/python scripts/core/export_matter_to_archive.py --full --max-items 200
@@ -716,6 +757,13 @@ on the mount point and make it look like 17,637 articles had vanished.
 **The dashboard does not show new articles** - the Markdown files are written,
 but the Parquet index has not been rebuilt. Run `build_index.py`, or use
 `--rebuild-index`.
+
+**`dedupe_source` says `vault scan` on a nightly run** - the Parquet read failed
+and the run fell back, which costs ~50 minutes instead of a second. It is a
+slowdown, not a correctness problem, but it should not persist. The `WARNING`
+just before it in `matter-sync.err.log` names the cause: usually a moved venv
+(set `MATTER_INDEX_PYTHON`), a venv without pyarrow, or a missing
+`data/archive_index.parquet` (run `build_index.py`).
 
 **Cross-era duplicate detection is DEGRADED** - neither the Parquet index nor a
 vault scan was available. Matter-vs-Matter duplicates are still prevented, but
