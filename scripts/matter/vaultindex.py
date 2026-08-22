@@ -195,6 +195,11 @@ def _from_parquet_subprocess(
         completed = subprocess.run(
             [str(interpreter), "-c", _SUBPROCESS_BOOTSTRAP, str(scripts_dir), str(parquet_path)],
             capture_output=True, text=True, timeout=timeout,
+            # errors="replace" because text=True otherwise decodes BOTH streams
+            # strictly, and UnicodeDecodeError is a ValueError -- caught by
+            # neither handler below, so a single stray byte on stderr would take
+            # down a run whose stdout was perfectly good.
+            errors="replace",
         )
     except subprocess.TimeoutExpired:
         log.warning("Reading the Parquet index via %s timed out after %ss", interpreter, timeout)
@@ -292,15 +297,26 @@ def build_url_index(
     # walked -- not for the data, and not for the cache key either.
     if parquet_path and Path(parquet_path).exists():
         parquet_path = Path(parquet_path)
-        pairs = _read_parquet_pairs(parquet_path)
-        if pairs is not None:
-            urls = _pairs_to_urls(pairs, skip_dirs)
+        # Broad on purpose. The handlers inside these two produce better
+        # messages and should keep doing the work; this is the guarantee under
+        # them, so that "the sync still runs" is structural rather than a list
+        # of exception types someone has to keep complete. pyarrow alone can
+        # raise ArrowNotImplementedError, ArrowMemoryError and ArrowTypeError,
+        # which subclass NotImplementedError, MemoryError and TypeError
+        # respectively -- three different branches of the hierarchy.
+        try:
+            pairs = _read_parquet_pairs(parquet_path)
+            if pairs is not None:
+                urls = _pairs_to_urls(pairs, skip_dirs)
+                if urls:
+                    return UrlIndex(urls, source=f"parquet ({len(urls)} urls)")
+            urls = _from_parquet_subprocess(parquet_path, skip_dirs, helper_python,
+                                            timeout=subprocess_timeout)
             if urls:
-                return UrlIndex(urls, source=f"parquet ({len(urls)} urls)")
-        urls = _from_parquet_subprocess(parquet_path, skip_dirs, helper_python,
-                                        timeout=subprocess_timeout)
-        if urls:
-            return UrlIndex(urls, source=f"parquet subprocess ({len(urls)} urls)")
+                return UrlIndex(urls, source=f"parquet subprocess ({len(urls)} urls)")
+        except Exception:  # noqa: BLE001 - a slow index beats a dead 04:45 run
+            log.warning("Reading the Parquet index raised; falling back to the vault scan",
+                        exc_info=True)
 
     if not allow_vault_scan:
         return UrlIndex(
@@ -320,7 +336,12 @@ def build_url_index(
                 and isinstance(cached.get("urls"), dict)
             ):
                 return UrlIndex(cached["urls"], source=f"cache ({len(cached['urls'])} urls)")
-        except (OSError, ValueError):
+        # AttributeError and TypeError too: a cache file that is valid JSON but
+        # not an object (`[1,2]`) makes .get() throw, and a non-iterable
+        # fingerprint makes tuple() throw. Reachable only on a night where both
+        # Parquet routes already failed -- exactly the degraded run this must
+        # not also crash.
+        except (OSError, ValueError, AttributeError, TypeError):
             pass
 
     urls = _from_vault_scan(vault_path, skip_dirs)

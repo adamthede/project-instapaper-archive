@@ -664,11 +664,19 @@ Once the job is installed, two checks settle what is left:
    point of running `--full`, but say so in the ledger above.
 
 2. **Dedupe under the nightly interpreter.** After the first backfill, run
-   `/opt/homebrew/bin/python3 scripts/core/export_matter_to_archive.py --full
-   --dry-run` and check the reported `dedupe_source` says
-   `parquet subprocess (~6,500 urls)`. If it says `vault scan` instead, the
-   subprocess did not work: the run still completes, but it is spending ~50
-   minutes to do it. The `WARNING` on the way past names the reason.
+
+   ```bash
+   /opt/homebrew/bin/python3 scripts/core/export_matter_to_archive.py --full --dry-run --json
+   ```
+
+   and check that `dedupe_source` reads `parquet subprocess (~6,500 urls)`.
+   `--json` matters: the plain-text summary prints counts only, so
+   `dedupe_source` appears in the JSON output, the heartbeat, and the
+   `Duplicate index built from ...` INFO log line, but nowhere else.
+
+   If it says `vault scan` instead, the subprocess did not work: the run still
+   completes, but it is spending ~50 minutes to do it. The `WARNING` logged on
+   the way past names the reason.
 
 ---
 

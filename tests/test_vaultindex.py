@@ -159,10 +159,20 @@ def test_both_parquet_paths_produce_the_same_index(tmp_path, vault, parquet):
 
 @pytest.mark.parametrize("body, why", [
     ("time.sleep(30)", "timeout"),
-    ("sys.exit(1)", "non-zero exit"),
+    ("sys.exit(1)", "non-zero exit with no output"),
+    # The case that actually exercises the returncode check. With `sys.exit(1)`
+    # alone the payload is empty, so it is json.loads('') that rejects the run;
+    # deleting the returncode guard entirely leaves that test green.
+    ("json.dump([['https://example.com/one', '/v/a.md']], sys.stdout)\n"
+     "sys.stdout.flush()\nsys.exit(3)", "valid JSON but a non-zero exit"),
     ("sys.stdout.write('Traceback: not json at all')", "malformed output"),
     ("json.dump({'url': 'https://example.com/one'}, sys.stdout)", "JSON of the wrong shape"),
     ("json.dump([['a', 'b'], ['just-one']], sys.stdout)", "a row of the wrong width"),
+    # text=True decodes both streams, and UnicodeDecodeError is a ValueError --
+    # caught by neither the TimeoutExpired nor the OSError handler, so it used
+    # to escape build_url_index entirely.
+    ("sys.stdout.buffer.write(b'[[\"https://e.com/a\", \"/v/a.md\"]]\\xff\\xfe')",
+     "undecodable bytes on stdout"),
 ])
 def test_subprocess_failures_fall_through_to_the_vault_scan(
     tmp_path, vault, fake_parquet, monkeypatch, body, why
@@ -177,6 +187,61 @@ def test_subprocess_failures_fall_through_to_the_vault_scan(
 
     assert index.source == "vault scan (1 urls from 1 files)", f"{why} should degrade, not raise"
     assert index.lookup("https://example.com/from-the-vault") == "fallback.md"
+
+
+def test_undecodable_bytes_on_stderr_do_not_spoil_a_good_read(
+    tmp_path, vault, fake_parquet, monkeypatch
+):
+    """The sharp version of the decoding hazard: the child SUCCEEDS, with
+    complete valid JSON on stdout, and writes one non-UTF-8 byte to stderr.
+    text=True decodes stderr too, so that used to raise UnicodeDecodeError out
+    of build_url_index -- past main()'s `except MatterError`, skipping the
+    heartbeat write and leaving yesterday's "ok" on disk. It must not merely
+    degrade here; the read was good, so it must still be USED."""
+    monkeypatch.setattr("matter.vaultindex._read_parquet_pairs", lambda path: None)
+    write_vault_article(vault, "fallback.md", "https://example.com/from-the-vault")
+    stub = make_stub_python(tmp_path,
+                            "json.dump([['https://example.com/one', '/v/a.md']], sys.stdout)\n"
+                            "sys.stdout.flush()\n"
+                            "sys.stderr.buffer.write(b'\\xff\\xfe')")
+
+    index = build_url_index(vault, parquet_path=fake_parquet, skip_dirs={"matter"},
+                            write_cache=False, helper_python=stub)
+
+    assert index.source == "parquet subprocess (1 urls)"
+    assert index.lookup("https://example.com/one") == "/v/a.md"
+
+
+def test_an_exception_reading_the_parquet_degrades_rather_than_escaping(
+    tmp_path, vault, fake_parquet, monkeypatch
+):
+    """The guarantee under the specific handlers. pyarrow can raise from three
+    unrelated branches of the exception hierarchy (ArrowNotImplementedError,
+    ArrowMemoryError, ArrowTypeError), so the promise that the 04:45 run
+    survives cannot rest on having enumerated them all."""
+    def boom(path):
+        raise MemoryError("pretend pyarrow could not allocate")
+    monkeypatch.setattr("matter.vaultindex._read_parquet_pairs", boom)
+    write_vault_article(vault, "fallback.md", "https://example.com/from-the-vault")
+
+    index = build_url_index(vault, parquet_path=fake_parquet, skip_dirs={"matter"},
+                            write_cache=False, helper_python=None)
+
+    assert index.source.startswith("vault scan")
+    assert index.lookup("https://example.com/from-the-vault") == "fallback.md"
+
+
+def test_a_corrupt_cache_file_degrades_rather_than_escaping(vault, tmp_path):
+    """Valid JSON, wrong type. `cached.get(...)` on a list throws AttributeError,
+    which is neither OSError nor ValueError. Only reachable on a night where
+    both Parquet routes already failed -- the one that must not also crash."""
+    write_vault_article(vault, "one.md", "https://example.com/one")
+    cache = tmp_path / "cache.json"
+    cache.write_text("[1, 2]")
+
+    index = build_url_index(vault, parquet_path=None, cache_path=cache, write_cache=False)
+
+    assert index.source == "vault scan (1 urls from 1 files)"
 
 
 def test_a_partial_payload_is_rejected_whole(tmp_path, vault, fake_parquet, monkeypatch):
