@@ -88,6 +88,14 @@ def build_parser() -> argparse.ArgumentParser:
                         help="After a sync that wrote new articles, enrich them "
                              "via LM Studio (Qwen) before the index rebuild. "
                              "Non-fatal if LM Studio is down.")
+    parser.add_argument("--rebuild-site", action="store_true",
+                        help="Regenerate _site from the vault's synthesis files. "
+                             "Unconditional: the weekly synthesis job writes week "
+                             "files this sync never counts.")
+    parser.add_argument("--deploy", action="store_true",
+                        help="Publish _site to Cloudflare Pages with wrangler. "
+                             "Skipped if --rebuild-site failed; a failure here "
+                             "fails the night's heartbeat.")
     parser.add_argument("--rebuild-index", action="store_true",
                         help="Run build_index.py afterwards so the dashboard sees the new articles.")
     parser.add_argument("--heartbeat", default=str(DEFAULT_HEARTBEAT),
@@ -143,6 +151,57 @@ def check_auth(args) -> int:
               f"({probe.get('status')}, updated {probe.get('updated_at')})")
     print("\nAuthentication OK.")
     return 0
+
+
+def run_post_sync_legs(args, result) -> dict:
+    """Run the chain's post-sync legs and report each one's status.
+
+    Ordering is the point. These run BEFORE the heartbeat is written, so a
+    failed leg can flip the night's outcome. Until 2026-08-21 the heartbeat
+    was written above this block, which meant a failed index rebuild still
+    reported a green night. Adding a publish step made that untenable: a
+    silently stale website is exactly what the cockpit exists to catch.
+
+    Returns {leg: status}. Only the literal "fail" fails the night, which is
+    what keeps enrichment non-fatal.
+    """
+    legs: dict[str, str] = {}
+
+    # Enrich BEFORE the rebuild so tonight's articles reach the dashboard with
+    # their ai_* fields in one pass. Unconditional (not gated on result.new):
+    # articles left unenriched by a previous night's LM Studio outage are
+    # picked up here, and the scan is a cheap no-op when nothing is pending.
+    enriched_any = False
+    if args.enrich_local and not args.dry_run:
+        enriched_any = sync_module.enrich_local(REPO_ROOT)
+        # NON-FATAL by design, so deliberately never "fail": LM Studio being
+        # down tonight means tonight's articles are enriched tomorrow, not
+        # that the night broke. "no-writes" covers both nothing-pending and
+        # unavailable - enrich_local cannot tell them apart, and inventing
+        # that distinction here would be a lie.
+        legs["enrich"] = "wrote" if enriched_any else "no-writes"
+
+    if args.rebuild_index and not args.dry_run and (result.new or result.updated or enriched_any):
+        legs["rebuild_index"] = "ok" if sync_module.rebuild_index(REPO_ROOT) else "fail"
+
+    site_ok = True
+    if args.rebuild_site and not args.dry_run:
+        site_ok = sync_module.rebuild_site(REPO_ROOT)
+        legs["rebuild_site"] = "ok" if site_ok else "fail"
+
+    if args.deploy and not args.dry_run:
+        if not site_ok:
+            # generate.py swaps atomically, so _site still holds the LAST GOOD
+            # build - publishing it would succeed and hide the broken build
+            # behind a green deploy. rebuild_site already registered the
+            # failure, so the night fails either way.
+            legs["deploy"] = "skipped-build-failed"
+            print("Skipping deploy: the site build failed, and publishing the "
+                  "previous build would hide that.", file=sys.stderr)
+        else:
+            legs["deploy"] = "ok" if sync_module.deploy_site(REPO_ROOT) else "fail"
+
+    return legs
 
 
 def _record_failure(args, message: str) -> None:
@@ -218,23 +277,21 @@ def main(argv=None) -> int:
             for example in result.error_examples:
                 print(f"  - {example['id']} {example['title']}: {example['error']}")
 
+    legs = run_post_sync_legs(args, result)
+
+    result.legs = legs
+    leg_failed = any(v == "fail" for v in legs.values())
+    if leg_failed:
+        result.outcome = "fail"
+    if legs:
+        # The heartbeat now covers the whole night, so its duration must too -
+        # otherwise a 20-minute publish reads as a 90-second night.
+        result.finished_at = utcnow()
+
     if config.heartbeat_path and not args.dry_run:
         write_heartbeat(config.heartbeat_path, result)
 
-    # Enrich BEFORE the rebuild so tonight's articles reach the dashboard
-    # with their ai_* fields in one pass. Enrichment failure never blocks
-    # the rebuild - see enrich_local's docstring.
-    # Unconditional (not gated on result.new): articles left unenriched by a
-    # previous night's LM Studio outage are picked up here, and the scan is a
-    # cheap no-op when nothing is pending.
-    enriched_any = False
-    if args.enrich_local and not args.dry_run:
-        enriched_any = sync_module.enrich_local(REPO_ROOT)
-
-    if args.rebuild_index and not args.dry_run and (result.new or result.updated or enriched_any):
-        sync_module.rebuild_index(REPO_ROOT)
-
-    return 0 if result.errors == 0 else 1
+    return 0 if (result.errors == 0 and not leg_failed) else 1
 
 
 if __name__ == "__main__":
