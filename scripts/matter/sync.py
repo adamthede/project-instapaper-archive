@@ -44,6 +44,7 @@ Leaving it put costs a few redundant reads on the next run and nothing else.
 import logging
 import os
 import re
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -116,6 +117,10 @@ class SyncResult:
     error_message: str | None = None
     duplicate_examples: list[dict] = field(default_factory=list)
     error_examples: list[dict] = field(default_factory=list)
+    # Per-leg status for the post-sync chain (enrich / rebuild_index /
+    # rebuild_site / deploy). The heartbeat carries these so the cockpit can
+    # say WHICH leg failed, not just that the night did.
+    legs: dict = field(default_factory=dict)
 
     def as_dict(self) -> dict:
         return {
@@ -139,6 +144,7 @@ class SyncResult:
             "dedupe_degraded": self.dedupe_degraded,
             "error": self.error_message,
             "error_examples": self.error_examples,
+            "legs": self.legs,
         }
 
 
@@ -794,6 +800,30 @@ def write_heartbeat(path: Path, result: SyncResult) -> None:
         log.warning("Could not write heartbeat to %s: %s", path, exc)
 
 
+def _venv_python(repo_root: Path, allow_current: bool = False) -> Path | None:
+    """The interpreter that has pandas/pyarrow/frontmatter, or None.
+
+    The launchd job runs on /opt/homebrew/bin/python3 (the interpreter holding
+    the TCC grant for ~/Documents), which deliberately has none of those, so
+    every leg that needs them re-enters through the repo venv. Override with
+    MATTER_INDEX_PYTHON when the venv moves.
+
+    `allow_current` adds sys.executable as a last resort - correct for the
+    index rebuild (a hand-run from an already-capable interpreter should just
+    work), wrong for legs invoked only by the nightly, where falling back to
+    the TCC interpreter would fail confusingly on a missing import.
+    """
+    candidates = []
+    override = os.environ.get("MATTER_INDEX_PYTHON")
+    if override:
+        candidates.append(Path(override).expanduser())
+    candidates += [repo_root / ".venv" / "bin" / "python",
+                   repo_root / "venv" / "bin" / "python"]
+    if allow_current:
+        candidates.append(Path(sys.executable))
+    return next((c for c in candidates if c.exists()), None)
+
+
 def enrich_local(repo_root: Path) -> bool:
     """Run the local (LM Studio/Qwen) enrichment over new matter/ files.
 
@@ -806,12 +836,7 @@ def enrich_local(repo_root: Path) -> bool:
     if not script.exists():
         log.error("Cannot enrich locally: %s not found", script)
         return False
-    candidates = []
-    override = os.environ.get("MATTER_INDEX_PYTHON")
-    if override:
-        candidates.append(Path(override).expanduser())
-    candidates += [repo_root / ".venv" / "bin" / "python", repo_root / "venv" / "bin" / "python"]
-    interpreter = next((c for c in candidates if c.exists()), None)
+    interpreter = _venv_python(repo_root)
     if interpreter is None:
         log.error("Cannot enrich locally: no venv interpreter found")
         return False
@@ -858,14 +883,7 @@ def rebuild_index(repo_root: Path) -> bool:
         )
         return False
 
-    candidates = []
-    override = os.environ.get("MATTER_INDEX_PYTHON")
-    if override:
-        candidates.append(Path(override).expanduser())
-    candidates += [repo_root / ".venv" / "bin" / "python", repo_root / "venv" / "bin" / "python"]
-    candidates.append(Path(sys.executable))
-
-    interpreter = next((c for c in candidates if c.exists()), None)
+    interpreter = _venv_python(repo_root, allow_current=True)
     if interpreter is None:
         log.error("Cannot rebuild index: no usable Python interpreter found")
         return False
@@ -883,4 +901,97 @@ def rebuild_index(repo_root: Path) -> bool:
         )
         return False
     log.info("Index rebuilt: %s", (completed.stdout or "").strip().splitlines()[-1:] or "")
+    return True
+
+
+SITE_DIR_NAME = "_site"
+SITE_MARKER = ".reading-site"
+PAGES_PROJECT = os.environ.get("READING_PAGES_PROJECT", "reading-adamthede")
+PAGES_BRANCH = os.environ.get("READING_PAGES_BRANCH", "main")
+
+
+def rebuild_site(repo_root: Path) -> bool:
+    """Regenerate _site from the vault's synthesis files.
+
+    Unconditional when asked, unlike the index rebuild: the WEEKLY synthesis
+    job (Sundays 20:00) writes new week files that this nightly never sees in
+    its own sync counters, so gating on `result.new` would leave Monday's site
+    missing Sunday's digest. A no-change regeneration is ~1 minute of local
+    I/O, which is cheaper than reasoning about every upstream writer.
+
+    generate.py renders to a temp dir and swaps atomically, so a failure here
+    leaves the previous good _site untouched - which is why deploy is allowed
+    to be skipped rather than publishing a half-built site.
+    """
+    script = repo_root / "site" / "generate.py"
+    if not script.exists():
+        log.error("Cannot rebuild the site: %s not found", script)
+        return False
+    interpreter = _venv_python(repo_root)
+    if interpreter is None:
+        log.error("Cannot rebuild the site: no venv interpreter found")
+        return False
+    try:
+        completed = subprocess.run(
+            [str(interpreter), str(script), "--out", SITE_DIR_NAME],
+            cwd=str(repo_root), capture_output=True, text=True, timeout=3600,
+        )
+    except subprocess.TimeoutExpired:
+        log.error("Site rebuild timed out after 1h.")
+        return False
+    if completed.returncode != 0:
+        log.error("site/generate.py failed (exit %s):\n%s", completed.returncode,
+                  (completed.stderr or completed.stdout or "")[-2000:])
+        return False
+    for line in (completed.stdout or "").strip().splitlines():
+        log.info("rebuild-site: %s", line)
+    return True
+
+
+def _wrangler() -> Path | None:
+    """wrangler, or None. PATH first, then volta's shim directory explicitly -
+    launchd starts with a minimal environment and ~/.volta/bin is the gotcha
+    the audit called out."""
+    found = shutil.which("wrangler")
+    if found:
+        return Path(found)
+    volta = Path.home() / ".volta" / "bin" / "wrangler"
+    return volta if volta.exists() else None
+
+
+def deploy_site(repo_root: Path) -> bool:
+    """Publish _site to Cloudflare Pages.
+
+    Refuses to deploy anything this generator did not produce: the directory
+    must exist, carry an index.html, and carry generate.py's own marker file.
+    Publishing is the one leg with a blast radius outside this machine, so it
+    checks what it is about to ship rather than trusting the path.
+    """
+    site = repo_root / SITE_DIR_NAME
+    if not (site / "index.html").exists() or not (site / SITE_MARKER).exists():
+        log.error("Refusing to deploy %s: not a generated site (missing "
+                  "index.html or %s). Nothing was published.", site, SITE_MARKER)
+        return False
+    wrangler = _wrangler()
+    if wrangler is None:
+        log.error("Cannot deploy: wrangler not found on PATH or at "
+                  "~/.volta/bin/wrangler. Add ~/.volta/bin to the plist PATH.")
+        return False
+    try:
+        completed = subprocess.run(
+            [str(wrangler), "pages", "deploy", SITE_DIR_NAME,
+             "--project-name", PAGES_PROJECT, "--branch", PAGES_BRANCH],
+            cwd=str(repo_root), capture_output=True, text=True, timeout=1800,
+        )
+    except subprocess.TimeoutExpired:
+        log.error("Deploy timed out after 30m; the site on Cloudflare is "
+                  "unchanged (last good deployment still serving).")
+        return False
+    if completed.returncode != 0:
+        log.error("wrangler deploy failed (exit %s). The last good deployment "
+                  "is still serving:\n%s", completed.returncode,
+                  (completed.stderr or completed.stdout or "")[-2000:])
+        return False
+    for line in (completed.stdout or "").strip().splitlines()[-4:]:
+        log.info("deploy: %s", line)
     return True

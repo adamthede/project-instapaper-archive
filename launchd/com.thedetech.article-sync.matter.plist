@@ -5,8 +5,15 @@
   Matter -> Article Archive sync - nightly at 04:45 local.
 
   Pulls everything Matter has marked ARCHIVE (i.e. read), writes it into the
-  vault as Markdown + YAML frontmatter, and rebuilds the Parquet index so the
-  Streamlit dashboard reflects it the next morning.
+  vault as Markdown + YAML frontmatter, enriches new articles with the local
+  model, rebuilds the Parquet index, regenerates the static site, and
+  publishes it to reading.adamthede.com (private, behind Cloudflare Access).
+
+  Legs run in that order and EVERY leg's status lands in the one heartbeat -
+  a green sync followed by a failed deploy reports the night as failed, which
+  is the whole point of not writing the heartbeat until the chain is done.
+  Enrichment is the deliberate exception: it is non-fatal, because LM Studio
+  being down tonight just means tonight's articles are enriched tomorrow.
 
   Note --full rather than --sync, deliberately. Incremental mode filters on
   `updated_since`, which means it only sees a newly-read article if Matter bumps
@@ -71,6 +78,8 @@
         <string>--full</string>
         <string>--enrich-local</string>
         <string>--rebuild-index</string>
+        <string>--rebuild-site</string>
+        <string>--deploy</string>
     </array>
 
     <key>WorkingDirectory</key>
@@ -78,8 +87,10 @@
 
     <key>EnvironmentVariables</key>
     <dict>
+        <!-- ~/.volta/bin is where wrangler lives; launchd starts with a
+             minimal environment and would not resolve it otherwise. -->
         <key>PATH</key>
-        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>/Users/adam_thede/.volta/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>HOME</key>
         <string>/Users/adam_thede</string>
         <!-- Where the Markdown archive lives. Must match the value used by
