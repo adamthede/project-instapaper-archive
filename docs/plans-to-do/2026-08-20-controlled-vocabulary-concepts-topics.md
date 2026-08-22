@@ -1,10 +1,10 @@
 ---
 title: "Controlled Vocabulary — normalized concepts + topics, curated once, applied both directions"
-status: "Queued"
+status: "In Progress"
 priority: "P1"
 project: "articles"
 created: 2026-08-20
-linked_pr: ""
+linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/13"
 depends_on:
   - "Phase 5b measurement (PR #10) — the failure this plan answers"
   - "LM Studio: text-embedding-nomic-embed-text-v1.5 (verified available 2026-08-20)"
@@ -87,7 +87,37 @@ the curation gate, not before** - the clustering output is the evidence.
 
 ## Phases
 
-### Phase A — Derivation (machine, unattended)
+### Phase A — Derivation (machine, unattended) — SHIPPED, PR #13
+
+Run 2026-08-21 on the 16,346-row corpus. 73,099 distinct strings embedded in
+8.9 min; 54,226 clusters at cosine similarity 0.89 in 9.5 s; top 250 named by
+the pinned Qwen in 7.2 min with zero fallbacks. Gate artifact at
+`data/vocab/curation-gate.html`.
+
+**Two results that change the decisions below, both found in review:**
+
+- The pooled free-text baseline is **34.1%** at top-20, not the 22.0% / 25.3%
+  quoted above — those are per-column figures and this vocabulary is derived
+  over both fields pooled. Case-folding and de-pluralising alone reach 38.2%.
+  The derivation reaches 42.1%, so the honest gain is +8.0 over free text and
+  **+3.9 over the no-embeddings option**.
+- Measured against the individual columns Phase C builds, coverage is
+  **28.9% (concepts) and 33.5% (topics)** — *neither clears the 40% bar*.
+  Pooled clears it. So Phase E's "the pages turn on with no code change" holds
+  only if the axes MERGE into one vocabulary. That makes open decision #1
+  below load-bearing rather than aesthetic, and it now has numbers attached.
+
+The threshold was chosen against a chaining tripwire, not by taste: at 0.78 a
+single chained cluster held 41,980 strings, touched 16,293 of 16,346 articles,
+and reported 99.7% coverage. Coverage alone cannot distinguish a working
+vocabulary from one blob that ate the corpus.
+
+Fragmentation is the method's accepted failure direction and it is large:
+`privacy` survives as 54 separate clusters. Each of the top 300 entries
+therefore carries its off-page look-alikes on the gate, tickable, folding
+their aliases in on export — 291 of 300 entries have them.
+
+### Phase A — as originally specified
 
 Embeddings do the clustering; the LLM only names things. Split deliberately:
 the deterministic step must not be a generation step.

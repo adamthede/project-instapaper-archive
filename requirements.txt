@@ -11,6 +11,14 @@ google-generativeai>=0.3.0
 ollama>=0.1.6
 python-frontmatter>=1.0.0
 
+# Controlled vocabulary derivation (scripts/vocab/) — PCA and an exact kNN
+# graph over the concept/topic embeddings, then connected components on it.
+# numpy and scipy arrive transitively via pandas/scikit-learn, but these
+# modules import them directly, so they are declared directly.
+scikit-learn>=1.5.0
+numpy>=1.24.0
+scipy>=1.10.0
+
 # Dashboard & Analytics
 streamlit>=1.32.0
 pandas>=2.0.0
