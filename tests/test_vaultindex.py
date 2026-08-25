@@ -477,3 +477,23 @@ def test_dump_parquet_pairs_exits_non_zero_when_it_cannot_read(tmp_path, monkeyp
 
     with pytest.raises(SystemExit):
         dump_parquet_pairs(str(tmp_path / "whatever.parquet"))
+
+
+def test_the_two_non_article_dir_sets_have_not_drifted():
+    """build_index.py carries its own copy of this set, with a comment asking
+    whoever edits one to remember the other. A comment is not a mechanism.
+
+    The duplicate exists because the dependency can only point one way:
+    vaultindex.py is stdlib-only and so stays importable under the launchd
+    interpreter, while build_index.py imports pandas, frontmatter, textstat and
+    dotenv at module scope. build_index.py can import THIS constant; the
+    reverse would kill the nightly at import. Until it does, this test is what
+    keeps the two honest -- a divergence means the indexer and the deduper
+    disagree about what counts as an article, which is silent and expensive.
+    """
+    sys.path.insert(0, str(REPO_ROOT / "scripts" / "core"))
+    import build_index
+
+    from matter.vaultindex import NON_ARTICLE_DIRS
+
+    assert build_index.NON_ARTICLE_DIRS == NON_ARTICLE_DIRS
