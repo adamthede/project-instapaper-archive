@@ -12,6 +12,7 @@ stdout) can be provoked deliberately rather than waited for.
 """
 
 import json
+import logging
 import stat
 import sys
 from pathlib import Path
@@ -163,7 +164,6 @@ def test_both_parquet_paths_produce_the_same_index(tmp_path, vault, parquet):
 # --- source 2's failure modes, all of which must degrade rather than raise --
 
 @pytest.mark.parametrize("body, why", [
-    ("time.sleep(30)", "timeout"),
     ("sys.exit(1)", "non-zero exit with no output"),
     # The case that actually exercises the returncode check. With `sys.exit(1)`
     # alone the payload is empty, so it is json.loads('') that rejects the run;
@@ -192,6 +192,61 @@ def test_subprocess_failures_fall_through_to_the_vault_scan(
 
     assert index.source == "vault scan (1 urls from 1 files)", f"{why} should degrade, not raise"
     assert index.lookup("https://example.com/from-the-vault") == "fallback.md"
+
+
+def test_a_wedged_child_is_cut_off_rather_than_holding_the_night_open(
+    tmp_path, vault, fake_parquet, monkeypatch
+):
+    """The timeout, pinned by the clock rather than by the outcome.
+
+    This used to be one more row in the parametrize above, with a `sleep(30)`
+    child -- and it passed with `timeout=` deleted, because the child ended on
+    its own and json.loads('') rejected the empty payload. Same defect as the
+    returncode sibling above: the assertion was satisfied by a guard other than
+    the one under test.
+
+    A child that outlives any patience the suite has is what makes the timeout
+    load-bearing. The elapsed assertion is the real one; without `timeout=`
+    this takes five minutes and fails on the clock rather than passing slowly.
+    """
+    import time
+
+    monkeypatch.setattr("matter.vaultindex._read_parquet_pairs", lambda path: None)
+    write_vault_article(vault, "fallback.md", "https://example.com/from-the-vault")
+    stub = make_stub_python(tmp_path, "time.sleep(300)")
+
+    started = time.monotonic()
+    index = build_url_index(vault, parquet_path=fake_parquet, skip_dirs={"matter"},
+                            write_cache=False, helper_python=stub,
+                            subprocess_timeout=1)
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 30, f"the wedged child was waited on for {elapsed:.1f}s, not cut off"
+    assert index.source == "vault scan (1 urls from 1 files)"
+    assert index.lookup("https://example.com/from-the-vault") == "fallback.md"
+
+
+def test_the_broad_guard_logs_why_it_fell_back(vault, fake_parquet, monkeypatch, caplog):
+    """docs/MATTER_SYNC.md tells Adam "the WARNING logged on the way past names
+    the reason" when dedupe_source reads `vault scan` on a nightly run. That is
+    the whole diagnostic path for a silent 50-minute night, so the log line is
+    load-bearing: replacing it with a bare swallow must not leave the suite
+    green."""
+    def boom(path):
+        raise MemoryError("pretend pyarrow could not allocate")
+    monkeypatch.setattr("matter.vaultindex._read_parquet_pairs", boom)
+    write_vault_article(vault, "fallback.md", "https://example.com/from-the-vault")
+
+    with caplog.at_level(logging.WARNING, logger="matter.vaultindex"):
+        index = build_url_index(vault, parquet_path=fake_parquet, write_cache=False)
+
+    assert index.source.startswith("vault scan")
+    warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert warnings, "falling back silently leaves a slow night undiagnosable"
+    # exc_info, not just a message: the reason is the exception, and naming it
+    # is what the runbook promises.
+    assert any(r.exc_info and "MemoryError" in logging.Formatter().formatException(r.exc_info)
+               for r in warnings)
 
 
 def test_undecodable_bytes_on_stderr_do_not_spoil_a_good_read(
