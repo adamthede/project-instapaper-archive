@@ -401,8 +401,8 @@ def test_the_committed_taxonomy_matches_the_committed_decisions():
     """`--check` in test form: the generated file must not drift from the
     decisions it claims to come from. A hand-edit to v1.yaml fails here."""
     decisions = yaml.safe_load(DECISIONS.read_text())
-    entries, _ = apply_decisions(load_head(CLUSTERS, NAMES), decisions)
-    assert TAXONOMY.read_text() == render(entries, decisions)
+    entries, audit = apply_decisions(load_head(CLUSTERS, NAMES), decisions)
+    assert TAXONOMY.read_text() == render(entries, decisions, audit)
 
 
 @needs_derivation

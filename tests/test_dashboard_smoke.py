@@ -24,6 +24,9 @@ from matter.sync import SyncConfig, run_sync
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BUILD_INDEX = REPO_ROOT / "scripts" / "core" / "build_index.py"
 ENTITY_HYGIENE = REPO_ROOT / "scripts" / "core" / "entity_hygiene.py"
+# build_index imports this at module scope, so a temp repo without it
+# fails at import rather than at the taxonomy step.
+TAXONOMY_MOD = REPO_ROOT / "scripts" / "core" / "taxonomy.py"
 DASHBOARD_APP = REPO_ROOT / "dashboard" / "app.py"
 
 
@@ -94,6 +97,7 @@ def merged_index(merged_vault, tmp_path, monkeypatch):
     # build_index imports its sibling for the entity-hygiene pass; the temp
     # repo is a real repo skeleton, so it needs the sibling too.
     shutil.copy(ENTITY_HYGIENE, repo / "scripts" / "core" / "entity_hygiene.py")
+    shutil.copy(TAXONOMY_MOD, repo / "scripts" / "core" / "taxonomy.py")
     shutil.copy(DASHBOARD_APP, repo / "dashboard" / "app.py")
 
     completed = subprocess.run(
@@ -402,6 +406,7 @@ def test_an_unread_matter_row_appears_in_no_dashboard_surface(merged_vault, tmp_
     # build_index imports its sibling for the entity-hygiene pass; the temp
     # repo is a real repo skeleton, so it needs the sibling too.
     shutil.copy(ENTITY_HYGIENE, repo / "scripts" / "core" / "entity_hygiene.py")
+    shutil.copy(TAXONOMY_MOD, repo / "scripts" / "core" / "taxonomy.py")
     shutil.copy(DASHBOARD_APP, repo / "dashboard" / "app.py")
     completed = subprocess.run(
         [sys.executable, str(repo / "scripts" / "core" / "build_index.py")],

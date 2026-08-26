@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import entity_hygiene  # noqa: E402
+import taxonomy  # noqa: E402
 
 # Load environment variables from .env if present
 load_dotenv()
@@ -31,6 +32,7 @@ VAULT_PATH = Path(
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = REPO_ROOT / "data"
 INDEX_PATH = DATA_DIR / "archive_index.parquet"
+TAXONOMY_PATH = DATA_DIR / "taxonomy" / "v1.yaml"
 
 # Vault subdirectories this pipeline WRITES to, which must never be read back
 # in as articles. Keep in sync with the same-named set in matter/vaultindex.py.
@@ -302,6 +304,25 @@ def build_index():
     # inherits the fix without repeating it.
     df, _ = entity_hygiene.scrub(df, column="people",
                                  quarantine_column=entity_hygiene.PEOPLE_QUARANTINE)
+
+    # Phase C: join the curated taxonomy onto the free-text strings. Runs after
+    # dedupe and scrub so the printed miss rate describes the index that
+    # actually ships. Raw concepts/topics are left untouched — a string that
+    # matches nothing is counted, not dropped, and that count is the health
+    # metric that says when to cut a v2.
+    if TAXONOMY_PATH.exists():
+        try:
+            tax = taxonomy.load(TAXONOMY_PATH)
+            print(taxonomy.format_report(taxonomy.apply_to_frame(df, tax)))
+        except taxonomy.TaxonomyError as exc:
+            # Loud, and the build continues without the columns. Failing hard
+            # would take down the nightly for a problem the raw fields are
+            # unaffected by; failing silently would let the site read stale
+            # canonical columns and never say why.
+            print(f"WARNING: taxonomy not applied — {exc}")
+    else:
+        print(f"WARNING: no taxonomy at {TAXONOMY_PATH}; "
+              "canonical_* columns not written")
 
     # Save
     DATA_DIR.mkdir(exist_ok=True)
