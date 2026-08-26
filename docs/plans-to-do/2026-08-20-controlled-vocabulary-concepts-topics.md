@@ -4,7 +4,7 @@ status: "In Progress"
 priority: "P1"
 project: "articles"
 created: 2026-08-20
-linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/17"
+linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/18"
 # Phase A shipped in PR #13; linked_pr tracks the LATEST phase PR so /shipped
 # and the Reconciler can trace this plan to work in flight.
 depends_on:
@@ -194,7 +194,43 @@ name, definition, aliases (the member strings), axis, version. That file is
 the source of truth from then on; it is human-readable, diffable, and editable
 by hand.
 
-### Phase C — Backward application (cheap, no per-article inference)
+### Phase C — DONE 2026-08-26
+
+The join runs at index-build time and adds four columns:
+`canonical_entries`, `canonical_concepts`, `canonical_topics`,
+`taxonomy_unmatched` and `taxonomy_version`. No inference — a dictionary
+lookup, as specified.
+
+**80.2% of articles are tagged** (13,880 of 17,317), and the pooled column
+reaches **41.2% top-20 coverage against the 40% bar**.
+
+Three things this phase got wrong on the first attempt, all caught by
+measuring rather than assuming:
+
+1. **The canonical columns must POOL.** Routing them by source field leaves
+   `canonical_concepts` at 29.7% and `canonical_topics` at 32.3% — both under
+   the bar, and both within a point of the 28.9% / 33.5% Phase A measured for
+   the *raw* axes. Phase A settled this by pooling; a split canonical output
+   walks back into the same failure with extra steps. `canonical_entries` is
+   the vocabulary; the per-field columns are provenance only.
+2. **The miss rate counted our own rejections as gaps.** Technology alone was
+   1,125 unmatched articles and led the most-missed list — which is supposed
+   to be the *v2 candidate* list. `v1.yaml` now carries `excluded_aliases`,
+   counted separately.
+3. **The raw miss rate is a poor v2 trigger.** 75% of gap strings are used by
+   exactly one article and will never deserve an entry, so the number barely
+   moves. The usable metric is gap strings reaching ≥25 articles: **357 today,
+   worth ~12,800 article-tags**. Current v2 candidates lead with Leverage,
+   Crime, Evolution, Journalism, Agriculture.
+
+**Correction to Phase E below:** the claim that "no code change should be
+needed to turn the pages on" is false, and it is not a bug in the gate.
+`deepdives.concepts_verdict` reads the raw `concepts` column, which was
+correct when written — no canonical column existed. Phase E must point it at
+`canonical_entries`. That is a one-line change, and until it lands the pages
+stay off despite the taxonomy clearing the bar.
+
+### Phase C — as originally specified
 
 Join `taxonomy v1` aliases against every article's existing free-text strings
 at index-build time. New index columns: `canonical_concepts`,
