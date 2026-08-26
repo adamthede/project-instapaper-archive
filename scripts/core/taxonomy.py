@@ -43,6 +43,8 @@ from __future__ import annotations
 import collections
 from pathlib import Path
 
+import pandas as pd
+
 import yaml
 
 FIELDS = ("concepts", "topics")
@@ -113,16 +115,78 @@ def _fold(s):
     return " ".join(str(s).lower().split())
 
 
+KNOWN_TOP_LEVEL = frozenset({"version", "generated_by", "entries", "excluded_aliases"})
+
+
 def load(path: Path) -> Taxonomy:
-    doc = yaml.safe_load(Path(path).read_text())
+    """Parse and validate a taxonomy file.
+
+    EVERY failure leaves here as TaxonomyError, without exception. The caller
+    in build_index catches that one type and continues, and it has to be able
+    to: the taxonomy step runs AFTER the vault scan and before ``to_parquet``,
+    so anything that escapes discards an hour of SMB walking and writes no
+    index at all. One stray character in a hand-edited file must not cost that.
+
+    Before this was tightened, a YAML syntax error, an entry missing its
+    ``aliases``, and an empty file escaped as ParserError / KeyError /
+    AttributeError and killed the nightly — the three most likely
+    malformations hitting the worst available outcome.
+    """
+    path = Path(path)
+    try:
+        doc = yaml.safe_load(path.read_text())
+    except (yaml.YAMLError, OSError, UnicodeDecodeError) as exc:
+        raise TaxonomyError(f"{path} could not be read: {exc}") from exc
+
+    if not isinstance(doc, dict):
+        raise TaxonomyError(
+            f"{path} parsed as {type(doc).__name__}, not a mapping — "
+            "expected a document with an 'entries:' key"
+        )
+    # A misspelled `excluded_alias:` loads clean as "no exclusions": the metric
+    # shifts, the rejected entries return to leading the v2 candidate list, and
+    # nothing says so. Same silent-typo class the curation applier guards.
+    unknown = sorted(set(doc) - KNOWN_TOP_LEVEL)
+    if unknown:
+        raise TaxonomyError(
+            f"{path} has unknown key(s) {unknown} — expected some of "
+            f"{sorted(KNOWN_TOP_LEVEL)}"
+        )
+
     entries = doc.get("entries") or []
+    if not isinstance(entries, list):
+        raise TaxonomyError(f"{path}: 'entries' is {type(entries).__name__}, not a list")
     if not entries:
         raise TaxonomyError(f"{path} has no entries")
 
+    version = doc.get("version")
+    # Defaulting a missing version to 1 would stamp taxonomy_version=1 on every
+    # row of a v2 index — destroying the exact signal Phase D needs to notice a
+    # re-tag, and doing it silently.
+    if not isinstance(version, int):
+        raise TaxonomyError(
+            f"{path}: 'version' is {version!r}; it must be an int, because every "
+            "row is stamped with it and a wrong stamp makes a re-tag invisible"
+        )
+
     by_alias, by_folded, folded_owner = {}, {}, {}
-    for e in entries:
+    for i, e in enumerate(entries):
+        if not isinstance(e, dict):
+            raise TaxonomyError(f"{path}: entry {i} is {type(e).__name__}, not a mapping")
+        missing = [k for k in ("name", "aliases") if k not in e]
+        if missing:
+            raise TaxonomyError(f"{path}: entry {i} is missing {missing}")
         name = e["name"]
+        if not isinstance(e["aliases"], list) or not e["aliases"]:
+            raise TaxonomyError(
+                f"{path}: entry {name!r} has no usable aliases "
+                f"({type(e['aliases']).__name__})"
+            )
         for alias in e["aliases"]:
+            if not isinstance(alias, str):
+                raise TaxonomyError(
+                    f"{path}: entry {name!r} has a non-string alias {alias!r}"
+                )
             if alias in by_alias and by_alias[alias] != name:
                 raise TaxonomyError(
                     f"alias {alias!r} maps to both {by_alias[alias]!r} and {name!r}"
@@ -140,14 +204,33 @@ def load(path: Path) -> Taxonomy:
             folded_owner[folded] = name
             by_folded[folded] = name
 
-    excluded = doc.get("excluded_aliases") or []
-    both = sorted(set(excluded) & set(by_alias))
+    excluded = doc.get("excluded_aliases")
+    if excluded is None:
+        excluded = []
+    # A scalar here is the nastiest shape available: `excluded_aliases: Technology`
+    # iterates PER CHARACTER, so is_excluded('e') becomes True and single letters
+    # start silently vanishing from the gap counts.
+    if not isinstance(excluded, list):
+        raise TaxonomyError(
+            f"{path}: 'excluded_aliases' is {type(excluded).__name__}, not a list — "
+            "a bare string would be read one character at a time"
+        )
+    bad = [x for x in excluded if not isinstance(x, str)]
+    if bad:
+        raise TaxonomyError(f"{path}: non-string excluded_aliases {bad[:5]}")
+
+    # Compared on the FOLDED form because that is what is_excluded uses. An
+    # exact-only check would pass an `excluded: ["privacy"]` sitting beside an
+    # entry owning "Privacy", where the exclusion is simply dead — the guard
+    # would advertise a property it does not have.
+    owned_folds = {_fold(a): a for a in by_alias}
+    both = sorted({owned_folds[_fold(x)] for x in excluded if _fold(x) in owned_folds})
     if both:
         raise TaxonomyError(
             f"{len(both)} alias(es) are both excluded and owned by an entry: "
             f"{both[:5]} — the taxonomy contradicts itself"
         )
-    return Taxonomy(doc.get("version", 1), by_alias, by_folded,
+    return Taxonomy(version, by_alias, by_folded,
                     [e["name"] for e in entries], excluded)
 
 
@@ -173,6 +256,12 @@ def apply_to_row(row, tax: Taxonomy):
     for field in FIELDS:
         names = []
         for s in _as_list(row.get(field)):
+            # Non-strings reach here from a malformed enrichment pass. Left
+            # alone they print as v2 candidates (None, 3, nan) and an unhashable
+            # one raises inside set(gaps), which under the old build wiring
+            # killed the whole run.
+            if not isinstance(s, str):
+                continue
             hit = tax.lookup(s)
             if hit is None:
                 unmatched.append(s)
@@ -188,26 +277,56 @@ def apply_to_frame(df, tax: Taxonomy):
     New columns: canonical_concepts, canonical_topics, taxonomy_unmatched
     (a per-article count), taxonomy_version.
     """
+    # An absent source column is indistinguishable from an empty one once
+    # row.get() has turned it into None: the join matches nothing, every
+    # canonical column is written empty, and miss_rate comes out 0.0 — the BEST
+    # possible value. Anyone reading the nightly log sees a flawless number
+    # from a join that did nothing. corpus.numeric_column refuses the same
+    # class of schema drift for word_count; this refuses it here.
+    absent = [f for f in FIELDS if f not in df.columns]
+    if absent:
+        raise TaxonomyError(
+            f"source column(s) {absent} are missing from the index — the join "
+            "would match nothing and report a perfect miss rate"
+        )
+
     cols = {c: [] for c in CANONICAL.values()}
     cols[POOLED] = []
     unmatched_counts, miss_counter = [], collections.Counter()
     exact_hits = folded_only = total_strings = excluded_hits = 0
 
-    for _, row in df.iterrows():
+    # Junk-scrape rows are in the index but never reach a page — corpus.prepare
+    # filters them. Counting their strings as v2 candidates recommends entries
+    # that would reach ~0 real articles: 915 corrupted rows (5.3%) supplied
+    # FIVE of the top six candidates, at 92-98% corrupted each. That is a
+    # bigger contamination than the 26 curation exclusions this report already
+    # corrects for.
+    corrupted = (df["content_corrupted"].fillna(False).astype(bool)
+                 if "content_corrupted" in df.columns
+                 else pd.Series(False, index=df.index))
+    candidate_rows = 0
+
+    for idx, row in df.iterrows():
         canonical, unmatched = apply_to_row(row, tax)
         for field, col in CANONICAL.items():
             cols[col].append(canonical[field])
         cols[POOLED].append(sorted({n for f in FIELDS for n in canonical[f]}))
         # The per-article count is GAPS only. An article tagged "Technology"
         # is not under-covered — that entry was measured and cut on purpose.
+        # Note this counts OCCURRENCES, unlike miss_counter below: the column
+        # answers "how much of this row went unmatched".
         gaps = [s for s in unmatched if not tax.is_excluded(s)]
         unmatched_counts.append(len(gaps))
-        # Deduped per article: the counter answers "how many ARTICLES would an
-        # entry for this string reach", which is the question v2 curation asks.
-        # Counting mentions would inflate strings an article happens to repeat.
-        miss_counter.update(set(gaps))
+        if not bool(corrupted.loc[idx]):
+            candidate_rows += 1
+            # Deduped per article, and unlike the column above this counts
+            # ARTICLES: it answers "how many articles would an entry for this
+            # string reach", which is the question v2 curation asks.
+            miss_counter.update(set(gaps))
         for field in FIELDS:
             for s in _as_list(row.get(field)):
+                if not isinstance(s, str):
+                    continue
                 total_strings += 1
                 if tax.lookup(s) is None:
                     if tax.is_excluded(s):
@@ -245,6 +364,14 @@ def apply_to_frame(df, tax: Taxonomy):
             100 * (total_strings - matched - excluded_hits)
             / (total_strings - excluded_hits), 1)
         if total_strings - excluded_hits else 0.0,
+        # Printed beside the adjusted rate because the adjustment is
+        # monotone-improvable: a v2 that curates nothing and excludes 5,000
+        # strings would look like progress. Seeing both makes that visible.
+        # (On v1 the adjustment is worth 0.2 points; its real value is the
+        # candidate LIST, not the rate.)
+        "miss_rate_raw": round(100 * (total_strings - matched) / total_strings, 1)
+        if total_strings else 0.0,
+        "candidate_rows": candidate_rows,
         "top_unmatched": miss_counter.most_common(15),
         # The actionable half of the health metric. The raw miss rate is
         # dominated by an irreducible tail — three quarters of gap strings are
@@ -268,12 +395,14 @@ def format_report(report: dict) -> str:
         f"({report['strings_exact']:,} exact + {report['strings_folded_only']:,} by case-fold), "
         f"{report['strings_gap']:,} unmatched, "
         f"{report['strings_excluded']:,} excluded by curation",
-        f"  miss rate {report['miss_rate']}%  "
+        f"  miss rate {report['miss_rate']}% "
+        f"(raw {report['miss_rate_raw']}%)  "
         f"({report['gap_strings_distinct']:,} distinct gap strings, "
-        f"{100 * report['gap_strings_singleton'] // max(report['gap_strings_distinct'], 1)}% "
+        f"{round(100 * report['gap_strings_singleton'] / max(report['gap_strings_distinct'], 1))}% "
         "used by one article)",
         f"  v2 trigger: {report['v2_candidates']} gap strings reach >={V2_CANDIDATE_MIN} "
-        f"articles ({report['v2_candidate_articles']:,} article-tags on the table)",
+        f"articles ({report['v2_candidate_articles']:,} article-tags on the table; "
+        f"counted over {report['candidate_rows']:,} non-corrupted rows)",
     ]
     if report["top_unmatched"]:
         head = ", ".join(f"{s} ({n})" for s, n in report["top_unmatched"][:8])
