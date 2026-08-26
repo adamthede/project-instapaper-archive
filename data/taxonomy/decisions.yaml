@@ -1,0 +1,212 @@
+# Curation decisions — Phase B of the controlled-vocabulary plan.
+#
+# Adam read the full 250-entry gate on 2026-08-24 and accepted the list as a
+# whole ("I like having the diversity of topics"). What follows is the set of
+# EXCEPTIONS to that acceptance, agreed one at a time with the evidence for
+# each recorded beside it.
+#
+# This file is hand-authored and is the human half of the gate. It is what
+# `scripts/vocab/apply_curation.py` reads to produce data/taxonomy/v1.yaml.
+# The taxonomy is generated; the DECISIONS are not. That split is deliberate —
+# gate.py's docstring makes the same point about its own export.
+#
+# The standing rule for every judgement below: an entry earns its place by
+# DISCRIMINATING. The test applied throughout is "how many articles rely on
+# this entry alone", measured against the live 17,317-row index. An entry that
+# co-occurs with something more specific ~96% of the time adds nothing to a
+# ranking and puts noise in every trends heatmap.
+#
+# NET EFFECT ON COVERAGE, measured end to end rather than per-decision:
+#
+#   full 250-entry head      80.516%
+#   minus Technology         80.274%   <- the figure quoted per-entry below
+#   minus all three rejects  80.193%
+#   shipped v1.yaml (248)    80.152%   -> 80.2%
+#
+# Each per-entry evidence line below is individually true, but they do not
+# compose: Business and Design each cost so little that they round away alone
+# and only show up together. The shipped number is 80.2%.
+#
+# ORDER MATTERS. Sections are applied reject -> merge -> split ->
+# reassign_aliases -> drop_aliases, so the latter two must name entries by
+# their POST-split, POST-merge names. Getting it wrong raises rather than
+# silently misapplying, but it is worth knowing before you write a rule.
+version: 1
+
+source:
+  clusters: data/vocab/clusters.json
+  names: data/vocab/cluster-names.jsonl
+
+# Everything in cluster-names.jsonl is ACCEPTED unless it appears below.
+default: accept
+
+# ---------------------------------------------------------------------------
+# REJECT — true of nearly everything read, therefore informative about nothing.
+# ---------------------------------------------------------------------------
+reject:
+  - name: Technology
+    evidence: "1,137 articles tagged; 42 (3.7%) have no other head entry; alone it moves coverage 80.5% -> 80.3%"
+    why: >
+      The 4th-largest entry in the vocabulary, and it carries fewer
+      solo-dependent articles than Social Media (110), Artificial Intelligence
+      (86), Public Health (72) or Philanthropy (62) — all far smaller entries.
+      In an archive that is mostly technology reading, "Technology" partitions
+      nothing. Cost of removal is 42 orphaned articles.
+
+  - name: Business
+    evidence: "221 articles tagged; 6 (2.7%) solo; coverage unchanged at 80.5%"
+    why: >
+      Single member string, "Business". Same species as Technology and an even
+      cleaner cut — removal does not move head coverage at one decimal place.
+
+  - name: Design
+    evidence: "268 articles tagged; 4 (1.5%) solo; coverage unchanged at 80.5%"
+    why: >
+      Single member string, "Design". The lowest solo-dependency of any entry
+      examined. Note that Product Design (#228) and User Experience Design
+      (#20) survive independently and carry the specific reading.
+
+# Deliberately NOT rejected, though they look similar: Capitalism (84 tagged,
+# 10 solo = 11.9%) and Economic Impact (164 tagged, 15 solo = 9.1%). Both were
+# measured as controls precisely because they are single- or few-string entries
+# like Business and Design; both discriminate, so both stay. The metric is not
+# a proxy for "small vocabulary".
+
+# ---------------------------------------------------------------------------
+# MERGE — two entries naming one thing. Not the broader-parent kind: merging
+# two head entries can never add articles (both are already counted), so it is
+# only ever correct when the distinction between them is false.
+# ---------------------------------------------------------------------------
+merge:
+  - into: Initial Public Offerings
+    absorb: [Initial Public Offering]
+    evidence: "228 + 154 = 382 articles"
+    why: >
+      The clearest defect in the head. One cluster holds only abbreviations
+      (Ipo, Ipos, IPOs, IPO Market); the other holds only spelled-out forms
+      (Initial Public Offering (ipo), Initial Public Offerings (IPOs)). The
+      model separated a term from its own acronym — a lexical artifact with no
+      conceptual content. The string "Initial Public Offerings" is literally a
+      member of the cluster it is not the name of.
+
+  - into: Climate Change
+    absorb: [Global Warming]
+    evidence: "330 + 138 = 468 articles"
+    why: >
+      One subject under two names; both clusters even carry their own
+      "Anthropogenic" variants. Asking the archive about climate change
+      currently returns 330 of 468.
+
+  - into: Data Analysis
+    absorb: [Data Analytics]
+    evidence: "135 + 86 = 221 articles"
+    why: >
+      Data Analysis / Data analysis versus Data Analytics / Analytics.
+
+# Considered and REJECTED as a merge: Video Streaming (124) and Online Video
+# (123). The counts invite it, but Online Video has drifted broader — it holds
+# Content Creation, Online Content and Internet Content — so merging would
+# import non-video reading. That entry wants a rename, not a merge; left alone
+# rather than guessed at.
+
+# ---------------------------------------------------------------------------
+# SPLIT — where the clustering flattened distinct threads into a generic label.
+# This is the same specificity loss the diversity preference exists to protect
+# against, except the machine already inflicted it.
+# ---------------------------------------------------------------------------
+split:
+  - from: National Economies
+    evidence: "China 64 articles across 6 spellings; US 38 across 6; the rest are singletons"
+    why: >
+      35 member strings spanning 20 countries collapsed into one label. China
+      and the US are substantial, distinct reading threads and get their own
+      entries. Greece, Iceland, Ireland, Norway, Nigeria, Spain, Indonesia and
+      Australia are ONE article each and are not worth entries — they stay in
+      the remainder, which is now honestly named, since the two large threads
+      have left it.
+    into:
+      - name: Chinese Economy
+        definition: >-
+          Reading on the economy of China — growth, policy, and its position in
+          global markets.
+        aliases:
+          - Chinese Economy
+          - Chinese economy
+          - China's economy
+          - China's Economy
+          - China Economy
+          - China economy
+      - name: US Economy
+        definition: >-
+          Reading on the economy of the United States, including its
+          post-war trajectory.
+        aliases:
+          - US Economy
+          - US economy
+          - U.S. Economy
+          - U.s. Economy
+          - American economy
+          - Post-WWII US Economy
+    remainder: National Economies
+    # The inherited definition said "individual countries", which stopped being
+    # true once the two large countries left and a currency bloc stayed.
+    remainder_definition: >-
+      Reading on the economies of individual countries and blocs other than
+      China and the United States, which have their own entries.
+    drop_aliases:
+      # Generic, and measured: "Economy" tags 39 articles of which 2 (5.1%)
+      # have no other head entry. Same species as Technology.
+      - Economy
+      - Modern Economy
+      - Second Economy
+
+  - from: Culture
+    evidence: "'Arts and Culture' variants = 12 articles; American Culture = 9; bare 'Culture' = 47 tagged, 2 solo"
+    why: >
+      The real finding here is not nationality — eight of the ten national
+      cultures are singletons. It is that "Arts and Culture" is a DIFFERENT
+      SUBJECT sitting inside a culture cluster, and it is the largest
+      non-generic thing in it.
+    into:
+      - name: Arts and Culture
+        definition: >-
+          Reading about the arts as a cultural field — criticism, institutions,
+          and arts coverage generally.
+        aliases:
+          - Arts and Culture
+          - Arts & Culture
+          - Arts And Culture
+          - Arts and culture
+          - Art and Culture
+      - name: American Culture
+        definition: >-
+          Reading on the culture of the United States, including
+          African-American culture.
+        aliases:
+          - American Culture
+          - American culture
+          - African-American Culture
+          - Black Culture
+    remainder: Culture
+    drop_aliases:
+      # 47 articles tagged, 2 solo (4.3%). Non-discriminating.
+      - Culture
+
+# ---------------------------------------------------------------------------
+# ALIAS CLEANUP — the cluster is right, a few strings inside it are not.
+# ---------------------------------------------------------------------------
+reassign_aliases:
+  - from: Apple iOS and iPhone
+    to: iPad
+    aliases: [Ipad App, Ipad Apps, iPad Applications, iPad Apps]
+    why: >
+      iPad strings sitting in an iPhone cluster while iPad exists as its own
+      entry (#170). Moved rather than dropped so the articles keep a home.
+
+drop_aliases:
+  - from: Digital Photography and Videography
+    aliases: [Digital Audio Recorder, Digital Audio Recorders, Digital Audio Recording]
+    why: >
+      Audio recording is neither photography nor videography. There is no audio
+      entry in the head to move these to, so they are dropped; re-derivation
+      can pick them up if the reading ever justifies an entry.

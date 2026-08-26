@@ -4,7 +4,9 @@ status: "In Progress"
 priority: "P1"
 project: "articles"
 created: 2026-08-20
-linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/13"
+linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/17"
+# Phase A shipped in PR #13; linked_pr tracks the LATEST phase PR so /shipped
+# and the Reconciler can trace this plan to work in flight.
 depends_on:
   - "Phase 5b measurement (PR #10) — the failure this plan answers"
   - "LM Studio: text-embedding-nomic-embed-text-v1.5 (verified available 2026-08-20)"
@@ -136,7 +138,50 @@ the deterministic step must not be a generation step.
    strings with frequencies and 3 example article titles. The LLM names and
    defines; it does not decide membership.
 
-### Phase B — The curation gate (Adam, the only manual step)
+### Phase B — DONE 2026-08-25
+
+Adam read all 250 entries and accepted the list as a whole — "I like having the
+diversity of topics" — with ten exceptions agreed individually. The result is
+**248 entries / 2,469 aliases** in `data/taxonomy/v1.yaml`.
+
+The axis question settled itself on Phase A's numbers (28.9% / 33.5% separately
+against a 40% bar, pooled clears it), so the axes merge. Note the axis LABELS
+are unreliable — Qwen called iPod, iPad, iTunes, Search Engines and Instant
+Messaging "concepts" — but nothing downstream reads them, so they were left.
+
+Every judgement used one test: **how many articles rely on this entry alone**,
+measured against the live index. An entry that co-occurs with something more
+specific ~96% of the time adds nothing to a ranking and puts noise in every
+heatmap.
+
+- **3 rejected** — Technology (1,137 tagged, 42 solo, 3.7%), Business (221/6),
+  Design (268/4). Head coverage 80.5% → 80.3%; Business and Design did not move
+  it at one decimal place. Capitalism (11.9% solo) and Economic Impact (9.1%)
+  were measured as controls and kept, confirming the metric is not merely a
+  proxy for "small vocabulary".
+- **3 merged** — the IPO pair was the clearest defect in the head: one cluster
+  held only abbreviations, the other only spelled-out forms, so the model had
+  separated a term from its own acronym. Plus Climate Change / Global Warming
+  and Data Analysis / Data Analytics.
+- **2 split** — National Economies had flattened 20 countries into one label;
+  China (64 articles) and the US (38) were pulled out and the singleton tail
+  left in the remainder. Culture's real problem turned out not to be
+  nationality but that "Arts and Culture" is a different subject entirely.
+- **11 aliases moved or dropped** — iPad strings out of the iPhone entry
+  (moved, so the articles keep a home), audio-recorder strings out of Digital
+  Photography.
+
+**The gate's SPLIT/MERGE controls record intent, they do not execute it** — the
+export writes `review: split: <note>` and moves on. So the decisions were
+encoded directly in `data/taxonomy/decisions.yaml` and applied by
+`scripts/vocab/apply_curation.py`. The decisions are hand-authored; only the
+taxonomy is generated. Editing v1.yaml by hand is a mistake the drift test
+catches.
+
+Also fixed here: `data/` was gitignored wholesale, so the file this plan calls
+"human-readable, diffable and editable" could not be committed at all.
+
+### Phase B — as originally specified
 
 Output an **HTML review artifact** in the house idiom (not a JSON dump): one
 row per proposed concept showing canonical name, proposed definition, article

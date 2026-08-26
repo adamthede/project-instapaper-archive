@@ -26,7 +26,18 @@ yahoo_problems.txt
 api_responses/
 premium_api_results/
 date_range_results/
-data/
+# `data/*` rather than `data/`: git does not descend into an ignored DIRECTORY,
+# so a negation inside one never fires. Ignoring the CONTENTS leaves the door
+# open for the one thing below that has to be version-controlled.
+data/*
+# The curated taxonomy is the source of truth from Phase B onward, and the plan
+# calls for it to be human-readable, diffable and editable. None of that is
+# possible while it sits under an ignore rule.
+!data/taxonomy/
+# ...but only the YAML in it. Un-ignoring the whole directory would silently
+# start tracking any large derived file a later phase happens to write there.
+data/taxonomy/*
+!data/taxonomy/*.yaml
 scripts/data/
 **/archive_index.parquet
 **/review_history.parquet

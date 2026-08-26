@@ -1,0 +1,3693 @@
+# Controlled vocabulary v1 — the source of truth for concepts + topics.
+#
+# GENERATED from data/taxonomy/decisions.yaml by
+# scripts/vocab/apply_curation.py. Edit the decisions, not this file:
+# a hand-edit here is silently reverted by the next regeneration.
+# 248 entries, 2469 aliases.
+version: 1
+generated_by: scripts/vocab/apply_curation.py
+entries:
+- name: Social Media
+  axis: topic
+  definition: Digital platforms and technologies that enable users to create, share, and exchange information,
+    ideas, and content in virtual communities and networks.
+  aliases:
+  - Social Media
+  - Social Networking
+  - Social Networks
+  - Social Network
+  - Social media
+  - Social Media Platforms
+  - Social Media Features
+  - Social networking
+  - Social Web
+  - Social Media Usage
+  - Social Platforms
+  - Social Media Tools
+  - Social Networking Features
+  - Social Platform
+  - Social media platforms
+  - Social networks
+  - Social Networking Sites
+  - Social media features
+  - Online Social Networking
+  - Phoenix Social Network)
+  - Real-life Social Networks
+  - Social Gaming Platforms
+  - Social Internet
+  - Social Media 1.0
+  - Social Media As News Source
+  - Social Media Content
+  - Social Media Definitions
+  - Social Media Interface
+  - Social Media Network
+  - Social Media News
+  - Social Media UI/UX
+  - Social Media Use
+  - Social Networking Interfaces
+  - Social Networking Platform Features
+  - Social Networking Platforms
+  - Social Networking Time
+  - Social Sites
+  - Social media usage
+  - Social-gaming Platform
+  - Social-networking
+  - Specialized Social Networks
+  - Teen Social Media Usage
+  - social media
+  - social media platforms
+- name: Mobile Devices
+  axis: topic
+  definition: Portable computing and communication hardware including smartphones, tablets, and feature
+    phones, along with their associated software applications and connectivity technologies.
+  aliases:
+  - Smartphones
+  - Mobile Apps
+  - Mobile Applications
+  - Mobile Devices
+  - Android
+  - Tablets
+  - Mobile Phones
+  - Smartphone
+  - Mobile applications
+  - Mobile App
+  - Mobile Internet
+  - Mobile Web
+  - Tablet
+  - Mobile Broadband
+  - Touch Screen
+  - Smartphone Apps
+  - Feature Phones
+  - Smart Phones
+  - Windows Mobile
+  - Mobile phones
+  - Cellphones
+  - Mobile Phone
+  - Touchscreen
+  - Android Phones
+  - Mobile
+  - Smartphone Features
+  - Mobile devices
+  - Mobile-first
+  - Cellphone
+  - Android Devices
+  - Cell Phones
+  - Mobile Features
+  - Mobile First
+  - Mobile Internet Usage
+  - Mobile Phone Features
+  - Mobile apps
+  - Touch-screen
+  - Android Tablet
+  - Android Tablets
+  - Color Touch Screens
+  - Handsets
+  - Mobile Application
+  - Mobile Device
+  - Mobile Gadgets
+  - Mobile Handsets
+  - Mobile Internet Browsing
+  - Mobile Site
+  - Mobile Web Apps
+  - On-screen Keyboard
+  - Smart Phone
+  - Smartphone App
+  - Smartphone Applications
+  - Smartphone features
+  - Smartphone utility
+  - Tablet Device
+  - Tablet Devices
+  - Touchscreens
+  - Android)
+  - Cell Phone
+  - Chinese Smartphones
+  - Devices
+  - Handset
+  - Mobile 2.0
+  - Mobile Browsers
+  - Mobile Browsing
+  - Mobile Device Functionality
+  - Mobile Handset
+  - Mobile Internet Technology
+  - Mobile Smartphones
+  - Mobile Software
+  - Mobile Web Browsing
+  - Mobile Web Technology
+  - Mobile Web Usage
+  - Mobile Web usage
+  - Mobile Web vs. Apps
+  - Mobile Website
+  - Mobile app features
+  - Mobile apps vs. Mobile web
+  - Mobile broadband
+  - Mobile device features
+  - Mobile features
+  - Mobile internet
+  - Mobile network technology
+  - Mobile-browser Use
+  - Mobilerss
+  - Mobiles
+  - Native Mobile Apps
+  - Smart-phone Applications
+  - Smartphone Capabilities
+  - Smartphone Functionality
+  - Smartphone Usability
+  - Smartphone Utility
+  - Smartphone applications
+  - Smartphone apps
+  - Tablet devices
+  - Touch Screen Displays
+  - Touch Screen Keyboard
+  - Touch Screens
+  - Touch-screen Devices
+  - Touchscreen Keyboard
+  - Touchscreen Tablet
+  - Wireless Handset
+  - Wireless Phones
+  - device functionality
+  - mobile phones
+- name: Business Strategy
+  axis: topic
+  definition: The long-term plan and set of actions designed to achieve competitive advantage and sustainable
+    growth for an organization.
+  aliases:
+  - Business Strategy
+  - Business strategy
+  - Corporate Strategy
+  - Corporate strategy
+  - Company Strategy
+  - Business Strategies
+  - business strategy
+  - Business strategies
+  - Company strategy
+  - Company Strategies
+- name: Venture Capital
+  axis: topic
+  definition: Financial investment provided by firms or funds to external companies with high growth potential
+    in exchange for equity.
+  aliases:
+  - Venture Capital
+  - Venture capital
+  - Venture Capital Funding
+  - Venture Funding
+  - Venture Capital Investment
+  - Venture Financing
+  - Venture Capitalists
+  - Venture Capital Funds
+  - Venture Capital Investments
+  - Venture Capital Fund
+  - Venture Fund
+  - Venture Investment
+  - Venture Funds
+  - Early-stage Venture Capital
+  - Venture Capital Arm
+  - Venture Capital Financing
+  - Venture Capital and Funding
+  - Venture Capitalism
+  - Venture Capitalist
+  - Venture Investing
+  - Venture capital and entrepreneurship
+  - Venture capital funding
+  - venture capital
+- name: Entrepreneurship
+  axis: topic
+  definition: The activity of individuals or groups organizing and operating businesses to generate profit,
+    innovate, or create economic value.
+  aliases:
+  - Entrepreneurship
+  - Business and Entrepreneurship
+  - Entrepreneurs
+  - entrepreneurship
+  - Necessity Entrepreneurship
+  - Women Entrepreneurs
+- name: Innovation
+  axis: topic
+  definition: The introduction of new ideas, methods, or products that create value or improve existing
+    processes.
+  aliases:
+  - Innovation
+  - innovation
+- name: Startups
+  axis: topic
+  definition: Newly established business ventures, typically characterized by high growth potential and
+    innovation.
+  aliases:
+  - Startups
+  - Technology Startups
+  - Start-ups
+  - Startup
+  - Startup Incubation
+  - Tech Startups
+  - Technology startups
+  - Start-up
+  - Tech startups
+  - Entrepreneurial Activity
+  - Startup Development
+  - Startup Incubator
+  - Co-founder
+  - Founders
+  - Technology Start-ups
+  - Early-stage Startups
+  - Entrepreneurial Ventures
+  - Startup Formation
+  - Startup Founders
+  - Startup Founding
+  - Startup Launch
+  - Startup Launches
+  - Startup Operations
+  - Startup Technology
+  - Startup entrepreneurship
+  - Startup launches
+  - Co-founders
+  - Silicon Valley Startups
+  - Silicon Valley startups
+  - Software Startups
+  - Startup Business
+  - Startup Founder
+  - Startup development
+  - B2b Startups
+  - Black Women Founders
+  - Business Startups
+  - Business startups
+  - Early Stage Startups
+  - Enterprise Startups
+  - Entrepreneurial Endeavors
+  - European Startups
+  - Female Founders
+  - Founder
+  - Founder Leadership
+  - Growth Stage Startups
+  - R&d Startups
+  - Rise of Startups
+  - Software startups
+  - Start-up Business
+  - Start-up Incubation
+  - Start-up Incubators
+  - Start-up Roots
+  - Start-up Ventures
+  - Starting A Business
+  - Startup Application
+  - Startup Co-founders
+  - Startup Creation
+  - Startup Enterprises
+  - Startup Foundings
+  - Startup Origins
+  - Startup Phase
+  - Startup Programs
+  - Startup Roots
+  - Startup Stage
+  - Startup business development
+  - Startup creation
+  - Startup founder qualities
+  - Startup incubation
+  - Successful founders
+  - Tech Startup
+  - Technology Startup
+  - Technology start-ups
+- name: Global Financial Crisis
+  axis: concept
+  definition: A systemic breakdown in financial markets and institutions characterized by widespread credit
+    contraction, asset price collapses, and sovereign debt distress, most prominently occurring between
+    2007 and 2010.
+  aliases:
+  - Financial Crisis
+  - Financial crisis
+  - Subprime Mortgage Crisis
+  - Global Financial Crisis
+  - Financial Crises
+  - Housing Crisis
+  - Mortgage Crisis
+  - Debt Crisis
+  - Subprime Crisis
+  - financial crisis
+  - Financial Crisis Of 2008
+  - Global Credit Crisis
+  - Global financial crisis
+  - Subprime mortgage crisis
+  - Housing crisis
+  - 2008 Financial Crisis
+  - Asian Financial Crisis
+  - European debt crisis
+  - Housing market crisis
+  - Sovereign Debt Crisis
+  - 2008 financial crisis
+  - Affordable Housing Crisis
+  - Finance industry crisis
+  - Financial Crisis 2008
+  - Financial Crisis Aftermath
+  - Financial Crisis Of 2007-2008
+  - Financial Industry Crisis
+  - Financial Sector Crisis
+  - Financial crises
+  - Financial crisis aftermath
+  - Financial crisis of 2008
+  - Financial market crisis
+  - Global Debt Crisis
+  - Greek debt crisis
+  - Greek financial crisis
+  - Mortgage Market Crisis
+  - Mortgage crisis
+  - Sovereign Debt Crises
+  - Sub-prime Mortgage Crisis
+  - Subprime Debt Crisis
+  - Subprime lending crisis
+  - US Financial Crisis
+  - US Housing Crisis
+  - US financial crisis
+  - aftermath of financial crisis
+  - global financial crisis
+- name: Artificial Intelligence
+  axis: topic
+  definition: The simulation of human intelligence processes by machines, particularly computer systems,
+    encompassing capabilities such as learning, reasoning, problem-solving, perception, and language understanding.
+  aliases:
+  - Artificial Intelligence
+  - AI Agents
+  - Intelligence
+  - Artificial General Intelligence (agi)
+  - Artificial Intelligence (ai)
+  - Artificial intelligence
+  - Agentic AI
+  - AI Development
+  - Human Intelligence
+  - Artificial General Intelligence
+  - Autonomous AI
+  - AI Tools
+  - Artificial General Intelligence (AGI)
+  - Artificial Intelligence Agents
+  - AI Applications
+  - AI development
+  - Artificial Intelligence (ai) Tools
+  - Artificial Intelligence Applications
+  - AI Development Pace
+  - AI Development Tools
+  - AI Development and Progress
+  - AI Software
+  - AI Tooling
+  - AI and human intelligence
+  - AI-assisted development
+  - Autonomous AI Agents
+  - General Intelligence
+  - Human-level Artificial Intelligence
+- name: Investment Strategy
+  axis: concept
+  definition: The comprehensive plan and methodology employed by investors to allocate capital among various
+    assets in order to achieve specific financial objectives while managing risk.
+  aliases:
+  - Investment Strategy
+  - Investment Strategies
+  - Investment strategies
+  - Investment strategy
+  - Investing Strategies
+  - Investing strategies
+  - Strategic Investment
+  - Investor Strategy
+  - investment strategies
+- name: Stock Markets
+  axis: topic
+  definition: Organized exchanges where shares of publicly traded companies and other financial securities
+    are bought and sold.
+  aliases:
+  - Stock Market
+  - Stock Markets
+  - Stock market
+  - Chinese Stock Market
+  - China Stock Market
+  - Stock markets
+  - US Stock Market
+  - Asian Stock Markets
+  - Chinese stock market
+  - Asian stock markets
+  - Brazilian Stock Market
+  - China's stock market
+  - Chinese stock markets
+  - Hong Kong Stock Market
+  - Japanese Stock Market
+  - Middle East Stock Markets
+  - U.S. Stock Market
+  - stock market
+- name: Consumer Electronics
+  axis: topic
+  definition: Electronic devices designed for everyday use by consumers, including personal computers,
+    smartphones, audio-visual equipment, and their associated accessories.
+  aliases:
+  - Consumer Electronics
+  - Consumer electronics
+  - consumer electronics
+  - Connected Consumer Electronics
+  - Consumer electronics accessories
+  - Consumer electronics usage
+- name: Investment
+  axis: topic
+  definition: The allocation of resources, typically capital, with the expectation of generating future
+    income or profit.
+  aliases:
+  - Investment
+  - Investing
+  - Value Investing
+  - Investments
+  - Stock Investing
+  - Equity Investment
+  - Investment Valuation
+  - Investment Value
+  - Stock Investment
+  - Fixed-asset Investment
+  - Investment Valuations
+  - Stock Investments
+  - Stock Market Investing
+  - Stock Market Investment
+  - Equity Investments
+  - Equity investments
+  - IT Investment
+  - Investment valuation
+  - investment
+- name: Market Share
+  axis: concept
+  definition: The percentage of total sales in an industry generated by a particular company or product.
+  aliases:
+  - Market Share
+  - Search Market Share
+  - Browser Market Share
+  - Market share
+  - Search Engine Market Share
+- name: Apple iOS and iPhone
+  axis: topic
+  definition: The mobile operating system developed by Apple Inc. for its iPhone and iPad devices.
+  aliases:
+  - Iphone
+  - Ios
+  - Iphone App
+  - Iphone 4
+  - Iphone Apps
+  - Iphones
+  - Iphone 5
+  - Ios 5
+  - Apple iPhone
+  - Ios 7
+  - Iphone 4s
+  - iPhone Apps
+  - Ios 6
+  - Iphone 6
+  - Iphone Applications
+  - iPhone
+  - Iphone 6 Plus
+  - Iphone Os
+  - Verizon Iphone
+  - iPhone applications
+  - Ios 4
+  - Ios 4.0
+  - Ios 8
+  - Ios 9
+  - Ios Apps
+  - Ios Software
+  - Ios7
+  - Iphone 2.0 Software
+  - Iphone 5s
+  - Iphone Os 4
+  - Iphone Os4
+  - Operating Systems (ios
+  - iOS 4
+  - iOS 5
+  - iOS Software
+  - iPhone 4
+  - iPhone 4S
+  - iPhone 5
+  - iPhone Applications
+  - iPhone app functionality
+  - iPhone)
+- name: Financial Markets
+  axis: topic
+  definition: The aggregate of institutions, exchanges, and mechanisms through which capital is raised,
+    traded, and allocated across various asset classes and geographic regions.
+  aliases:
+  - Financial Markets
+  - Financial markets
+  - financial markets
+  - Asian Financial Markets
+  - China's financial markets
+  - Chinese Financial Markets
+  - Indian financial markets
+  - Middle Eastern financial markets
+- name: Climate Change
+  axis: topic
+  definition: Long-term shifts in global temperatures and weather patterns, primarily driven by human
+    activities such as the burning of fossil fuels.
+  aliases:
+  - Climate Change
+  - Climate change
+  - Global Climate Change
+  - climate change
+  - Anthropogenic Change
+  - Anthropogenic Climate Change
+  - Global climate change
+  - Global Warming
+  - Global warming
+  - Anthropogenic Global Warming
+- name: Real Estate
+  axis: topic
+  definition: The property consisting of land and the buildings on it, along with its natural resources
+    such as crops, minerals, or water.
+  aliases:
+  - Real Estate
+  - Real estate
+- name: User Experience Design
+  axis: topic
+  definition: The process of enhancing user satisfaction by improving the usability, accessibility, and
+    pleasure provided in the interaction between the user and a product.
+  aliases:
+  - User Experience
+  - User Interface Design
+  - User experience
+  - User Experience Design
+  - User interface design
+  - User Experience (ux)
+  - user experience
+  - Internet User Experience
+  - User Experience (UX) Design
+  - User Experiences
+  - User experience design
+  - User experiences
+  - User-interface Design
+  - Web User Experience
+  - Website user experience
+  - user interface design
+- name: Economic Growth
+  axis: concept
+  definition: The increase in the inflation-adjusted market value of the goods and services produced by
+    an economy over time.
+  aliases:
+  - Economic Growth
+  - Gdp Growth
+  - Economic growth
+  - Global Growth
+  - Global Economic Growth
+  - economic growth
+  - China's Economic Growth
+  - Economic Growth Rate
+  - Asian Economic Growth
+  - Asian economic growth
+  - China's Growth
+  - China's economic growth
+  - Economic Growth Rates
+  - Global Gdp Growth
+  - Global Growth Forecast
+  - Global economic growth
+  - India's economic growth
+  - International growth
+  - Nominal Gdp Growth
+  - Sustainable Economic Growth
+  - global economic growth
+- name: Economic Recession
+  axis: concept
+  definition: A significant decline in economic activity across the economy, lasting more than a few months,
+    normally visible in real GDP, real income, employment, industrial production, and wholesale-retail
+    sales.
+  aliases:
+  - Recession
+  - Economic Recession
+  - Recessions
+  - Economic recession
+  - Great Recession
+  - Economic Recessions
+  - Financial Recession
+  - Recession Era
+- name: Technology Industry
+  axis: topic
+  definition: The sector of the economy involved in the development, manufacturing, and distribution of
+    hardware, software, telecommunications equipment, and related digital services.
+  aliases:
+  - Technology Industry
+  - Tech Industry
+  - Technology industry
+  - Tech industry
+  - Semiconductor Industry
+  - Semiconductor industry
+  - technology industry
+  - IT Industry
+  - It Industry
+  - China's Tech Industry
+  - China's Tech Sector
+  - Indian IT industry
+  - Silicon Industry
+  - Silicon Valley Industry
+  - Technology Industries
+  - tech industry
+- name: Corporate Finance
+  axis: topic
+  definition: The area of finance concerned with capital structure decisions, funding sources, and financial
+    management strategies employed by corporations.
+  aliases:
+  - Finance
+  - Corporate Finance
+  - Corporate finance
+  - Debt Financing
+  - Financing
+  - Business and finance
+  - Business & Finance
+  - Business Finance
+  - Business and Finance
+  - Company Financials
+  - Business Financing
+  - Business financing
+  - Business/Finance
+  - Company Finances
+  - Company Financing
+  - Company financials
+  - Corporate Financials
+  - Corporate Financing
+  - Loan Financing
+  - Mortgage Financing
+  - mortgage financing
+- name: Business Models
+  axis: concept
+  definition: The structural framework and strategic logic through which an organization creates, delivers,
+    and captures value.
+  aliases:
+  - Business Models
+  - Business Model
+  - Business models
+  - Corporate Business Models
+  - New Business Models
+  - business models
+- name: Public Health
+  axis: topic
+  definition: The science and art of preventing disease, prolonging life, and promoting physical health
+    through organized community efforts.
+  aliases:
+  - Public Health
+  - Public health
+  - public health
+- name: Stock Valuation
+  axis: concept
+  definition: The analytical process of determining the intrinsic or fair market value of a company's
+    equity securities.
+  aliases:
+  - Stock Valuation
+  - Stock Price
+  - Market Value
+  - Stock Prices
+  - Market Valuation
+  - Stock Valuations
+  - Stock Value
+  - Stock Market Valuation
+  - Stock Market Value
+  - Fair Market Value
+  - Market Valuations
+  - Market valuations
+  - Value Stocks
+  - Market valuation
+  - Securities Valuation
+  - Stock valuation
+  - Value Stock
+- name: Mobile Technology
+  axis: topic
+  definition: The design, development, and application of portable computing devices such as smartphones
+    and feature phones, including their hardware capabilities, software ecosystems, and associated communication
+    networks.
+  aliases:
+  - Mobile Technology
+  - Mobile technology
+  - Smartphone Technology
+  - Smartphone technology
+  - Cellphone Technology
+  - Emerging Mobile Technologies
+  - Future of Mobile Technology
+  - Future of mobile technology
+  - Handset technology
+  - Mobile Phone Technology
+  - Mobile phone technology
+  - Next-generation Mobile Technology
+- name: Luxury Real Estate
+  axis: topic
+  definition: High-value residential properties and housing markets characterized by premium pricing,
+    exclusive amenities, and opulent design.
+  aliases:
+  - Luxury Real Estate
+  - Luxury Homes
+  - Luxury Properties
+  - Luxury Apartments
+  - Luxury Housing
+  - Luxury Property
+  - Luxury Mansions
+  - Luxury Estates
+  - Luxury real estate
+  - High-End Homes
+  - Luxury homes
+  - High-end Real Estate
+  - Luxury Estate
+  - Luxury Mansion
+  - Luxury Villas
+  - Luxury properties
+  - Mansions
+  - Extravagant Homes
+  - Gilded Age Mansions
+  - Gilded Age mansions
+  - High-End Housing
+  - High-End Property
+  - High-Value Properties
+  - High-Value Property
+  - High-end Homes
+  - High-end real estate
+  - High-value Real Estate
+  - Historical Mansions
+  - Lavish Homes
+  - Luxury Apartment
+  - Luxury Home
+  - Luxury Home Features
+  - Luxury Residences
+  - Luxury Villa
+  - Luxury apartments
+  - Luxury housing
+  - Luxury property
+  - Opulent Homes
+- name: Revenue
+  axis: concept
+  definition: The income generated from normal business operations and recorded as top-line revenue.
+  aliases:
+  - Revenue
+  - Advertising Revenue
+  - Ad Revenue
+  - Revenues
+  - Tax Revenue
+  - Gross Revenue
+  - Net Revenue
+  - Revenue Estimates
+  - Search Revenue
+  - Advertising revenue
+  - Ad Revenues
+  - Advertising Revenues
+  - Display Ad Revenue
+  - Gross Annual Revenue
+  - Profit Revenue
+  - Revenue Figures
+  - Revenue Source
+  - Revenue Sources
+  - Sales Revenue
+  - Sales Tax Revenue
+  - Search Ad Revenue
+  - Tax Revenues
+  - advertising revenue
+- name: Music Industry
+  axis: topic
+  definition: The economic and creative sectors involved in the production, distribution, marketing, and
+    consumption of recorded music and live performances.
+  aliases:
+  - Music Industry
+  - Music industry
+  - Music Business
+  - Country Music Industry
+  - Music Industry Business
+  - Country music industry
+  - Pakistani music industry
+  - music industry
+- name: Economic Policy
+  axis: topic
+  definition: The set of government actions and legislative measures designed to influence the performance
+    of an economy through fiscal, monetary, and regulatory instruments.
+  aliases:
+  - Economic Policy
+  - Economic policy
+  - economic policy
+  - US Economic Policy
+  - US economic policy
+  - Chinese Economic Policy
+  - Economic Policies
+  - Government Economic Policy
+  - Chinese economic policy
+  - Netherlands Economic Policy
+  - U.S. Economic Policy
+- name: Startup Funding
+  axis: concept
+  definition: The process by which startups raise capital from investors to finance their operations and
+    growth.
+  aliases:
+  - Startup Funding
+  - Startup funding
+  - Start-up Funding
+  - Startup Financing
+  - Startup Finance
+  - Startup Funding Model
+  - Startup financing
+- name: Initial Public Offerings
+  axis: concept
+  definition: The process by which a private company offers shares to the public for the first time through
+    a stock exchange.
+  aliases:
+  - Ipo
+  - Ipos
+  - IPOs
+  - IPO Market
+  - Ipo Market
+  - Stock Market Ipo
+  - Stock Market and IPOs
+  - Initial Public Offering (ipo)
+  - Initial Public Offerings
+  - Initial Public Offerings (ipos)
+  - Initial Public Offering
+  - Initial Public Offerings (IPOs)
+  - Initial Public Offering (IPO)
+  - Initial Public Offer (ipo)
+  - Initial Public Offering Price
+  - Initial Public Stock Offering
+  - Ipos (initial Public Offerings)
+- name: Philanthropy
+  axis: topic
+  definition: The practice of donating money, time, or resources to promote the welfare of others and
+    support charitable causes.
+  aliases:
+  - Philanthropy
+  - Charitable Giving
+  - Charity
+  - Donations
+  - Charitable Donations
+  - Donation
+  - Charitable Contributions
+  - Charitable donations
+  - Charitable giving
+  - Charity Donation
+  - Philanthropic Giving
+  - Charitable Causes
+  - Charitable Contribution
+  - Charitable Donation
+  - Charitable Gifts
+  - Donating Money
+  - Large-scale Donation
+  - Major Donation
+  - Major Donations
+  - Philanthropic Causes
+  - Philanthropic Donations
+  - Philanthropic Gifts
+  - Philanthropy and charitable giving
+  - Proceeds Donation
+  - philanthropy
+- name: Financial Bailouts
+  axis: concept
+  definition: Government financial assistance provided to failing institutions or sectors during economic
+    crises.
+  aliases:
+  - Bailouts
+  - Bailout
+  - Financial Bailouts
+  - Government Bailouts
+  - Government bailouts
+  - Bank Bailouts
+  - Government Bailout
+  - Financial Bailout
+  - Bailout Plan
+  - Financial bailouts
+  - Taxpayer Bailouts
+  - Bailout Package
+  - Bank Bailout
+  - Bank bailouts
+  - Banking Bailouts
+  - Taxpayer Bailout
+  - Bailout Packages
+  - Bank Bailout Package
+  - Bank Bailout Plan
+  - Bank-bailout Plan
+  - Banking Bailout
+  - Federal Bailouts
+  - Taxpayer bailouts
+  - Taxpayer-financed Bailout
+  - taxpayer bailouts
+- name: Interest Rates
+  axis: concept
+  definition: The cost of borrowing money or the return on lending capital, typically expressed as an
+    annual percentage.
+  aliases:
+  - Interest Rates
+  - Interest rates
+  - Interest Rate
+  - Real Interest Rate
+  - Real Interest Rates
+- name: Online Advertising
+  axis: concept
+  definition: The practice of delivering promotional marketing messages to users via the internet, including
+    search engine marketing, display ads, and sponsored content.
+  aliases:
+  - Online Advertising
+  - Online advertising
+  - Internet Advertising
+  - Internet advertising
+  - Internet Ads
+  - Internet search and advertising
+  - Internet-only Ads
+  - Online Ads
+  - Web Advertising
+  - Web advertising
+  - online advertising
+- name: Solar Energy
+  axis: topic
+  definition: The conversion of sunlight into usable energy forms such as electricity, heat, or fuel through
+    technologies including photovoltaic panels and solar thermal systems.
+  aliases:
+  - Renewable Energy
+  - Solar Power
+  - Solar Energy
+  - Renewable energy
+  - Solar Panels
+  - Renewable Fuels
+  - Solar energy
+  - Energy Generation
+  - Renewable Electricity
+  - Renewable Fuel
+  - Solar Thermal Power
+  - Electric And Solar Power
+  - Renewable Energy (solar
+  - Renewable Energy Generation
+  - Renewable fuels
+  - Solar Power Panels
+  - Solar power
+  - Space Solar Power
+  - renewable energy
+- name: Cloud Computing
+  axis: topic
+  definition: The delivery of computing services—including servers, storage, databases, networking, software,
+    and analytics—over the Internet to offer faster innovation, flexible resources, and economies of scale.
+  aliases:
+  - Cloud Computing
+  - Cloud computing
+  - Cloud-based Computing
+- name: Technology Trends
+  axis: topic
+  definition: The prevailing directions, emerging patterns, and significant shifts in technological innovation,
+    industry dynamics, and market developments.
+  aliases:
+  - Technology Trends
+  - Tech Industry Trends
+  - Technology trends
+  - Industry Trends
+  - Tech industry trends
+  - Technology Industry Trends
+  - Technology Market Trends
+  - Tech Trends
+  - Future technology trends
+  - Industry trends
+  - Tech Market Trends
+  - Technological Trends
+  - Technological trends
+  - Technology Sector Trends
+  - Technology industry trends
+  - technology market trends
+  - technology trends
+- name: International Relations
+  axis: topic
+  definition: The study and practice of interactions between sovereign states, including diplomacy, conflict,
+    cooperation, and global governance.
+  aliases:
+  - International Relations
+  - International relations
+  - international relations
+- name: Privacy
+  axis: concept
+  definition: The right or condition of being free from unauthorized intrusion into one's personal life,
+    data, or communications.
+  aliases:
+  - Privacy
+  - Personal privacy
+  - Personal Privacy
+  - privacy
+  - Expectation Of Privacy
+  - Individual Privacy
+  - Pretty Good Privacy
+  - Privacy Expectations
+  - Privacy Protection
+  - Privacy Safeguards
+- name: E-commerce
+  axis: topic
+  definition: The buying and selling of goods or services over the internet.
+  aliases:
+  - E-commerce
+  - Online Commerce
+  - Internet Commerce
+  - Commerce Sites
+  - E-commerce Website
+  - Electronic Commerce
+  - Electronic commerce
+  - Web Commerce
+  - e-commerce
+- name: Economic Development
+  axis: topic
+  definition: The process by which a nation improves the economic, political, and social well-being of
+    its people through structural changes in production, income levels, and living standards.
+  aliases:
+  - Economic Development
+  - Economic development
+  - Developing Economies
+  - economic development
+  - China's economic development
+  - China's Economic Development
+  - Development Economics
+  - Asian economic development
+  - Developed Economies
+  - Developed Economy
+  - Developed economies
+  - Developing country economics
+  - Eastern European economic development
+  - developing economies
+- name: New Product Development
+  axis: topic
+  definition: The complete process of bringing a new product to market, encompassing ideation, design,
+    development, testing, and launch.
+  aliases:
+  - Product Development
+  - Product development
+  - New Product Development
+  - Tech Product Development
+- name: Personal and Professional Development
+  axis: topic
+  definition: The ongoing process of improving skills, knowledge, habits, and self-awareness to enhance
+    both individual well-being and career trajectory.
+  aliases:
+  - Personal Growth
+  - Personal growth
+  - Career Growth
+  - Career growth
+  - Personal career growth
+- name: Hedge Funds
+  axis: topic
+  definition: Private investment partnerships that employ diverse strategies, including leverage and short
+    selling, to generate returns for accredited investors.
+  aliases:
+  - Hedge Funds
+  - Hedge Fund
+  - Hedge funds
+- name: Personal Development
+  axis: topic
+  definition: The lifelong process of improving oneself through self-awareness, skill acquisition, and
+    behavioral change to enhance well-being and achieve personal goals.
+  aliases:
+  - Personal Development
+  - Personal development
+- name: Stock Market Performance
+  axis: concept
+  definition: The measurement and analysis of the price movements, returns, and overall behavior of equity
+    securities in financial markets.
+  aliases:
+  - Stock Performance
+  - Stock Market Performance
+  - Stock market performance
+  - Stock performance
+  - stock market performance
+- name: Portable Digital Media Players
+  axis: concept
+  definition: Handheld electronic devices designed for the storage and playback of digital audio, video,
+    and image files.
+  aliases:
+  - Digital Media
+  - Digital media
+  - Portable Media Players
+  - Portable Media Devices
+  - Portable Media
+  - Portable Media Player
+  - Digital Media Player
+  - Digital Media Players
+  - Portable Video Players
+  - Digital Formats
+  - Digital Media Devices
+  - Digital Media Technology
+  - Digital Versions
+  - Digital media formats
+  - Digital video formats
+  - Handheld Video Player
+  - Media Playing Devices
+  - Portable digital media devices
+  - Portable media devices
+  - digital media
+- name: Emerging Markets
+  axis: topic
+  definition: Developing nations with rapidly growing economies and increasing integration into global
+    financial markets.
+  aliases:
+  - Emerging Markets
+  - Emerging markets
+  - Emerging Economies
+  - Emerging economies
+  - emerging markets
+  - Emerging Market Economies
+  - Emerging Markets (China)
+- name: Personal Finance
+  axis: topic
+  definition: The management of an individual's or household's monetary resources, including budgeting,
+    saving, investing, and debt management.
+  aliases:
+  - Personal Finance
+  - Personal finance
+  - Personal Finances
+- name: Economic Stimulus
+  axis: concept
+  definition: Government policies and financial measures designed to boost aggregate demand and stimulate
+    economic activity during periods of recession or slow growth.
+  aliases:
+  - Economic Stimulus
+  - Stimulus Package
+  - Economic stimulus
+  - Fiscal Stimulus
+  - Government Stimulus
+  - Stimulus Plan
+  - Stimulus Bill
+  - Stimulus Packages
+  - Economic Stimulus Package
+  - Stimulus Spending
+  - Government stimulus
+  - Stimulus Funds
+  - Economic Stimulus Bill
+  - Financial Stimulus
+  - Stimulus Plans
+  - Stimulus Program
+  - China's economic stimulus
+  - Economic Stimulus Law
+  - Economic Stimulus Program
+  - Federal Stimulus
+  - Federal Stimulus Funding
+  - Federal Stimulus Money
+  - Federal Stimulus Package
+  - Federal Stimulus Program
+  - Federal stimulus
+  - Fiscal Stimulus Package
+  - Stimulus Bills
+  - Stimulus Funding
+  - US Stimulus Package
+  - economic stimulus
+  - government stimulus
+- name: Subprime Lending
+  axis: concept
+  definition: The practice of extending credit to borrowers with poor credit histories or limited financial
+    assets, typically characterized by higher interest rates and greater risk of default.
+  aliases:
+  - Subprime Mortgages
+  - Loans
+  - Lending
+  - Mortgage Lending
+  - Subprime Lending
+  - Subprime Loans
+  - Bank Lending
+  - Bank Loans
+  - Mortgage Loans
+  - Subprime Mortgage
+  - Subprime mortgages
+  - Home-equity Loans
+  - Loan
+  - Mortgage lending
+  - Sub-prime Mortgage
+  - Subprime Home Loans
+  - Bank Loan
+  - Banking and Lending
+  - Financial lending
+  - Home Equity Loans
+  - Home Loans
+  - Mortgage-related Loans
+  - Subprime Mortgage Loans
+- name: Influenza Pandemics
+  axis: concept
+  definition: Global outbreaks of influenza viruses, including those caused by novel strains such as H1N1
+    and H5N1, resulting in widespread illness and mortality across multiple countries.
+  aliases:
+  - Pandemic
+  - Covid-19
+  - Swine Flu
+  - COVID-19 Pandemic
+  - COVID-19 pandemic
+  - Coronavirus Pandemic
+  - Coronavirus pandemic
+  - Avian Flu
+  - Avian Influenza
+  - Epidemic
+  - COVID-19
+  - Pandemics
+  - Bird Flu
+  - H5n1 Virus
+  - Covid-19 Pandemic
+  - Epidemics
+  - Influenza
+  - Avian flu
+  - H1n1
+  - H1n1 Virus
+  - Influenza Pandemic
+  - Avian influenza
+  - Coronavirus epidemic
+  - H1n1 Influenza
+  - Influenza A Virus
+  - Swine Flu Pandemic
+  - Avian Flu Pandemic
+  - Avian Influenza (Bird Flu)
+  - Avian Influenza (bird Flu)
+  - Avian Influenza (h5n1)
+  - Avian flu (H5N1)
+  - Bird Flu (avian Flu)
+  - Bird flu
+  - Bird flu pandemic
+  - Bird-flu
+  - Coronavirus (covid-19)
+  - Flu
+  - Flu Pandemic
+  - H1n1 Virus (swine Flu)
+  - H5n1 Avian Flu
+  - H5n1 Avian Influenza
+  - Human Epidemic
+  - Influenza A (h3n2)
+  - Influenza pandemics
+  - Influenza virus
+  - Pandemic Influenza
+  - Spanish Flu
+  - Swine Flu Virus
+  - Swine Influenza
+- name: Mergers and Acquisitions
+  axis: concept
+  definition: The consolidation of companies or major assets through the transfer of ownership, including
+    mergers, acquisitions, amalgamations, and takeovers.
+  aliases:
+  - Mergers & Acquisitions
+  - Mergers And Acquisitions
+  - Mergers and Acquisitions
+  - Mergers
+  - Mergers and acquisitions
+  - Mergers And Acquisitions (m&a)
+  - Merger
+  - Corporate Mergers
+  - Business Mergers
+  - Business Merger
+  - M&a (mergers & Acquisitions)
+  - Merger & Acquisition (m&a)
+  - Merger Acquisition
+  - Merger And Acquisition
+  - Merger Or Acquisition
+  - Mergers & Acquisitions (m&a)
+- name: Inflation
+  axis: concept
+  definition: A sustained increase in the general price level of goods and services in an economy over
+    time.
+  aliases:
+  - Inflation
+  - Inflation Rate
+  - Consumer-price Inflation
+  - Price Inflation
+  - inflation
+- name: Investment Banking
+  axis: topic
+  definition: A financial sector focused on assisting corporations and governments in raising capital
+    through underwriting securities issuance and providing advisory services for mergers, acquisitions,
+    and restructurings.
+  aliases:
+  - Investment Banking
+  - Investment banking
+  - Investment Bank
+  - Investment Banks
+  - Investment Bankers
+  - Wall Street investment banking
+- name: Competition
+  axis: concept
+  definition: The rivalry among firms striving for market share and consumer preference through price,
+    quality, innovation, or other strategic advantages.
+  aliases:
+  - Competition
+  - Competitions
+  - competition
+- name: Software Development
+  axis: topic
+  definition: The systematic process of designing, coding, testing, and maintaining computer programs
+    and applications.
+  aliases:
+  - Software Development
+  - Software development
+  - Developers
+  - Software Developers
+  - software development
+- name: Economic Downturn
+  axis: concept
+  definition: A period of temporary economic decline characterized by reduced trade and industrial activity,
+    typically measured by a fall in gross domestic product.
+  aliases:
+  - Economic Downturn
+  - Economic downturn
+  - Economic Downturns
+  - Economic Slump
+  - Economic downturns
+  - Global Economic Downturn
+  - Global Downturn
+  - Global Economic Decline
+  - Global Economic Slump
+  - Global Slump
+  - Global economic downturn
+  - US Economic Downturn
+- name: Chinese Economy
+  axis: topic
+  definition: Reading on the economy of China — growth, policy, and its position in global markets.
+  aliases:
+  - Chinese Economy
+  - Chinese economy
+  - China's economy
+  - China's Economy
+  - China Economy
+  - China economy
+- name: US Economy
+  axis: topic
+  definition: Reading on the economy of the United States, including its post-war trajectory.
+  aliases:
+  - US Economy
+  - US economy
+  - U.S. Economy
+  - U.s. Economy
+  - American economy
+  - Post-WWII US Economy
+- name: National Economies
+  axis: topic
+  definition: Reading on the economies of individual countries and blocs other than China and the United
+    States, which have their own entries.
+  aliases:
+  - Indian Economy
+  - Japanese Economy
+  - Argentina Economy
+  - Argentina's economy
+  - Argentine Economy
+  - Argentine economy
+  - Australia's economy
+  - Australian Economy
+  - European Economics
+  - European economy
+  - Greek Economy
+  - Greek economy
+  - Iceland's Economy
+  - Icelandic Economy
+  - India's economy
+  - Indonesian Economy
+  - Irish Economy
+  - Nigerian economy
+  - Norway's economy
+  - Spanish Economy
+- name: Education
+  axis: topic
+  definition: The systematic process of facilitating learning, acquiring knowledge, skills, values, and
+    habits through instruction, study, or training.
+  aliases:
+  - Education
+  - Children's education
+- name: Bankruptcy
+  axis: concept
+  definition: A legal proceeding involving a person or business that is unable to repay outstanding debts.
+  aliases:
+  - Bankruptcy
+  - Chapter 11 Bankruptcy
+  - Bankruptcies
+  - Bankruptcy Law
+  - Bankruptcy law
+  - Bankruptcy Case
+  - Bankruptcy Laws
+  - Bankruptcy laws
+  - Chapter 7 Bankruptcy
+  - bankruptcy law
+- name: Consumer Behavior
+  axis: topic
+  definition: The study of how individuals select, purchase, use, and dispose of products, services, ideas,
+    or experiences to satisfy needs and desires.
+  aliases:
+  - Consumer Behavior
+  - Consumer behavior
+  - consumer behavior
+- name: Economic Impact
+  axis: concept
+  definition: The effects of an event, policy, or entity on economic conditions such as employment, production,
+    and financial stability.
+  aliases:
+  - Economic Impact
+  - Economic impact
+  - Economic Implications
+  - Economic consequences
+  - economic impact
+  - Economic Consequences
+  - Economic impacts
+  - Economic implications
+  - Economic Impacts
+  - Economic Ramifications
+  - Economic Repercussions
+  - Economic repercussions
+  - economic consequences
+- name: Architecture
+  axis: topic
+  definition: The art and science of designing and constructing buildings and other physical structures.
+  aliases:
+  - Architecture
+  - Modern Architecture
+  - Contemporary Architecture
+  - Mid-century Modern Architecture
+  - Art And Architecture
+  - Arts & Architecture
+  - Mid-century modern architecture
+  - Midcentury Modern Architecture
+  - Modern architecture
+  - architecture
+- name: Photography
+  axis: topic
+  definition: The art, science, and practice of creating durable images by recording light or other electromagnetic
+    radiation.
+  aliases:
+  - Photography
+  - photography
+- name: Workplace Productivity
+  axis: concept
+  definition: The efficiency and effectiveness with which employees utilize resources to achieve organizational
+    goals within a professional setting.
+  aliases:
+  - Productivity
+  - Employee Productivity
+  - Workplace Productivity
+  - Employee productivity
+  - Labor Productivity
+  - Worker Productivity
+  - Workplace productivity
+  - Daily Productivity
+  - Work Productivity
+- name: Digital Photography and Videography
+  axis: topic
+  definition: The practice of capturing still images and moving pictures using digital sensors and electronic
+    recording devices.
+  aliases:
+  - Digital Photography
+  - Digital Cameras
+  - Digital Imaging
+  - Dslr
+  - Digital photography
+  - Digital Photos
+  - Digital Recording
+  - Digital Slr
+  - Video Recording
+  - Digital Video Recording
+  - Dslr Cameras
+  - Digital Camera
+  - Digital Video Recorder
+  - Digital Video Recorders
+  - Compact Cameras
+  - Digital Recorders
+  - Digital Slr Camera
+  - Digital Slr Cameras
+  - Dslr Photography
+  - Compact Digital Cameras
+  - DSLR Cameras
+  - DSLR Video Capture
+  - DSLR Video Recording
+  - DSLR cameras
+  - Digital Imagery
+  - Digital Images
+  - Digital Photo Album
+  - Digital Still Cameras
+  - Digital Stills
+  - Digital Video
+  - Digital Video Camera
+  - Digital imaging
+  - Dslr Camera
+  - Dslr Video
+  - Video Recorder
+  - Video Recording Features
+  - Video recording
+  - Videotape Recording
+- name: Greenhouse Gas Emissions
+  axis: concept
+  definition: The release of gases that trap heat in the atmosphere, primarily carbon dioxide and methane,
+    into the environment.
+  aliases:
+  - Greenhouse Gases
+  - Greenhouse Gas Emissions
+  - Carbon Emissions
+  - Carbon Dioxide Emissions
+  - Emissions
+  - Co2 Emissions
+  - Carbon emissions
+  - Greenhouse Gas
+  - Greenhouse gas emissions
+  - Greenhouse gases
+  - Greenhouse-gas Emissions
+- name: Infrastructure
+  axis: topic
+  definition: The fundamental physical and organizational structures, facilities, and systems necessary
+    for the operation of society and economy.
+  aliases:
+  - Infrastructure
+  - Infrastructure Needs
+  - infrastructure
+- name: Business Growth
+  axis: concept
+  definition: The expansion of a company's size, revenue, market share, or operational capacity over time.
+  aliases:
+  - Business Growth
+  - Earnings Growth
+  - Business growth
+  - Company Growth
+  - Company growth
+  - Small Business Growth
+  - Corporate Growth
+  - Income Growth
+  - High-growth Companies
+  - Corporate Earnings Growth
+  - Growth Companies
+  - Growth Company
+  - Growth Stage Companies
+  - Growth-stage Company
+  - High-growth Company
+  - Income growth
+  - Per-capita Income Growth
+  - Small business growth
+- name: Technological Innovation
+  axis: topic
+  definition: The process of translating new ideas, inventions, or technical knowledge into practical
+    applications that create value or improve existing systems.
+  aliases:
+  - Technology Innovation
+  - Technological Innovation
+  - Technological innovation
+  - Technology innovation
+  - Tech Innovation
+  - Tech innovation
+  - technological innovation
+  - High-tech Innovation
+  - Innovation in Tech
+  - Silicon Innovation
+  - Technological Innovations
+  - Technology & Innovation
+  - Technology And Innovation
+  - Technology and Innovation
+  - Technology and innovation
+- name: Corporate Acquisitions
+  axis: concept
+  definition: The process by which one company purchases most or all of another company's shares to gain
+    control of that business.
+  aliases:
+  - Acquisitions
+  - Acquisition
+  - Corporate Acquisitions
+  - Corporate acquisitions
+  - Company Acquisitions
+  - Corporate Acquisition
+  - Company acquisitions
+  - Acquisition Deal
+  - Acquisition Deals
+  - Company Acquisition
+  - Corporate acquisition
+  - acquisitions
+  - company acquisitions
+- name: Operating Systems
+  axis: topic
+  definition: System software that manages computer hardware, software resources, and provides common
+    services for computer programs.
+  aliases:
+  - Operating Systems
+  - Operating System
+  - Windows Vista
+  - Operating systems
+  - Operating Systems (os)
+  - Vista
+  - Windows Operating System
+  - Desktop Operating Systems
+  - Desktop Os
+  - Unix-based Operating System
+  - Vista Operating System
+  - operating systems
+- name: Digital Music Retail
+  axis: topic
+  definition: The commercial distribution of music through online platforms and digital storefronts.
+  aliases:
+  - App Store
+  - App Stores
+  - Itunes Music Store
+  - Itunes Store
+  - Mac App Store
+  - Digital Music Retail
+  - Online Music Stores
+  - Digital Music Store
+  - Digital Music Stores
+  - Music Store
+  - Online Music Retail
+  - iPhone App Store
+  - Independent App Stores
+  - Iphone App Store
+  - Itunes App Store
+  - Itunes Online Music Store
+  - Mobile App Stores
+  - Music retail
+  - Online Music Store
+  - iOS App Store
+- name: Geopolitics
+  axis: topic
+  definition: The study of the influence of geography, economics, and demographics on international relations
+    and power dynamics.
+  aliases:
+  - Geopolitics
+  - Geopolitics of Asia
+  - Global geopolitics
+  - Middle East Geopolitics
+  - Regional Geopolitics
+- name: Product Launches
+  axis: concept
+  definition: The introduction of new products to the market, including associated strategies, customer
+    reception, and demand dynamics.
+  aliases:
+  - Product Launches
+  - Product Launch
+  - Product launches
+  - New Product Launches
+  - New Product Launch
+  - Product launch
+  - Product launch demand
+- name: Supply Chain
+  axis: topic
+  definition: The network of organizations, people, activities, information, and resources involved in
+    moving a product or service from supplier to customer.
+  aliases:
+  - Supply Chain
+  - Supply Chains
+  - Supply chain
+  - Component supply chain
+  - Exclusive Supply Chain
+  - Industrial Supply Chains
+  - Supply Chain Logistics
+- name: Wearable Technology
+  axis: topic
+  definition: Electronic devices and sensors designed to be worn on the body for health monitoring, data
+    collection, or enhanced functionality.
+  aliases:
+  - Wearable Technology
+  - Wearable technology
+  - Wearable Tech
+  - Wrist-wearable Technology
+- name: User Interface
+  axis: concept
+  definition: The means by which a user interacts with a computer system, software application, or device,
+    encompassing graphical elements, input methods, and visual layout.
+  aliases:
+  - User Interface
+  - User Interface (ui)
+  - User Interfaces
+  - Graphical User Interface (gui)
+  - User interface
+  - Graphical User Interface
+  - Gui Interface
+  - Website User Interface
+- name: Foreign Policy
+  axis: topic
+  definition: The strategies and actions employed by a nation-state to manage its international relations
+    and interactions with other countries.
+  aliases:
+  - Foreign Policy
+  - US Foreign Policy
+  - US foreign policy
+  - Foreign policy
+  - U.S. foreign policy
+  - American foreign policy
+  - China's foreign policy
+  - Iran's foreign policy
+  - U.S. Foreign Policy
+  - foreign policy
+  - America First Foreign Policy
+  - American Foreign Policy
+  - Foreign Policy (Iraq)
+  - Foreign Policy Doctrine
+  - Foreign policy (Iraq
+  - US Foreign Policy in Latin America
+  - US foreign policy in Afghanistan
+  - United States foreign policy
+- name: Intellectual Property
+  axis: topic
+  definition: Legal rights granting creators exclusive control over their inventions, artistic works,
+    and commercial symbols for a defined period.
+  aliases:
+  - Intellectual Property
+  - Intellectual Property Rights
+  - Intellectual property
+  - Intellectual Property Law
+  - Intellectual property rights
+  - Intellectual Property (ip)
+  - Intellectual Property Laws
+  - Intellectual property law
+- name: Economic Crisis
+  axis: concept
+  definition: A severe disruption in economic activity characterized by financial instability, recession,
+    or systemic failure affecting markets and societies.
+  aliases:
+  - Economic Crisis
+  - Economic crisis
+  - Global Economic Crisis
+  - Economic Crises
+  - Global economic crisis
+  - Asian economic crisis
+- name: Technology Adoption
+  axis: concept
+  definition: The process by which individuals, organizations, or societies accept and begin to use new
+    technologies.
+  aliases:
+  - Technology Adoption
+  - Technology adoption
+  - Technological Adoption
+  - Technological adoption
+  - technology adoption
+  - Future of technology adoption
+  - Tech Adoption
+- name: Advertising
+  axis: topic
+  definition: The practice of promoting products, services, or ideas through paid communication channels
+    to influence consumer behavior and market dynamics.
+  aliases:
+  - Advertising
+  - Advertisements
+  - Advertisement
+- name: Data Analysis
+  axis: topic
+  definition: The systematic computational process of inspecting, cleaning, transforming, and modeling
+    data to discover useful information, draw conclusions, and support decision-making.
+  aliases:
+  - Data Analysis
+  - Data analysis
+  - Data Analysis Software
+  - Data Analysis Tools
+  - Search Data Analysis
+  - Data Analytics
+  - Analytics
+  - Data analytics
+  - Data & Analytics
+- name: User Engagement
+  axis: concept
+  definition: The degree to which users interact with, participate in, and remain active on digital platforms
+    or services.
+  aliases:
+  - User Engagement
+  - User engagement
+- name: Psychology
+  axis: topic
+  definition: The scientific study of the human mind and its functions, especially those affecting behavior
+    in a given context.
+  aliases:
+  - Psychology
+  - Human Psychology
+  - Human psychology
+- name: Internet Infrastructure
+  axis: topic
+  definition: The physical and logical systems that enable global digital connectivity, including broadband
+    networks, cabling, and access technologies.
+  aliases:
+  - Internet
+  - Broadband
+  - Broadband Internet
+  - Broadband internet
+  - Broadband Connection
+  - Broadband Connections
+  - Internet Of Everything
+  - Internet of Everything
+  - 4G Broadband
+  - Cable internet
+  - China Internet
+  - Internet Cables
+  - People's Internet
+  - Second Internet
+  - The Internet
+  - The People's Internet
+  - UK Internet
+- name: Angel Investing
+  axis: concept
+  definition: The practice of providing capital to early-stage startups in exchange for equity ownership.
+  aliases:
+  - Angel Investing
+  - Angel Investors
+  - Angel Investment
+  - Angel Investor
+  - Angel investing
+  - Angel Investments
+  - Angel investors
+- name: Risk Management
+  axis: concept
+  definition: The systematic process of identifying, assessing, and mitigating potential financial losses
+    or operational disruptions in business and investment contexts.
+  aliases:
+  - Risk Management
+  - Risk management
+- name: iPod
+  axis: concept
+  definition: A line of portable media players and mobile devices designed and marketed by Apple Inc.
+  aliases:
+  - Ipod
+  - Ipod Touch
+  - Ipods
+  - Apple iPod
+  - Ipod Touches
+  - iPod
+  - iPod)
+- name: Neuroscience
+  axis: topic
+  definition: The scientific study of the structure, function, development, genetics, and pathology of
+    the nervous system.
+  aliases:
+  - Neuroscience
+  - Neuroscience Research
+  - neuroscience
+- name: Equity Valuation
+  axis: concept
+  definition: The analytical process of determining the fair market value of a company's shares based
+    on financial metrics, growth prospects, and risk factors.
+  aliases:
+  - Valuation
+  - Valuations
+  - Equity Valuations
+- name: Marketing
+  axis: topic
+  definition: The business activity of promoting, selling, and distributing products or services to consumers.
+  aliases:
+  - Marketing
+  - Brand Marketing
+  - Product Marketing
+  - Product marketing
+  - Brand marketing
+  - Branding and Marketing
+  - Marketing & Branding
+  - consumer product marketing
+- name: Urban Development
+  axis: topic
+  definition: The process of designing, constructing, and managing the physical growth and infrastructure
+    of cities and metropolitan areas.
+  aliases:
+  - Urban Development
+  - Urban development
+  - New York City Development
+  - City Development
+  - New York City development
+- name: Corporate Culture
+  axis: concept
+  definition: The shared values, beliefs, and behavioral norms that characterize an organization's internal
+    environment and influence how employees interact with each other and the company.
+  aliases:
+  - Corporate Culture
+  - Company Culture
+  - Corporate culture
+  - Company culture
+  - Leadership and Company Culture
+- name: Economic Recovery
+  axis: concept
+  definition: The phase of the business cycle following a recession or economic downturn during which
+    economic activity, employment, and output begin to increase.
+  aliases:
+  - Economic Recovery
+  - Economic recovery
+  - Economic Revival
+  - Economic Rebound
+  - Economic Revitalization
+  - Economic Crisis Recovery
+  - Economic Recovery Plan
+  - Economic Recovery Program
+  - Economic crisis and recovery
+  - Post-war economic recovery
+  - Recession Recovery
+  - Recession recovery
+- name: US Presidential Elections
+  axis: topic
+  definition: The periodic electoral process in the United States for selecting the President and Vice
+    President.
+  aliases:
+  - Presidential Election
+  - US Presidential Election
+  - US Presidential Election 2008
+  - Elections
+  - Presidential Elections
+  - US Elections
+  - Election
+  - Presidential election
+  - 2008 Election
+  - Election Year
+  - 2008 US Presidential Election
+  - Election Day
+  - Political Elections
+  - Presidential elections
+  - US presidential election
+  - 2008 Presidential Election
+  - 2012 Presidential Election
+  - 2012 Presidential election
+  - 2012 US Election
+  - 2012 election
+  - 2016 Election
+  - 2020 Election
+  - 2020 Presidential Election
+  - 2020 US Presidential Election
+  - 2020 election
+  - Election 2008
+  - U.S. Elections
+  - U.S. Presidential Election 2008
+  - US Presidential Election 2012
+  - US Presidential Election 2016
+  - US election
+  - US elections
+  - US presidential election 2008
+- name: Video Streaming
+  axis: topic
+  definition: The continuous transmission and playback of video content over the internet to end-user
+    devices.
+  aliases:
+  - Streaming
+  - Streaming Services
+  - Video Streaming
+  - Live Streaming
+  - Streaming services
+  - Streaming Video
+  - Online Streaming
+  - Internet Streaming
+  - Online video streaming
+  - Streaming Service
+  - Live Streams
+  - Online Video Streaming
+  - Live Video Streaming
+  - Video streaming
+  - Internet streaming
+  - Internet video streaming
+  - Live Stream
+  - Live Video Stream
+  - Online streaming services
+  - Streaming Platforms
+  - Streaming Video Services
+  - Streaming Videos
+  - Streaming video
+  - Video Streaming Platforms
+  - Web Streaming
+  - Web Video Streaming
+  - Whole-home Video Streaming
+- name: Online Video
+  axis: topic
+  definition: Video content produced and distributed via the internet, encompassing platforms like YouTube
+    and user-generated media.
+  aliases:
+  - Content Creation
+  - Online Video
+  - Online Content
+  - Video Content
+  - Internet Video
+  - Web Video
+  - Online video
+  - Internet Content
+  - Online content
+  - Content creation
+  - Online content creation
+  - Video Content Creation
+  - Video Views
+  - Web Content
+  - Content Generation
+  - Internet Content Creation
+  - Online Content Creation
+  - Online Video Content
+  - Online Video Viewing
+  - Online Video Views
+  - Online Videos
+  - Online video content creation
+  - Original Video Content
+  - Video Creation
+  - Video Web
+  - Web-video
+  - YouTube Content Creation
+  - Youtube Content
+- name: Financial Regulation
+  axis: topic
+  definition: The supervision of financial institutions and markets by government agencies to ensure stability,
+    protect consumers, and prevent systemic risk.
+  aliases:
+  - Financial Regulation
+  - Financial regulation
+  - Financial regulations
+  - Financial Regulations
+  - financial regulation
+  - Financial Market Regulation
+- name: Big Data
+  axis: topic
+  definition: Extremely large and complex data sets that require specialized tools for capture, storage,
+    distribution, search, sharing, transfer, analysis, and visualization.
+  aliases:
+  - Big Data
+  - Big data
+- name: National Security
+  axis: topic
+  definition: The protection of a nation's sovereignty, territorial integrity, and political independence
+    from external threats and internal subversion.
+  aliases:
+  - National Security
+  - National security
+  - National Defense
+  - National security and defense
+  - Security and defense
+  - national security
+- name: Mobile Device Markets
+  axis: topic
+  definition: The commercial sectors encompassing the production, distribution, and sales of smartphones,
+    tablets, and other cellular communication devices.
+  aliases:
+  - Smartphone Market
+  - Smartphone market
+  - Tablet Market
+  - Mobile Phone Market
+  - Tablet market
+  - Mobile Market
+  - Mobile Ad Market
+  - Mobile-phone Market
+  - smartphone market
+  - Cell Phone Market
+  - Cell-phone Market
+  - Cellular Phone Market
+  - Mobile phone market
+  - Regional Mobile Markets
+  - Smartphone and Tablet Market
+- name: Law Enforcement
+  axis: topic
+  definition: The activity of police and other agencies charged with enforcing laws, preventing crime,
+    and maintaining public order.
+  aliases:
+  - Law Enforcement
+  - Law enforcement
+  - Law Enforcement Actions
+  - Enforcement
+  - law enforcement
+- name: Leadership
+  axis: topic
+  definition: The practice of guiding, influencing, and directing individuals or groups toward the achievement
+    of common goals.
+  aliases:
+  - Leadership
+  - Team Leadership
+  - Leadership Role
+  - Leadership Roles
+- name: Monetary Policy
+  axis: concept
+  definition: The macroeconomic policy of a central bank that manages the money supply and interest rates
+    to achieve economic stability.
+  aliases:
+  - Monetary Policy
+  - Federal Reserve Policy
+  - Monetary policy
+  - Federal Reserve policy
+  - Federal Reserve Monetary Policy
+  - Federal Reserve monetary policy
+  - Monetary Policies
+  - US Monetary Policy
+- name: Private Equity
+  axis: topic
+  definition: An investment strategy involving the acquisition of ownership stakes in companies, typically
+    using significant leverage, with the aim of improving operational performance and selling for a profit.
+  aliases:
+  - Private Equity
+  - Private equity
+  - Private-equity
+- name: Wireless Networks
+  axis: topic
+  definition: Telecommunications systems that enable devices to connect and exchange data without physical
+    cables, encompassing cellular technologies such as 2G through 5G and local area standards like Wi-Fi.
+  aliases:
+  - Wi-fi
+  - Wireless Networks
+  - Wireless Networking
+  - Wireless Network
+  - Wifi
+  - 3g Network
+  - Wireless Connectivity
+  - 3g Networks
+  - 3g Connectivity
+  - 3g Wireless Networks
+  - 4g Networks
+  - Wi-fi Networks
+  - Wireless Connections
+  - 2g Networks
+  - 3g Wireless
+  - 3g Wireless Connectivity
+  - 4g Network
+  - 4g Wireless
+  - 4g Wireless Networks
+  - 5G networks
+  - Free Wi-fi
+  - Lte 4g Network
+  - Lte Network
+  - Lte Networks
+  - Wi-Fi
+  - Wi-fi Connection
+  - Wi-fi Connectivity
+  - Wi-fi Network
+  - Wide-area Wireless Networking
+  - Wifi Networks
+  - Wireless connectivity
+  - Wireless networking
+- name: Machine Learning
+  axis: topic
+  definition: A branch of artificial intelligence focused on the development of algorithms that enable
+    computers to learn from and make decisions based on data.
+  aliases:
+  - Machine Learning
+  - Machine Learning (ml)
+  - Machine Learning Models
+  - Machine learning
+- name: Housing Markets
+  axis: topic
+  definition: The economic systems and sectors involving the buying, selling, renting, and development
+    of residential real estate properties.
+  aliases:
+  - Housing Market
+  - Housing market
+  - Housing Markets
+  - US Housing Market
+  - Australian Housing Market
+  - Regional Housing Markets
+  - U.S. Housing Market
+  - UK Housing Market
+- name: Mobile Application Development
+  axis: topic
+  definition: The process of creating software applications for mobile devices such as smartphones and
+    tablets.
+  aliases:
+  - App Development
+  - Mobile App Development
+  - Application Development
+  - App development
+  - Mobile Development
+  - Mobile app development
+  - Mobile Application Development
+  - Mobile application development
+  - iOS Development
+  - iPhone App Development
+  - App Developers
+  - Ios Application Development
+  - Ios Development
+  - Iphone Application Development
+  - Mobile Platform Development
+  - Mobile device development
+  - Mobile product development
+  - iPhone Application Development
+  - iPhone Software Development
+  - iPhone development
+- name: Corporate Governance
+  axis: topic
+  definition: The system of rules, practices, and processes by which a company is directed and controlled,
+    encompassing the relationships between management, its board, shareholders, and other stakeholders.
+  aliases:
+  - Corporate Governance
+  - Corporate governance
+  - corporate governance
+- name: Global Economy
+  axis: topic
+  definition: The worldwide system of economic activity encompassing international trade, finance, production,
+    and consumption.
+  aliases:
+  - Global Economy
+  - Global economy
+  - Global economics
+  - Global Economics
+  - Global Economies
+  - global economics
+- name: Search Engines
+  axis: concept
+  definition: Software systems designed to retrieve information from the World Wide Web based on user
+    queries.
+  aliases:
+  - Search Engines
+  - Internet Search
+  - Search Engine
+  - Internet Search Engine
+  - Search engines
+  - Internet Search Engines
+  - Online Search
+  - Internet Searches
+  - Web Search
+  - Internet Search Queries
+  - Internet search
+  - Internet Search Results
+  - Online Search Tools
+  - Search Engine Results
+- name: Executive Compensation
+  axis: concept
+  definition: The total remuneration package provided to senior corporate officers and executives, including
+    salary, bonuses, stock options, and other benefits.
+  aliases:
+  - Executive Compensation
+  - Executive compensation
+  - Excessive Executive Compensation
+  - executive compensation
+- name: Real Estate Markets
+  axis: topic
+  definition: The sectors and dynamics governing the buying, selling, and valuation of residential, commercial,
+    and luxury properties across various geographic regions.
+  aliases:
+  - Real Estate Market
+  - Property Market
+  - Real estate market
+  - Luxury Property Market
+  - Luxury Real Estate Market
+  - Property Markets
+  - Real Estate Markets
+  - China Property Market
+  - China property market
+  - Chinese Real Estate Market
+  - Commercial Property Market
+  - Commercial Real Estate Market
+  - Japanese Real Estate Market
+  - London Property Market
+- name: Technology Companies
+  axis: topic
+  definition: Business entities primarily engaged in the development, production, or distribution of technological
+    products and services.
+  aliases:
+  - Technology Companies
+  - Tech Companies
+  - Technology companies
+  - Tech Company
+  - Tech companies
+  - New technology companies
+  - Russian tech companies
+  - Top Tech Companies
+  - technology companies
+- name: Technological Development
+  axis: topic
+  definition: The process of advancing scientific knowledge and engineering capabilities to create new
+    tools, systems, or methods.
+  aliases:
+  - Future Technology
+  - Future of Technology
+  - Technology Development
+  - Future Technologies
+  - Future technology
+  - Future of technology
+  - Technology development
+  - Future of Tech
+  - Future Of Technology
+  - Future of tech
+  - Future Tech
+  - Future technology development
+  - History of Technological Development
+  - Science and technology development
+  - Tech development
+  - Technological Development
+  - Technology in Development
+  - The Future of Technology
+  - science and technology development
+  - technology development
+- name: Corporate Financial Performance
+  axis: concept
+  definition: The measurement and analysis of a company's financial health, including metrics such as
+    revenue, profitability, and operational efficiency.
+  aliases:
+  - Financial Performance
+  - Financial performance
+  - Corporate financial performance
+  - Financial Firm Performance
+  - financial performance
+- name: Open Source Software
+  axis: topic
+  definition: Software whose source code is made freely available for use, modification, and distribution
+    under licenses that permit these freedoms.
+  aliases:
+  - Open Source
+  - Open Source Software
+  - Open-source Software
+  - Open-source
+  - Open-source software
+  - Open source
+  - Open source software
+  - Open-Source Software
+  - Free And Open Source Software (foss)
+  - Open Source Operating System
+  - Open Source Tools
+  - Open-source Tools
+- name: Urban Planning
+  axis: topic
+  definition: The technical and political process concerned with the use of land and design of urban environments,
+    including transportation networks, to guide and ensure the orderly development of settlements and
+    communities.
+  aliases:
+  - Urban Planning
+  - Urban planning
+  - City Planning
+  - City planning
+  - Dutch urban planning
+  - city planning
+  - urban planning
+- name: Cybersecurity
+  axis: topic
+  definition: The practice of protecting systems, networks, and programs from digital attacks.
+  aliases:
+  - Cybersecurity
+  - cybersecurity
+- name: Copyright
+  axis: topic
+  definition: The legal right granted to the creator of an original work to reproduce, distribute, and
+    adapt that work.
+  aliases:
+  - Copyright
+  - Copyright Law
+  - Copyright law
+  - Copyrights
+  - Copyright Laws
+  - Copyright License
+  - Copyright Licensing
+  - Copyright Rules
+  - Copyright and licensing
+  - Copyright licensing
+- name: Data Privacy
+  axis: concept
+  definition: The right of individuals to control how their personal information is collected, used, and
+    shared by organizations and platforms.
+  aliases:
+  - Data Privacy
+  - Data privacy
+  - Data Confidentiality
+  - Data Privacy Concerns
+  - Data Quality and Privacy
+- name: Politics
+  axis: topic
+  definition: The activities associated with governance, political decision-making, and the distribution
+    of power among individuals and groups.
+  aliases:
+  - Politics
+  - Election Politics
+  - Electoral Politics
+  - UK Politics
+  - Women in Politics
+- name: Jihadist Terrorism
+  axis: concept
+  definition: Violent extremism and attacks carried out by individuals or groups motivated by an ideological
+    interpretation of jihad.
+  aliases:
+  - Terrorism
+  - Jihad
+  - Jihadists
+  - Jihadism
+  - Anti-terrorism
+  - Jihadist Terrorism
+- name: Wildlife Conservation
+  axis: topic
+  definition: The scientific study and practical management of wild species and their natural habitats
+    to prevent extinction and maintain ecological balance.
+  aliases:
+  - Conservation
+  - Wildlife Conservation
+  - Wildlife conservation
+  - Conservation Efforts
+  - Conservation efforts
+  - Wildlife Preservation
+  - conservation
+  - Animal Conservation
+  - Conservation Purpose
+  - Conservation Status
+  - Conservation Work
+  - Nature Preservation
+  - Orca conservation
+  - conservation efforts
+  - wildlife conservation
+- name: Tourism
+  axis: topic
+  definition: The activity of traveling to and staying in places outside one's usual environment for leisure,
+    business, or other purposes.
+  aliases:
+  - Tourism
+  - Mexico Tourism
+  - Tourism & Travel
+  - Tourism in Japan
+  - Tourism in Thailand
+- name: Consumer Spending
+  axis: concept
+  definition: The expenditure of household income on final goods and services.
+  aliases:
+  - Consumer Spending
+  - Consumer spending
+  - Chinese Consumer Spending
+- name: Real Estate Development
+  axis: topic
+  definition: The process of acquiring land, securing financing, obtaining permits, and constructing buildings
+    for residential, commercial, or mixed-use purposes.
+  aliases:
+  - Real Estate Development
+  - Property Development
+  - Real estate development
+  - real estate development
+- name: Romantic Relationships
+  axis: concept
+  definition: Intimate interpersonal connections characterized by emotional attachment, romantic love,
+    and often sexual partnership, encompassing dynamics such as dating, cohabitation, marriage, and infidelity.
+  aliases:
+  - Relationships
+  - Love and Relationships
+  - Love and relationships
+  - Marriage and Relationships
+  - Marriage and relationships
+  - Relationships and marriage
+  - Romantic Relations
+  - Romantic Relationships
+- name: Application Programming Interfaces
+  axis: concept
+  definition: A set of protocols and tools for building software applications that specify how components
+    should interact.
+  aliases:
+  - Api
+  - Apis
+  - APIs
+  - Open Api
+  - Browser Apis
+  - Open Apis
+- name: Data Visualization
+  axis: topic
+  definition: The graphical representation of information and data using visual elements like charts,
+    graphs, and maps to facilitate understanding and analysis.
+  aliases:
+  - Data Visualization
+  - Data visualization
+  - Data Visualizations
+  - Data analysis and visualization
+  - Qualitative Data Visualization
+  - Real-time Data Visualization
+- name: Resilience
+  axis: concept
+  definition: The capacity of an individual, system, or organization to withstand adversity, recover from
+    setbacks, and adapt to changing circumstances.
+  aliases:
+  - Resilience
+  - IT Resiliency
+- name: Scientific Research
+  axis: topic
+  definition: The systematic investigation and study of materials and sources to establish facts and reach
+    new conclusions about natural phenomena.
+  aliases:
+  - Scientific Research
+  - Scientific research
+  - scientific research
+  - Scientific Research and Findings
+- name: Air Travel
+  axis: topic
+  definition: The transportation of passengers and cargo via aircraft, encompassing commercial airline
+    operations, flight experiences, and related logistical or safety concerns.
+  aliases:
+  - Travel
+  - Air travel
+  - Air Travel
+  - Airline Flights
+  - Airline travel
+  - Airlines
+  - Commercial Airline Travel
+- name: Digital Music
+  axis: topic
+  definition: The creation, distribution, and consumption of audio content in digital formats, encompassing
+    the associated hardware players, software applications, and industry shifts toward electronic media.
+  aliases:
+  - Digital Music
+  - Digital Music Players
+  - Digital Music Player
+  - Digital music
+  - Digital music players
+  - Digital Music Era
+  - Digital Music Instrument
+  - Digital Music and Video
+  - Digital music and media
+  - Portable Digital Music
+- name: Public Relations
+  axis: topic
+  definition: The strategic practice of managing the spread of information between an individual or an
+    organization and the public to influence perception and maintain reputation.
+  aliases:
+  - Public Relations
+  - Public relations
+  - public relations
+- name: Stock Market Analysis
+  axis: topic
+  definition: The evaluation of financial markets and individual equities to assess investment value and
+    performance.
+  aliases:
+  - Stock Market Analysis
+  - Stock Analysis
+  - Stock market analysis
+  - stock market analysis
+- name: Foreign Direct Investment
+  axis: concept
+  definition: The investment made by an individual or business entity in one country into business interests
+    located in another country.
+  aliases:
+  - Foreign Investment
+  - International Investment
+  - Foreign investment
+  - International Investing
+  - Global Investment
+  - International investment
+  - China Investment
+  - Asia Investment
+  - China Investments
+  - China's overseas investment
+  - Chinese Investment Abroad
+  - European Investment
+  - Foreign Investor
+  - Global Business & Investment
+  - Global Savings And Investment
+  - Globalization of Investment
+  - India Investment
+  - International investing
+  - Investing in China
+  - Inward Foreign Investment
+  - Japanese investment in US
+  - Mainland Chinese Investment
+  - Middle Eastern Investment
+  - Overseas Investments
+  - foreign investment
+- name: Mobile Operating Systems
+  axis: topic
+  definition: Software platforms that manage hardware resources and provide common services for applications
+    on mobile devices such as smartphones and tablets.
+  aliases:
+  - Mobile Operating Systems
+  - Mobile operating systems
+  - Mobile Operating System
+  - Mobile Os
+  - Smartphone Operating Systems
+  - mobile operating systems
+- name: Technological Progress
+  axis: concept
+  definition: The development and adoption of new technologies that enhance capabilities, efficiency,
+    or societal functioning.
+  aliases:
+  - Technological Advancement
+  - Technological Advancements
+  - Technological Progress
+  - Technological advancement
+  - Technological progress
+  - Technology Advancement
+  - Technological Advances
+  - Technology Advancements
+  - Technological advancements
+  - Technology Upgrades
+  - Historical technological progress
+  - Technological Improvements
+  - Technological Progression
+  - Technology Improvements
+  - Technology upgrades
+  - technological advancement
+- name: Credit Crisis
+  axis: concept
+  definition: A period of financial instability characterized by the rapid collapse of credit availability
+    and a sharp decline in asset values.
+  aliases:
+  - Credit Crisis
+  - Credit crisis
+- name: Digital Advertising
+  axis: topic
+  definition: The practice of delivering promotional content to users through electronic devices and online
+    platforms.
+  aliases:
+  - Digital Advertising
+  - Digital advertising
+- name: Content Monetization
+  axis: concept
+  definition: The practice of generating revenue from digital media assets through mechanisms such as
+    advertising, subscriptions, licensing, or direct sales.
+  aliases:
+  - Monetization
+  - Content Monetization
+  - Content monetization
+  - Monetization Of Content
+  - User-generated content monetization
+  - YouTube Monetization
+- name: Public Safety
+  axis: topic
+  definition: The state of being protected from harm and other non-criminal threats to life, property,
+    and public order, typically maintained by law enforcement agencies.
+  aliases:
+  - Public Safety
+  - Public safety
+- name: Corporate Earnings
+  axis: topic
+  definition: The financial profits and losses reported by a corporation over a specific accounting period.
+  aliases:
+  - Corporate Earnings
+  - Corporate earnings
+- name: Economic Theory
+  axis: topic
+  definition: The systematic study of how societies allocate scarce resources to produce and distribute
+    goods and services.
+  aliases:
+  - Economics
+  - Economic Theory
+  - Economic theory
+  - Economic Theories
+  - economic theory
+- name: Income and Wealth Inequality
+  axis: concept
+  definition: The unequal distribution of income and wealth among individuals or groups within a society.
+  aliases:
+  - Income Inequality
+  - Wealth Inequality
+  - Wealth inequality
+  - Income inequality
+  - Income Distribution
+  - Income distribution
+  - Wealth and Income Inequality
+  - income distribution
+  - wealth inequality
+- name: Technology Competition
+  axis: topic
+  definition: The rivalry among firms and markets within the technology sector for market share, innovation
+    leadership, and consumer adoption.
+  aliases:
+  - Technology Competition
+  - Tech industry competition
+  - Tech Industry Competition
+  - Tech Competition
+  - Competition in Tech
+  - Technology competition
+  - Competition in tech
+  - Tech competition
+  - Technological Competition
+  - Competition in the tech industry
+  - Technology Industry Competition
+  - Semiconductor industry competition
+  - Technology industry competition
+  - Technology market competition
+  - technology competition
+- name: Economic Globalization
+  axis: concept
+  definition: The increasing integration of national economies through the cross-border flow of goods,
+    services, capital, and technology.
+  aliases:
+  - Globalization
+  - Economic Globalization
+  - globalization
+- name: Social Media Marketing
+  axis: topic
+  definition: The practice of using social media platforms to promote products, services, or brands and
+    engage with audiences.
+  aliases:
+  - Social Media Marketing
+  - Social media marketing
+- name: Market Trends
+  axis: concept
+  definition: Patterns of change in financial markets and business sectors over time.
+  aliases:
+  - Market Trends
+  - Market trends
+  - Stock Market Trends
+  - Marketing Trends
+  - Historical market trends
+  - Indian market trends
+  - Market Trend Analysis
+  - Marketing trends
+  - Trend Analysis
+  - market trends
+- name: Business Profitability
+  axis: concept
+  definition: The financial performance of an organization measured by its ability to generate earnings
+    relative to expenses and other costs over a specific period.
+  aliases:
+  - Profitability
+  - Business Profitability
+  - Profitable Business
+- name: Revenue Growth
+  axis: concept
+  definition: The increase in a company's sales income over a specified period.
+  aliases:
+  - Revenue Growth
+  - Revenue growth
+  - Revenue Growth Rate
+  - Triple-digit Revenue Growth
+  - Year-over-year Revenue Growth
+  - revenue growth
+- name: Digital Marketing
+  axis: topic
+  definition: The promotion of products or services through digital channels and online platforms.
+  aliases:
+  - Digital Marketing
+  - Digital marketing
+  - digital marketing
+  - Digital Age Marketing
+- name: Market Capitalization
+  axis: concept
+  definition: The total monetary value of all outstanding shares of a company's stock, calculated by multiplying
+    the current share price by the total number of outstanding shares.
+  aliases:
+  - Market Capitalization
+  - Stock Market Capitalization
+  - Market Capitalisation
+- name: Market Analysis
+  axis: topic
+  definition: The evaluation of financial markets and securities to assess their value and future performance.
+  aliases:
+  - Market Analysis
+  - Market analysis
+  - market analysis
+- name: Creativity
+  axis: topic
+  definition: The cognitive and behavioral process of generating novel and valuable ideas, artifacts,
+    or solutions through imaginative thinking and artistic expression.
+  aliases:
+  - Creativity
+  - Art and Creativity
+  - Psychology of Creativity
+- name: Environmental Impact
+  axis: topic
+  definition: The changes to the natural environment resulting from human activities, including ecological
+    disruption and resource depletion.
+  aliases:
+  - Environmental Impact
+  - Environmental impact
+  - Ecological Impact
+  - environmental impact
+  - Ecological impact
+  - Ecosystem Impacts
+  - Ecosystem impact
+  - Environmental Effects
+  - ecological impact
+- name: iPad
+  axis: concept
+  definition: A line of tablet computers designed and marketed by Apple Inc., featuring a multi-touch
+    interface and running iOS or iPadOS.
+  aliases:
+  - Ipad
+  - Ipads
+  - Ipad Mini
+  - Ipad 2
+  - Apple iPad
+  - Ipad App
+  - Ipad Apps
+  - iPad Applications
+  - iPad Apps
+- name: Stock Options
+  axis: concept
+  definition: A contractual right that gives the holder the option to buy or sell a stock at an agreed-upon
+    price for a specified period.
+  aliases:
+  - Stock Options
+  - Stock options
+- name: User-Generated Content
+  axis: concept
+  definition: Content created by users of an online platform rather than the platform's professional staff.
+  aliases:
+  - User-generated Content
+  - User-Generated Content
+  - User-generated content
+  - User Generated Content
+  - User-created Content
+- name: Job Creation
+  axis: concept
+  definition: The process of generating new employment opportunities and positions within an economy.
+  aliases:
+  - Job Creation
+  - Job creation
+  - Jobs Creation
+- name: Market Volatility
+  axis: concept
+  definition: The degree of variation in the trading price of financial assets over time, reflecting uncertainty
+    and risk in market conditions.
+  aliases:
+  - Market Volatility
+  - Stock Market Volatility
+  - Market volatility
+  - Price Volatility
+  - Stock Volatility
+  - stock market volatility
+- name: Startup Culture
+  axis: concept
+  definition: The shared values, practices, and social norms that characterize the internal environment
+    and operational ethos of early-stage technology companies.
+  aliases:
+  - Startup Culture
+  - Startup culture
+  - Start-up Culture
+  - Start-up culture
+- name: Budget Deficit
+  axis: concept
+  definition: The amount by which government spending exceeds revenue during a specified fiscal period.
+  aliases:
+  - Budget Deficit
+  - Budget Deficits
+  - Deficits
+  - Deficit
+  - Budget deficits
+  - Federal Budget Deficit
+  - Fiscal Deficit
+  - Fiscal Deficits
+  - Budget deficit
+  - Federal Deficits
+  - Federal Deficit
+  - Financial Deficits
+- name: Capitalism
+  axis: topic
+  definition: An economic system characterized by private ownership of the means of production and their
+    operation for profit.
+  aliases:
+  - Capitalism
+- name: Criminal Investigation
+  axis: topic
+  definition: The systematic process of collecting evidence and analyzing facts to identify and apprehend
+    individuals suspected of committing crimes.
+  aliases:
+  - Investigation
+  - Investigations
+  - Criminal Investigation
+  - Criminal Investigations
+  - Criminal investigation
+  - Crime Investigation
+  - Criminal investigations
+- name: Political Strategy
+  axis: concept
+  definition: The planning and execution of actions designed to achieve political objectives, influence
+    public opinion, or manage electoral outcomes.
+  aliases:
+  - Political Strategy
+  - Political strategy
+  - political strategy
+- name: Songwriting
+  axis: topic
+  definition: The art and craft of composing original songs, encompassing the creation of lyrics, melody,
+    and musical structure.
+  aliases:
+  - Songwriting
+  - Songwriting Craft
+  - Original Songwriting
+  - songwriting
+- name: Earnings
+  axis: concept
+  definition: The financial profit realized by a company over a specific period, typically reported quarterly
+    or annually.
+  aliases:
+  - Earnings
+  - Earnings Estimates
+  - Earnings Expectations
+  - Earnings Forecasts
+  - Earnings Projections
+  - Earning
+  - Earnings Forecast
+  - Earnings Outlooks
+  - Net Earnings
+- name: Economic Outlook
+  axis: concept
+  definition: Assessments of future economic conditions and trends based on current financial data and
+    market indicators.
+  aliases:
+  - Economic Outlook
+  - Economic outlook
+  - Future economic outlook
+  - State economic outlook
+- name: Environmentalism
+  axis: topic
+  definition: A social and political movement advocating for the protection of the natural environment
+    through conservation, sustainability, and policy reform.
+  aliases:
+  - Environmentalism
+  - environmentalism
+- name: Memory
+  axis: concept
+  definition: The cognitive faculty of encoding, storing, and retrieving information and experiences over
+    time.
+  aliases:
+  - Memory
+  - Memory Recall
+- name: Quantified Self
+  axis: topic
+  definition: The practice of using wearable technology and data tracking to measure personal habits,
+    physiological states, and behaviors for the purpose of self-knowledge and optimization.
+  aliases:
+  - Quantified Self
+  - Quantified Self (qs)
+  - The quantified self
+- name: American Politics
+  axis: topic
+  definition: The study and practice of governance, political processes, and public policy within the
+    United States.
+  aliases:
+  - US Politics
+  - U.S. Politics
+  - US politics
+  - American politics
+  - American Politics
+- name: Business Acquisition
+  axis: concept
+  definition: The process by which one company purchases most or all of another company's shares to gain
+    control of that entity.
+  aliases:
+  - Business Acquisitions
+  - Business Acquisition
+  - Business acquisitions
+  - Business acquisition
+- name: Career Development
+  axis: topic
+  definition: The lifelong process of managing learning, work, leisure, and transitions in order to move
+    toward a personally determined and evolving future.
+  aliases:
+  - Career Development
+  - Career development
+- name: Market Competition
+  axis: concept
+  definition: The rivalry among sellers trying to achieve such goals as increasing profits, market share,
+    and sales expansion through variety, pricing, distribution, and advertising.
+  aliases:
+  - Market Competition
+  - Market competition
+- name: Profit Margin
+  axis: concept
+  definition: A financial metric that measures the degree to which a company earns profit from its sales
+    by comparing net income to revenue.
+  aliases:
+  - Profit Margins
+  - Profit Margin
+  - Gross Profit Margin
+  - profit margins
+- name: Unemployment
+  axis: topic
+  definition: The state of being without paid work while actively seeking employment.
+  aliases:
+  - Unemployment
+  - unemployment
+- name: Derivatives
+  axis: topic
+  definition: Financial contracts whose value is derived from the performance of an underlying entity
+    such as an asset, index, or interest rate.
+  aliases:
+  - Derivatives
+- name: Historic Preservation
+  axis: topic
+  definition: The practice of protecting and maintaining buildings, sites, districts, or objects of historical
+    significance.
+  aliases:
+  - Historic Preservation
+  - Historical Preservation
+  - Historic preservation
+  - Historical preservation
+  - Historic Building Preservation
+  - History Preservation
+  - historical preservation
+- name: Luxury Goods
+  axis: topic
+  definition: High-end products characterized by premium quality, exclusivity, and high price points.
+  aliases:
+  - Luxury Goods
+  - Luxury goods
+  - Luxury Merchandise
+- name: Mental Health
+  axis: topic
+  definition: The state of an individual's psychological and emotional well-being, encompassing their
+    ability to cope with stress, relate to others, and make decisions.
+  aliases:
+  - Mental Health
+  - Mental health
+  - mental health
+  - Mental Health Factors
+- name: Philosophy
+  axis: topic
+  definition: The systematic study of fundamental questions concerning existence, knowledge, values, reason,
+    mind, and language.
+  aliases:
+  - Philosophy
+  - Plato's Philosophy
+- name: Algorithms
+  axis: topic
+  definition: Step-by-step procedures or formulas for solving problems and performing computations, particularly
+    in the context of computer science.
+  aliases:
+  - Algorithms
+  - Algorithm
+  - Computer Algorithms
+  - Computer algorithms
+- name: Credit Markets
+  axis: topic
+  definition: The financial systems and institutions through which funds are borrowed and lent, encompassing
+    the trading of debt securities and the provision of credit.
+  aliases:
+  - Credit Markets
+  - Credit Market
+  - Credit markets
+- name: Surveillance
+  axis: concept
+  definition: The systematic monitoring of people, objects, or communications, typically by authorities
+    or organizations, for purposes of security, intelligence gathering, or social control.
+  aliases:
+  - Surveillance
+  - Surveillance Video
+  - Video Surveillance
+  - NSA surveillance
+  - Surveillance Footage
+  - Drone Surveillance
+  - Drone surveillance
+  - National Security Agency surveillance
+  - Surveillance Camera
+  - Surveillance Cameras
+  - Surveillance State
+  - Video surveillance
+- name: Consumerism
+  axis: concept
+  definition: A social and economic order that encourages the acquisition of goods and services in ever-increasing
+    amounts.
+  aliases:
+  - Consumerism
+  - consumerism
+  - Leninism-plus-consumerism
+- name: Financial Analysis
+  axis: topic
+  definition: The evaluation of businesses, projects, budgets, and other financial entities to determine
+    their suitability for investment.
+  aliases:
+  - Financial Analysis
+  - Financial analysis
+  - financial analysis
+- name: Gross Domestic Product
+  axis: concept
+  definition: The total monetary value of all finished goods and services produced within a country's
+    borders in a specific time period.
+  aliases:
+  - Gdp
+  - Gross Domestic Product (gdp)
+- name: Health Technology
+  axis: topic
+  definition: The application of technology to improve healthcare delivery, patient outcomes, and medical
+    research.
+  aliases:
+  - Healthcare Technology
+  - Health Technology
+  - Medical Technology
+  - Healthcare technology
+  - Technology in Healthcare
+  - Health Care Technology
+  - Technology in medicine
+  - Health Tech
+  - Health technology
+  - Wearable Health Technology
+  - Health Information Technology
+  - Health-tech
+  - HealthTech
+  - Healthtech
+  - Medical Tech
+  - Medical technology
+  - technology in healthcare
+- name: Company Valuation
+  axis: concept
+  definition: The process of determining the economic value of a business entity.
+  aliases:
+  - Business Valuation
+  - Company Valuation
+  - Company Valuations
+  - Corporate Valuation
+  - Business valuation
+  - Company valuation
+  - Company valuations
+  - Business Valuations
+  - Corporate Valuations
+- name: Political Campaign Strategy
+  axis: topic
+  definition: The planning and execution of activities designed to influence the outcome of an election.
+  aliases:
+  - Campaign Strategy
+  - Political Campaigns
+  - Election Strategy
+  - Political Campaigning
+  - Campaign Tactics
+  - Election Campaign
+  - Election Campaigns
+  - Political campaigns
+  - Campaign Strategies
+  - Campaigning
+  - Election strategy
+  - Electoral Strategy
+  - Political campaigning
+  - Campaign
+  - Campaign strategy
+  - Campaign tactics
+  - Election Campaign Strategy
+  - Election campaign strategies
+  - John McCain's Campaign Strategy
+  - Political Campaign
+  - Political Campaigning Tactics
+  - Presidential Election Strategy
+  - political campaigning
+- name: American Democracy
+  axis: topic
+  definition: The political system and institutional framework of governance in the United States, encompassing
+    its democratic processes, constitutional structures, and civic practices.
+  aliases:
+  - Democracy
+  - American democracy
+- name: Ethics
+  axis: topic
+  definition: The branch of philosophy concerned with moral principles and the distinction between right
+    and wrong conduct.
+  aliases:
+  - Ethics
+  - Morality
+  - Moral Philosophy
+  - Ethical Conduct
+  - Ethics Law
+  - Ethical Behavior
+  - Ethical Principles
+  - Ethics Act
+  - Moral Principles
+  - Moralism
+  - Morality Tale
+  - Morality Tales
+  - Philosophy and Ethics
+  - Philosophy of Morality
+  - State Ethics Laws
+- name: Higher Education
+  axis: topic
+  definition: The level of formal instruction provided by universities, colleges, and other institutions
+    offering undergraduate and postgraduate degrees.
+  aliases:
+  - Higher Education
+  - Higher education
+  - College Education
+  - College education
+  - Undergraduate Education
+  - Higher education in India
+  - Undergraduate Degree
+  - University Education
+- name: Environmental Sustainability
+  axis: topic
+  definition: The practice of maintaining ecological balance and preserving natural resources to ensure
+    long-term environmental health and human well-being.
+  aliases:
+  - Sustainability
+  - Environmental Sustainability
+  - Environmental sustainability
+  - Ecological Sustainability
+- name: Government Policy
+  axis: topic
+  definition: The principles, laws, and actions adopted by governmental bodies to address public issues
+    and guide societal behavior.
+  aliases:
+  - Government Policy
+  - Government policy
+  - Chinese Government Policy
+  - Government Policies
+  - government policy
+- name: Asset Management
+  axis: topic
+  definition: The professional management of various securities and assets to meet specified investment
+    goals for the benefit of investors.
+  aliases:
+  - Asset Management
+  - Portfolio Management
+  - Fund Management
+  - Alternative Asset Management
+  - Assets Under Management
+  - Asset Portfolio Management
+  - Asset Under Management
+  - Asset management
+  - Fund Managers
+  - Fund Portfolio Manager
+  - Fund management
+  - Portfolio Manager
+- name: Counterterrorism
+  axis: topic
+  definition: The practice, typically by military personnel or law enforcement agencies, to stop terrorism.
+  aliases:
+  - Counter-terrorism
+  - Counterterrorism
+  - Counter-Terrorism
+  - Counterterrorism Strategy
+  - Counter-terrorism Efforts
+  - counter-terrorism
+  - Antiterrorism Operations
+  - Counter-terrorism efforts
+  - Counter-terrorism operations
+  - Counterterrorism Operations
+  - U.S. counter-terrorism
+  - US counterterrorism
+  - US counterterrorism efforts
+  - counter-terrorism operations
+- name: Country Music
+  axis: topic
+  definition: A genre of popular music originating in the Southern United States that blends elements
+    of folk, bluegrass, and blues, often characterized by storytelling lyrics and instruments such as
+    the steel guitar and fiddle.
+  aliases:
+  - Country Music
+  - Country music
+  - Country-pop
+  - Traditional Country Music
+  - Pop-country
+  - Defining "Country" Music
+  - Pop Country
+  - Pop/Country Music
+  - Pop/country
+- name: Data Collection
+  axis: concept
+  definition: The systematic process of gathering information from various sources for analysis and record-keeping.
+  aliases:
+  - Data Collection
+  - Data collection
+  - Data Gathering
+  - data collection
+  - Data Collection Tools
+- name: Infectious Disease Outbreaks
+  axis: concept
+  definition: The occurrence of cases of an infectious disease in excess of normal expectancy within a
+    specific population or region.
+  aliases:
+  - Infectious Diseases
+  - Disease Outbreaks
+  - Ebola Outbreak
+  - Infectious Disease
+  - Ebola outbreak
+  - Outbreak
+  - Disease Outbreak
+  - Infectious diseases
+  - Coronavirus Outbreak
+  - Coronavirus outbreak
+  - Emerging Diseases
+  - Sars Outbreak
+  - Viral Outbreaks
+  - COVID-19 Outbreak
+  - COVID-19 outbreak
+  - Cholera
+  - Cholera Epidemic
+  - Cholera Outbreaks
+  - Disease outbreaks
+  - E. Coli Outbreak
+  - E. coli Outbreaks
+  - Ebola Virus Disease Outbreak
+  - Emerging Infectious Diseases
+  - Emerging infectious diseases
+  - Infectious Disease Outbreak
+  - Infectious disease
+  - Novel coronavirus outbreak
+  - Outbreaks
+  - Pandemic Outbreaks
+  - Viral Outbreak
+  - Viral outbreaks
+  - infectious diseases
+- name: News Media
+  axis: topic
+  definition: The institutions and technologies used to disseminate information, current events, and commentary
+    to the public.
+  aliases:
+  - Media
+  - Mass Media
+  - News Media
+  - News media
+- name: Technology Acquisitions
+  axis: concept
+  definition: The purchase of one technology company by another, often involving the acquisition of intellectual
+    property, talent, or market position.
+  aliases:
+  - Technology Acquisitions
+  - Technology Acquisition
+  - Technology acquisition
+  - Tech Acquisitions
+  - Tech acquisitions
+  - Technology acquisitions
+- name: Banking Industry
+  axis: topic
+  definition: The sector of the economy comprising institutions that accept deposits, make loans, and
+    provide financial services to individuals and businesses.
+  aliases:
+  - Banking Industry
+  - Financial Industry
+  - Banking industry
+  - Financial industry
+  - Financial Services Industry
+  - Finance Industry
+  - Financial services industry
+  - Finance industry
+  - Australian banking industry
+  - Banking Industry Structure
+- name: Corporate Expansion
+  axis: concept
+  definition: The strategic growth of an organization through internal development, mergers, acquisitions,
+    or the establishment of new operations.
+  aliases:
+  - Business Expansion
+  - Business expansion
+  - Corporate Expansion
+  - Corporate expansion
+  - Company Expansion
+- name: Debt
+  axis: concept
+  definition: Money that is owed or due as the result of a credit transaction, including liabilities such
+    as bonds, loans, and bad debts.
+  aliases:
+  - Debt
+  - Bad Debts
+  - Debt Levels
+  - Bad Debt
+  - Bond Debt
+  - Financial Debt
+  - Stuff Debt
+  - debt
+- name: iTunes
+  axis: concept
+  definition: A media player and library organizer application developed by Apple Inc. for managing digital
+    audio and video content.
+  aliases:
+  - Itunes
+  - iTunes
+  - Itunes U
+  - Itunes.com
+- name: Liquidity
+  axis: concept
+  definition: The degree to which an asset or market can be quickly bought or sold in the marketplace
+    without affecting its price.
+  aliases:
+  - Liquidity
+- name: Personal Computers
+  axis: topic
+  definition: Desktop and portable computing devices designed for individual use by consumers.
+  aliases:
+  - Personal Computing
+  - Personal Computers
+  - Personal Computer
+  - Personal computing
+  - Macintosh Personal Computers
+  - Personal Computer (pc)
+  - Personal Supercomputing
+- name: Social Media Integration
+  axis: concept
+  definition: The technical and functional embedding of social networking platforms into other digital
+    services to enable data sharing, user authentication, and content distribution.
+  aliases:
+  - Social Media Integration
+  - Social media integration
+  - Social Network Integration
+  - Social Networking Integration
+  - Social Media Integrations
+- name: Taxation
+  axis: topic
+  definition: The process by which governments impose mandatory financial charges on individuals and entities
+    to fund public expenditures.
+  aliases:
+  - Taxation
+  - Taxes
+  - Tax Rates
+  - Tax Rate
+  - Annual Taxes
+  - State Taxation
+  - Tax
+  - taxation
+- name: Diplomacy
+  axis: topic
+  definition: The practice of conducting negotiations and maintaining relations between nations through
+    official representatives.
+  aliases:
+  - Diplomacy
+  - International Diplomacy
+  - International diplomacy
+  - international diplomacy
+  - European diplomacy
+  - Political Diplomacy
+  - UN Diplomacy
+- name: Foreclosure
+  axis: concept
+  definition: The legal process by which a lender attempts to recover the balance of a loan from a borrower
+    who has stopped making payments by forcing the sale of the asset used as collateral for the loan.
+  aliases:
+  - Foreclosure
+  - Foreclosures
+  - Home Foreclosures
+  - Mortgage Foreclosures
+  - Mortgage Foreclosure
+  - Real Estate Foreclosure
+  - Real Estate Foreclosures
+- name: Product Design
+  axis: topic
+  definition: The discipline of defining the structure and behavior of products to solve user problems
+    and achieve business goals.
+  aliases:
+  - Product Design
+  - Product design
+  - product design
+- name: Telecommunications
+  axis: topic
+  definition: The transmission of information over significant distances by electronic means, including
+    voice, data, and video services via wired, wireless, or satellite networks.
+  aliases:
+  - Telecommunications
+  - telecommunications
+- name: Automotive Industry
+  axis: topic
+  definition: The sector of the economy concerned with the design, development, manufacturing, marketing,
+    and sale of motor vehicles.
+  aliases:
+  - Automotive Industry
+  - Automotive industry
+  - Auto Industry
+  - Auto industry
+  - Auto Parts Industry
+  - China Auto Industry
+  - US Auto Industry
+- name: Corruption
+  axis: concept
+  definition: The abuse of entrusted power for private gain, particularly involving bribery and fraud
+    in public or corporate sectors.
+  aliases:
+  - Corruption
+  - corruption
+- name: Web Services
+  axis: concept
+  definition: Software systems designed to support interoperable machine-to-machine interaction over a
+    network, typically including cloud-based applications and APIs.
+  aliases:
+  - Online Services
+  - Web Services
+  - Online services
+  - Software as a Service
+  - Software-as-a-service (saas)
+  - Online Service
+  - Software As A Service
+  - Software As A Service (saas)
+  - Software Services
+  - Software and Web Services
+  - Software-as-a-service
+  - Web Service
+  - Web services
+  - Web-based Service
+  - Web-based Services
+  - Web-based Software Services
+- name: Personal Data
+  axis: concept
+  definition: Information relating to an identified or identifiable natural person that is collected,
+    tracked, stored, or analyzed by individuals or organizations.
+  aliases:
+  - Personal Data
+  - Personal Data Tracking
+  - Personal Data Collection
+  - Personal Tracking
+  - Personal data
+  - Personal data tracking
+  - Personal Database
+  - Personal Data Logging
+  - Personal Information Database
+  - Personal Life Data
+  - Personal tracking
+- name: Subsidies
+  axis: concept
+  definition: Financial assistance provided by governments to individuals, industries, or organizations
+    to support economic activity, reduce costs, or achieve specific policy objectives.
+  aliases:
+  - Subsidies
+  - Government Subsidies
+  - Farm Subsidies
+  - Fuel Subsidies
+  - Agricultural Subsidies
+  - Subsidy
+  - Taxpayer Subsidies
+  - government subsidies
+  - Advertising subsidies
+  - Agricultural subsidies
+  - Cash Subsidies
+  - Federal Farm Subsidy Program
+  - Food Subsidies
+  - Fossil Fuel Subsidies
+  - Gasoline Subsidies
+  - Government subsidies
+  - Oil Subsidies
+  - State Subsidies
+  - Subsidies For Healthy Foods
+  - Subsidy Basis
+  - Tax Code Subsidies
+  - Tax Subsidies
+- name: Global Markets
+  axis: topic
+  definition: International financial and commercial systems encompassing stock exchanges, trade networks,
+    and economic activities that operate across national borders.
+  aliases:
+  - Global Markets
+  - Global Stock Markets
+  - International Markets
+  - Global markets
+  - Global Marketplace
+  - Global Market
+  - Global stock markets
+  - International Market
+  - International Stock Markets
+  - International markets
+- name: Media Consumption
+  axis: topic
+  definition: The act of engaging with various forms of media content, including television, online video,
+    and other digital platforms.
+  aliases:
+  - Media Consumption
+  - Media consumption
+  - Media Consumption Habits
+  - Media Habits
+  - Media consumption habits
+  - Media habits
+- name: Startup Ecosystems
+  axis: topic
+  definition: The interconnected network of entrepreneurs, investors, support organizations, and institutional
+    frameworks that facilitate the creation and growth of new technology-based ventures within a specific
+    geographic region.
+  aliases:
+  - Startup Ecosystem
+  - Startup Ecosystems
+  - Startup ecosystem
+  - Startup ecosystems
+  - Tech Startup Ecosystems
+- name: Subscription Services
+  axis: concept
+  definition: Business models in which customers pay recurring fees to access products, content, or services
+    on an ongoing basis.
+  aliases:
+  - Subscription Services
+  - Subscription Service
+  - Subscription services
+  - Subscription-based Service
+- name: Instant Messaging
+  axis: concept
+  definition: Real-time electronic communication between two or more participants via text-based messages
+    over digital networks.
+  aliases:
+  - Text Messaging
+  - Instant Messaging
+  - Mobile Messaging
+  - Text Messages
+  - Messaging
+  - Messaging Apps
+  - Messaging App
+  - Instant Messaging Apps
+  - Instant messaging
+  - Messenger App
+  - Mobile Instant Messaging
+  - Short-form Messaging
+  - Sms Text Messaging
+  - Text Message
+- name: Commodities
+  axis: topic
+  definition: Raw materials or primary agricultural products that can be bought and sold, such as crude
+    oil, metals, and grains.
+  aliases:
+  - Commodities
+  - Oil and Commodities
+- name: Location-Based Services
+  axis: concept
+  definition: Digital services that use geographic positioning data to provide information, entertainment,
+    or business functions relevant to a user's current physical location.
+  aliases:
+  - Location-based Services
+  - Location-Based Services
+  - Location-based services
+  - Location Services
+  - Location-based Service
+- name: Online Privacy
+  axis: concept
+  definition: The right and practice of controlling the collection, use, and dissemination of personal
+    information gathered through internet-based activities.
+  aliases:
+  - Online Privacy
+  - Online privacy
+  - Internet Privacy
+  - Internet privacy
+  - Children's Online Privacy
+- name: Real Estate Investment
+  axis: topic
+  definition: The acquisition and management of property with the primary objective of generating financial
+    return through rental income, capital appreciation, or tax advantages.
+  aliases:
+  - Real Estate Investment
+  - Property Investment
+  - Real Estate Investments
+  - Investment Properties
+  - Real estate investment
+  - Investment Property
+  - Property investment
+  - Real estate and investment
+- name: Seed Funding
+  axis: concept
+  definition: Seed funding is the initial capital raised by a startup to validate its business model,
+    develop a minimum viable product, and prepare for further growth stages.
+  aliases:
+  - Seed Funding
+  - Seed Money
+  - Seed Fund
+  - Seed Financing
+  - Seed Funds
+  - Seed Stage Funding
+- name: Arts
+  axis: topic
+  definition: The expression or application of human creative skill and imagination, typically in a tangible
+    medium such as visual art, music, or literature.
+  aliases:
+  - Art
+  - Arts
+  - Women in Arts
+- name: Cloud Storage
+  axis: topic
+  definition: A model of computer data storage in which digital data is stored on remote servers accessed
+    via the internet rather than on local hardware.
+  aliases:
+  - Cloud Storage
+  - Cloud storage
+  - Cloud Storage Services
+  - Cloud Data Storage
+  - Cloud-based Storage
+  - Free Cloud Storage
+- name: Human Rights
+  axis: topic
+  definition: The basic rights and freedoms inherent to all human beings, regardless of nationality, place
+    of residence, sex, national or ethnic origin, color, religion, language, or any other status.
+  aliases:
+  - Human Rights
+  - Human rights
+  - human rights
+- name: Digital Music Services
+  axis: concept
+  definition: Online platforms and applications that provide access to music libraries through streaming,
+    downloading, or cloud-based delivery.
+  aliases:
+  - Music Streaming
+  - Music Downloads
+  - Digital Music Downloads
+  - Streaming Music
+  - Online Music Services
+  - Music streaming
+  - Online Music Service
+  - Cloud Music
+  - Cloud Music Streaming
+  - Cloud-based Music
+  - Cloud-based Music Streaming
+  - Internet Music Streaming
+  - Music Download Service
+  - Music Download Services
+  - Music Streaming Application
+  - Music Streaming Service
+  - Music Streaming Services
+  - Music streaming services
+  - Music-video Downloads
+  - Online Music
+  - Online Music Platforms
+  - Online music services
+- name: Arts and Culture
+  axis: topic
+  definition: Reading about the arts as a cultural field — criticism, institutions, and arts coverage
+    generally.
+  aliases:
+  - Arts and Culture
+  - Arts & Culture
+  - Arts And Culture
+  - Arts and culture
+  - Art and Culture
+- name: American Culture
+  axis: topic
+  definition: Reading on the culture of the United States, including African-American culture.
+  aliases:
+  - American Culture
+  - American culture
+  - African-American Culture
+  - Black Culture
+- name: Culture
+  axis: topic
+  definition: The shared values, beliefs, customs, arts, and social behaviors characteristic of a particular
+    group or society.
+  aliases:
+  - Italian Culture
+  - Chinese Culture
+  - Brazilian Culture
+  - Israeli Culture
+  - Japanese Culture
+  - Mexican culture
+  - Scandinavian Culture
+  - Spanish Culture
+  - Third Culture
+  - Two Cultures
+  - Western Culture
