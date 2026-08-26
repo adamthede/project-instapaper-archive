@@ -20,6 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from vocab.apply_curation import (  # noqa: E402
+    KNOWN_KEYS,
     CurationError,
     apply_decisions,
     load_head,
@@ -125,6 +126,41 @@ def test_reassign_moves_aliases_rather_than_dropping_them():
 def test_a_misspelled_entry_name_raises_instead_of_doing_nothing(decisions, needle):
     with pytest.raises(CurationError, match=needle):
         apply_decisions(head(("Technology", ["Tech"]), ("Privacy", ["Privacy"])), decisions)
+
+
+@pytest.mark.parametrize("bad_key", ["rejects", "merges", "splits",
+                                     "reassign_alias", "drop_alias", "rejcet"])
+def test_a_misspelled_TOP_LEVEL_key_raises(bad_key):
+    """The worst typo available, and the one that defeats every other guard in
+    this file: a key that is never consulted means its rules are never looked
+    up, so no strict lookup ever runs. `rejects:` for `reject:` reads correctly
+    to a human and is valid YAML.
+
+    Caught in review of this very PR — the applier accepted it and reported a
+    clean run with nothing rejected."""
+    with pytest.raises(CurationError, match="unknown key"):
+        apply_decisions(head(("Technology", ["Tech"])),
+                        {bad_key: [{"name": "Technology"}]})
+
+
+def test_the_real_decisions_file_uses_only_known_keys():
+    """Guards the inverse: adding a legitimate new decision kind to the schema
+    without teaching KNOWN_KEYS about it would be caught here rather than by a
+    confusing failure on Adam's next curation pass."""
+    if not DECISIONS.exists():
+        pytest.skip("decisions file absent")
+    assert set(yaml.safe_load(DECISIONS.read_text())) <= KNOWN_KEYS
+
+
+def test_reassigning_an_alias_to_the_same_entry_raises():
+    """It would take the alias and hand it straight back, changing nothing
+    while the audit counted a move."""
+    with pytest.raises(CurationError, match="cannot move aliases to itself"):
+        apply_decisions(
+            head(("iPad", ["Ipad", "Ipad App"])),
+            {"reassign_aliases": [{"from": "iPad", "to": "iPad",
+                                   "aliases": ["Ipad App"]}]},
+        )
 
 
 def test_an_alias_the_source_does_not_have_raises():

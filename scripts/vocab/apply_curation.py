@@ -76,7 +76,24 @@ def _take(entry: dict, aliases: list[str], what: str) -> list[str]:
     return list(aliases)
 
 
+# Everything a decisions file is allowed to say. Anything else is a typo, and
+# a typo at THIS level is the worst kind: `rejects:` instead of `reject:` reads
+# perfectly to a human, parses as valid YAML, and silently removes nothing.
+# Every strict lookup below is defeated by a key that is never consulted.
+KNOWN_KEYS = frozenset({
+    "version", "source", "default",
+    "reject", "merge", "split", "reassign_aliases", "drop_aliases",
+})
+
+
 def apply_decisions(head: list[dict], decisions: dict) -> tuple[list[dict], dict]:
+    unknown = sorted(set(decisions) - KNOWN_KEYS)
+    if unknown:
+        raise CurationError(
+            f"unknown key(s) in the decisions file: {unknown} — "
+            f"expected one of {sorted(KNOWN_KEYS)}. A misspelled key is not "
+            "ignored here because it would apply to nothing and report success."
+        )
     entries = [dict(e) for e in head]
     before = {a for e in entries for a in e["aliases"]}
     dropped: set[str] = set()
@@ -133,6 +150,13 @@ def apply_decisions(head: list[dict], decisions: dict) -> tuple[list[dict], dict
     for rule in decisions.get("reassign_aliases") or []:
         source = _find(entries, rule["from"], "reassign.from")
         target = _find(entries, rule["to"], "reassign.to")
+        # Otherwise the alias is taken from an entry and handed straight back
+        # to it: nothing changes, but the audit reports a move, which is the
+        # same lie by a different route.
+        if source is target:
+            raise CurationError(
+                f"reassign: {rule['from']!r} cannot move aliases to itself"
+            )
         for alias in _take(source, rule["aliases"], "reassign.aliases"):
             if alias not in target["aliases"]:
                 target["aliases"].append(alias)
