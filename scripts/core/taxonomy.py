@@ -163,10 +163,21 @@ def load(path: Path) -> Taxonomy:
     # Defaulting a missing version to 1 would stamp taxonomy_version=1 on every
     # row of a v2 index — destroying the exact signal Phase D needs to notice a
     # re-tag, and doing it silently.
-    if not isinstance(version, int):
+    #
+    # `isinstance(True, int)` is True in Python, so a bare `version: true`
+    # passes an int check and stamps taxonomy_version=True on 17,000 rows.
+    # And the value goes into an int64 parquet column, so anything outside
+    # that range fails at write time — after the vault scan, which is the
+    # expensive thing this whole loader exists to protect.
+    if isinstance(version, bool) or not isinstance(version, int):
         raise TaxonomyError(
-            f"{path}: 'version' is {version!r}; it must be an int, because every "
-            "row is stamped with it and a wrong stamp makes a re-tag invisible"
+            f"{path}: 'version' is {version!r}; it must be a plain int, because "
+            "every row is stamped with it and a wrong stamp makes a re-tag invisible"
+        )
+    if not (-2**63 <= version < 2**63):
+        raise TaxonomyError(
+            f"{path}: 'version' {version} does not fit the int64 column it is "
+            "written to"
         )
 
     by_alias, by_folded, folded_owner = {}, {}, {}
@@ -177,6 +188,14 @@ def load(path: Path) -> Taxonomy:
         if missing:
             raise TaxonomyError(f"{path}: entry {i} is missing {missing}")
         name = e["name"]
+        # A None or dict name loads happily and then becomes the canonical
+        # value written into canonical_entries for every article it matches —
+        # garbage propagated into the index rather than caught at the door.
+        if not isinstance(name, str) or not name.strip():
+            raise TaxonomyError(
+                f"{path}: entry {i} has name {name!r}; it must be a non-empty "
+                "string, because it is written into the index as the canonical value"
+            )
         if not isinstance(e["aliases"], list) or not e["aliases"]:
             raise TaxonomyError(
                 f"{path}: entry {name!r} has no usable aliases "
