@@ -7,15 +7,24 @@ enrichment, and the taxonomy already enumerates the alias strings that map to
 each canonical entry. This is a dictionary lookup, which is why the plan calls
 it the cheap half.
 
-Three things are deliberate.
+Four things are deliberate.
 
-**Routing is by SOURCE FIELD, not by the entry's axis label.** An alias found
-in an article's ``topics`` lands in ``canonical_topics``; one found in
-``concepts`` lands in ``canonical_concepts``. The same entry can be reached
-from either, because the clustering pooled both fields. Using the entry's own
-``axis`` would be worse: those labels are Qwen's and are demonstrably
-unreliable (iPod, iTunes and Search Engines are all labelled "concept"), and
-nothing downstream should depend on them.
+**``canonical_entries`` is the vocabulary; the two per-field columns are
+provenance.** This one matters most and is easy to get backwards. Splitting
+canonical output by source field leaves ``canonical_concepts`` at 29.7% top-20
+article coverage and ``canonical_topics`` at 32.3% — both under the 40% bar,
+and both within a point of the 28.9% / 33.5% Phase A measured for the RAW
+axes. Pooling reaches 41.2% and clears it. Phase A already settled this ("the
+axes MERGE into one vocabulary"); a split canonical output walks straight back
+into the failure it settled. The rankability gate must read the pooled column.
+
+**Routing is by SOURCE FIELD, not by the entry's axis label.** Within that,
+an alias found in an article's ``topics`` lands in ``canonical_topics``; one
+found in ``concepts`` lands in ``canonical_concepts``. The same entry can be
+reached from either, because the clustering pooled both fields. Using the
+entry's own ``axis`` would be worse: those labels are Qwen's and are
+demonstrably unreliable (iPod, iTunes and Search Engines are all labelled
+"concept"), and nothing downstream should depend on them.
 
 **Matching folds case.** The curated aliases already enumerate the case
 variants the corpus contains, so exact matching would cover today's articles
@@ -44,6 +53,21 @@ FIELDS = ("concepts", "topics")
 # strings most of which are near-duplicates of each other.
 V2_CANDIDATE_MIN = 25
 CANONICAL = {"concepts": "canonical_concepts", "topics": "canonical_topics"}
+
+# The column the rankability gate must read, and the reason it exists.
+#
+# The per-field columns above record WHICH field reached an entry, which is
+# useful provenance. They are not the vocabulary. Measured on the live index,
+# canonical_concepts tops out at 29.7% top-20 article coverage and
+# canonical_topics at 32.3% — both under the 40% bar, and both within a point
+# of the 28.9% / 33.5% that Phase A measured for the raw axes. Pooling them
+# reaches 41.2% and clears it.
+#
+# That is the same finding Phase A settled with ("the axes MERGE into one
+# vocabulary"), and splitting the canonical output by source field walks
+# straight back into it. This union is the vocabulary; the two columns above
+# are notes about where each hit came from.
+POOLED = "canonical_entries"
 
 
 class TaxonomyError(RuntimeError):
@@ -165,6 +189,7 @@ def apply_to_frame(df, tax: Taxonomy):
     (a per-article count), taxonomy_version.
     """
     cols = {c: [] for c in CANONICAL.values()}
+    cols[POOLED] = []
     unmatched_counts, miss_counter = [], collections.Counter()
     exact_hits = folded_only = total_strings = excluded_hits = 0
 
@@ -172,6 +197,7 @@ def apply_to_frame(df, tax: Taxonomy):
         canonical, unmatched = apply_to_row(row, tax)
         for field, col in CANONICAL.items():
             cols[col].append(canonical[field])
+        cols[POOLED].append(sorted({n for f in FIELDS for n in canonical[f]}))
         # The per-article count is GAPS only. An article tagged "Technology"
         # is not under-covered — that entry was measured and cut on purpose.
         gaps = [s for s in unmatched if not tax.is_excluded(s)]
@@ -197,8 +223,7 @@ def apply_to_frame(df, tax: Taxonomy):
     df["taxonomy_unmatched"] = unmatched_counts
     df["taxonomy_version"] = tax.version
 
-    tagged = sum(1 for a, b in zip(cols["canonical_concepts"],
-                                   cols["canonical_topics"]) if a or b)
+    tagged = sum(1 for names in cols[POOLED] if names)
     n = len(df)
     matched = exact_hits + folded_only
     return {
