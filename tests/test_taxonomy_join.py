@@ -80,6 +80,66 @@ def test_an_empty_taxonomy_is_refused(tmp_path):
         taxonomy.load(write_tax(tmp_path, []))
 
 
+# --- every malformation must be SURVIVABLE, i.e. TaxonomyError ------------
+#
+# build_index catches TaxonomyError and continues. Anything else escapes and
+# kills the run — and because the taxonomy step sits after the vault scan and
+# before to_parquet, that discards an hour of SMB walking and writes no index.
+# A YAML syntax error, an entry missing `aliases`, and an empty file all did
+# exactly that before this: the three most likely malformations hitting the
+# worst outcome. So the type matters as much as the refusal.
+
+@pytest.mark.parametrize("raw, why", [
+    ("entries: [\n  {name: 'A'\n", "unclosed brace — a plain syntax error"),
+    ("", "empty file"),
+    ("just a string", "scalar document"),
+    ("entries: 3", "entries is not a list"),
+    ("version: 1\nentries:\n  - 'not a mapping'", "entry is a bare string"),
+    ("version: 1\nentries:\n  - {name: A}", "entry missing aliases"),
+    ("version: 1\nentries:\n  - {name: A, aliases: null}", "aliases is null"),
+    ("version: 1\nentries:\n  - {name: A, aliases: []}", "aliases is empty"),
+    ("version: 1\nentries:\n  - {name: A, aliases: [1, 2]}", "non-string aliases"),
+    ("entries:\n  - {name: A, aliases: [a]}", "version missing"),
+    ("version: '1'\nentries:\n  - {name: A, aliases: [a]}", "version is a string"),
+    ("version: true\nentries:\n  - {name: A, aliases: [a]}",
+     "version is a bool — isinstance(True, int) is True in Python, so a naive "
+     "int check stamps taxonomy_version=True on every row"),
+    ("version: 999999999999999999999\nentries:\n  - {name: A, aliases: [a]}",
+     "version overflows the int64 column it is written to"),
+    ("version: 1\nentries:\n  - {name: null, aliases: [a]}",
+     "name is None — would be written into canonical_entries as the value"),
+    ("version: 1\nentries:\n  - {name: {a: b}, aliases: [a]}", "name is a mapping"),
+    ("version: 1\nentries:\n  - {name: '  ', aliases: [a]}", "name is blank"),
+    ("version: 1\nentries:\n  - {name: A, aliases: [a]}\nexcluded_alias: [x]",
+     "misspelled excluded_aliases — would load as 'no exclusions'"),
+    ("version: 1\nentries:\n  - {name: A, aliases: [a]}\nexcluded_aliases: Tech",
+     "scalar excluded_aliases — would iterate per CHARACTER"),
+    ("version: 1\nentries:\n  - {name: A, aliases: [a]}\nexcluded_aliases: [1]",
+     "non-string excluded_aliases"),
+])
+def test_every_malformation_raises_TaxonomyError_so_the_build_survives(
+        tmp_path, raw, why):
+    p = tmp_path / "bad.yaml"
+    p.write_text(raw)
+    with pytest.raises(taxonomy.TaxonomyError):
+        taxonomy.load(p)
+
+
+def test_an_unreadable_file_is_survivable_too(tmp_path):
+    with pytest.raises(taxonomy.TaxonomyError, match="could not be read"):
+        taxonomy.load(tmp_path / "does-not-exist.yaml")
+
+
+def test_the_exclusion_contradiction_guard_folds_like_its_consumer(tmp_path):
+    """is_excluded folds, so an exact-only guard would pass `excluded: [privacy]`
+    beside an entry owning "Privacy" — advertising a property it lacks."""
+    p = write_tax(tmp_path, [
+        {"name": "Privacy", "axis": "concept", "definition": "d", "aliases": ["Privacy"]},
+    ], excluded=["privacy"])
+    with pytest.raises(taxonomy.TaxonomyError, match="contradicts itself"):
+        taxonomy.load(p)
+
+
 # --- matching -------------------------------------------------------------
 
 def test_exact_aliases_match(tmp_path):
@@ -140,13 +200,79 @@ def test_the_pooled_column_is_the_union_of_both_fields(tmp_path):
 
 
 def test_an_entry_reached_from_both_fields_appears_once_when_pooled(tmp_path):
+    """The de-dup half. A THIRD entry reachable from only one field is present
+    so the fixture can tell a real union from a single-field copy: without it,
+    both fields yield the same answer and a topics-only implementation passes.
+    """
     tax = taxonomy.load(simple(tmp_path))
-    df = pd.DataFrame([{"topics": ["Social Media"], "concepts": ["Social Networking"]}])
+    df = pd.DataFrame([{"topics": ["Social Media"],
+                        "concepts": ["Social Networking", "Privacy"]}])
     taxonomy.apply_to_frame(df, tax)
-    assert df.iloc[0][taxonomy.POOLED] == ["Social Media"]
-    # ...and provenance still records that both fields reached it.
+    assert df.iloc[0][taxonomy.POOLED] == ["Privacy", "Social Media"]
+    # ...and provenance still records which field reached what.
     assert df.iloc[0]["canonical_topics"] == ["Social Media"]
-    assert df.iloc[0]["canonical_concepts"] == ["Social Media"]
+    assert df.iloc[0]["canonical_concepts"] == ["Privacy", "Social Media"]
+
+
+def test_each_canonical_column_holds_only_its_own_field(tmp_path):
+    """Pins the CANONICAL field->column map itself. The routing test below
+    exercises apply_to_row, which returns a dict keyed by FIELD — so swapping
+    the two column names there is invisible to it. This sees it."""
+    tax = taxonomy.load(simple(tmp_path))
+    df = pd.DataFrame([{"topics": ["Social Media"], "concepts": ["Privacy"]}])
+    taxonomy.apply_to_frame(df, tax)
+    assert df.iloc[0]["canonical_topics"] == ["Social Media"]
+    assert df.iloc[0]["canonical_concepts"] == ["Privacy"]
+
+
+def test_the_join_handles_numpy_arrays_as_parquet_returns_them(tmp_path):
+    """Parquet round-trips list columns as ndarrays, so this is the shape the
+    join actually meets on a rebuilt index — not the lists every other test
+    here uses. If _as_list mishandled it, the columns would come back empty on
+    the real index while the whole suite stayed green."""
+    import numpy as np
+    tax = taxonomy.load(simple(tmp_path))
+    df = pd.DataFrame([{"topics": np.array(["Social Media"], dtype=object),
+                        "concepts": np.array([], dtype=object)}])
+    rep = taxonomy.apply_to_frame(df, tax)
+    assert df.iloc[0][taxonomy.POOLED] == ["Social Media"]
+    assert rep["articles_tagged"] == 1
+
+
+def test_corrupted_rows_do_not_supply_v2_candidates(tmp_path):
+    """Junk-scrape rows are in the index but never reach a page. Counting their
+    strings recommends entries that would reach ~0 real articles — five of the
+    top six candidates were 92-98% corrupted before this."""
+    tax = taxonomy.load(simple(tmp_path))
+    df = pd.DataFrame([
+        {"topics": ["Ghost String"], "concepts": [], "content_corrupted": True},
+        {"topics": ["Real Gap"], "concepts": [], "content_corrupted": False},
+    ])
+    rep = taxonomy.apply_to_frame(df, tax)
+    assert [s for s, _ in rep["top_unmatched"]] == ["Real Gap"]
+    assert rep["candidate_rows"] == 1
+    # ...but the corrupted row still gets its columns and its own gap count.
+    assert df.iloc[0]["taxonomy_unmatched"] == 1
+
+
+def test_non_string_members_never_reach_the_candidate_list(tmp_path):
+    """A malformed enrichment pass puts None/ints/NaN in these lists. Left
+    alone they print as v2 candidates, and an unhashable one raises inside
+    set(gaps) — which, before the loader was tightened, killed the build."""
+    tax = taxonomy.load(simple(tmp_path))
+    df = pd.DataFrame([{"topics": ["Real Gap", None, 3, ["nested"]], "concepts": []}])
+    rep = taxonomy.apply_to_frame(df, tax)
+    assert [s for s, _ in rep["top_unmatched"]] == ["Real Gap"]
+
+
+def test_a_missing_source_column_is_refused_not_reported_as_perfect(tmp_path):
+    """The failure this file's docstring names first. An absent column becomes
+    None, matches nothing, and yields miss_rate 0.0 — the BEST possible value —
+    so an upstream rename reads as a flawless run."""
+    tax = taxonomy.load(simple(tmp_path))
+    df = pd.DataFrame([{"topics": ["Social Media"]}])       # no 'concepts'
+    with pytest.raises(taxonomy.TaxonomyError, match="missing from the index"):
+        taxonomy.apply_to_frame(df, tax)
 
 
 def test_pooling_reaches_articles_neither_field_reaches_alone(tmp_path):
@@ -184,14 +310,30 @@ def test_excluded_strings_are_not_counted_as_gaps(tmp_path):
 
 def test_the_miss_rate_ignores_excluded_strings_on_both_sides(tmp_path):
     """Counting an exclusion as a miss makes every curation decision look
-    like a regression in the metric."""
+    like a regression in the metric.
+
+    The fixture must produce a NON-ZERO numerator or the denominator is
+    unobservable. The original used 1 matched + 1 excluded, giving miss_rate
+    0.0 — which is 0.0 whether or not the exclusion is subtracted from the
+    denominator, so the test was named for a property it could not detect.
+    Adding one real gap fixes that:
+
+        1 matched, 1 gap, 1 excluded
+        both sides adjusted -> 1/2 = 50.0   (correct)
+        numerator only      -> 1/3 = 33.3
+    """
     p = write_tax(tmp_path, [
         {"name": "Privacy", "axis": "concept", "definition": "d", "aliases": ["Privacy"]},
     ], excluded=["Technology"])
     tax = taxonomy.load(p)
-    df = pd.DataFrame([{"topics": ["Technology"], "concepts": ["Privacy"]}])
+    df = pd.DataFrame([{"topics": ["Technology", "Kayaking"], "concepts": ["Privacy"]}])
     rep = taxonomy.apply_to_frame(df, tax)
-    assert rep["miss_rate"] == 0.0   # 1 eligible string, 1 matched
+    assert rep["strings_excluded"] == 1
+    assert rep["strings_gap"] == 1
+    assert rep["miss_rate"] == 50.0
+    # ...and the unadjusted figure is reported beside it, because the
+    # adjustment is monotone-improvable: excluding more always looks better.
+    assert rep["miss_rate_raw"] == round(100 * 2 / 3, 1)
 
 
 def test_the_candidate_counter_counts_articles_not_mentions(tmp_path):
