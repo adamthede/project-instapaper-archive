@@ -301,6 +301,13 @@ def apply_to_frame(df, tax: Taxonomy):
     # FIVE of the top six candidates, at 92-98% corrupted each. That is a
     # bigger contamination than the 26 curation exclusions this report already
     # corrects for.
+    #
+    # This is 97% of the correction, not all of it. corpus.prepare drops three
+    # classes — corrupted (915), pre-min-year (29), undated (0) — and only the
+    # first is visible from here. Importing site/corpus to get exact parity
+    # would point a scripts/core module at the site layer, which is the wrong
+    # direction; 29 rows cannot manufacture a >=25-article candidate on their
+    # own, so the residual is stated rather than chased.
     corrupted = (df["content_corrupted"].fillna(False).astype(bool)
                  if "content_corrupted" in df.columns
                  else pd.Series(False, index=df.index))
