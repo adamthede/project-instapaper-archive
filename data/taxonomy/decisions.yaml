@@ -15,6 +15,22 @@
 # this entry alone", measured against the live 17,317-row index. An entry that
 # co-occurs with something more specific ~96% of the time adds nothing to a
 # ranking and puts noise in every trends heatmap.
+#
+# NET EFFECT ON COVERAGE, measured end to end rather than per-decision:
+#
+#   full 250-entry head      80.516%
+#   minus Technology         80.274%   <- the figure quoted per-entry below
+#   minus all three rejects  80.193%
+#   shipped v1.yaml (248)    80.152%   -> 80.2%
+#
+# Each per-entry evidence line below is individually true, but they do not
+# compose: Business and Design each cost so little that they round away alone
+# and only show up together. The shipped number is 80.2%.
+#
+# ORDER MATTERS. Sections are applied reject -> merge -> split ->
+# reassign_aliases -> drop_aliases, so the latter two must name entries by
+# their POST-split, POST-merge names. Getting it wrong raises rather than
+# silently misapplying, but it is worth knowing before you write a rule.
 version: 1
 
 source:
@@ -29,7 +45,7 @@ default: accept
 # ---------------------------------------------------------------------------
 reject:
   - name: Technology
-    evidence: "1,137 articles tagged; 42 (3.7%) have no other head entry; head coverage 80.5% -> 80.3%"
+    evidence: "1,137 articles tagged; 42 (3.7%) have no other head entry; alone it moves coverage 80.5% -> 80.3%"
     why: >
       The 4th-largest entry in the vocabulary, and it carries fewer
       solo-dependent articles than Social Media (110), Artificial Intelligence
@@ -132,6 +148,11 @@ split:
           - American economy
           - Post-WWII US Economy
     remainder: National Economies
+    # The inherited definition said "individual countries", which stopped being
+    # true once the two large countries left and a currency bloc stayed.
+    remainder_definition: >-
+      Reading on the economies of individual countries and blocs other than
+      China and the United States, which have their own entries.
     drop_aliases:
       # Generic, and measured: "Economy" tags 39 articles of which 2 (5.1%)
       # have no other head entry. Same species as Technology.

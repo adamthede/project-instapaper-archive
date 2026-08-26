@@ -4,7 +4,9 @@ status: "In Progress"
 priority: "P1"
 project: "articles"
 created: 2026-08-20
-linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/13"
+linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/17"
+# Phase A shipped in PR #13; linked_pr tracks the LATEST phase PR so /shipped
+# and the Reconciler can trace this plan to work in flight.
 depends_on:
   - "Phase 5b measurement (PR #10) — the failure this plan answers"
   - "LM Studio: text-embedding-nomic-embed-text-v1.5 (verified available 2026-08-20)"

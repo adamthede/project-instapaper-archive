@@ -86,7 +86,45 @@ KNOWN_KEYS = frozenset({
 })
 
 
-def apply_decisions(head: list[dict], decisions: dict) -> tuple[list[dict], dict]:
+# What each rule kind must carry. A rule missing one of these used to escape
+# as a bare KeyError, which is loud but skips CurationError entirely — so it
+# read as a crash rather than as "your decisions file is wrong here".
+REQUIRED = {
+    "reject": ("name",),
+    "merge": ("into", "absorb"),
+    "split": ("from", "into"),
+    "reassign_aliases": ("from", "to", "aliases"),
+    "drop_aliases": ("from", "aliases"),
+}
+
+# Lists that must not be empty. An empty list is the quiet cousin of a
+# misspelled key: `absorb: []` or `aliases: []` parses, applies to nothing,
+# and reports a clean run. Nobody writes one on purpose.
+NON_EMPTY = {
+    "merge": ("absorb",),
+    "split": ("into",),
+    "reassign_aliases": ("aliases",),
+    "drop_aliases": ("aliases",),
+}
+
+# `evidence` and `why` are prose for the human reader and are never consulted,
+# so they are allowed everywhere. Everything else must be spelled correctly:
+# the misspelled-key failure is just as silent one level down as it is at the
+# top of the file, and `remainder_defintion` would quietly leave a remainder
+# describing a set that no longer exists.
+PROSE = ("evidence", "why")
+ALLOWED = {
+    "reject": ("name",) + PROSE,
+    "merge": ("into", "absorb") + PROSE,
+    "split": ("from", "into", "remainder", "remainder_definition",
+              "drop_aliases") + PROSE,
+    "reassign_aliases": ("from", "to", "aliases") + PROSE,
+    "drop_aliases": ("from", "aliases") + PROSE,
+}
+ALLOWED_SPLIT_INTO = ("name", "definition", "aliases")
+
+
+def _validate(decisions: dict) -> None:
     unknown = sorted(set(decisions) - KNOWN_KEYS)
     if unknown:
         raise CurationError(
@@ -94,6 +132,43 @@ def apply_decisions(head: list[dict], decisions: dict) -> tuple[list[dict], dict
             f"expected one of {sorted(KNOWN_KEYS)}. A misspelled key is not "
             "ignored here because it would apply to nothing and report success."
         )
+    for kind, required in REQUIRED.items():
+        for i, rule in enumerate(decisions.get(kind) or []):
+            missing = [k for k in required if k not in rule]
+            if missing:
+                raise CurationError(
+                    f"{kind}[{i}] is missing {missing} — got keys {sorted(rule)}"
+                )
+            for key in NON_EMPTY.get(kind, ()):
+                if not rule.get(key):
+                    raise CurationError(
+                        f"{kind}[{i}].{key} is empty — the decision would "
+                        "apply to nothing and report success"
+                    )
+            stray = sorted(set(rule) - set(ALLOWED[kind]))
+            if stray:
+                raise CurationError(
+                    f"{kind}[{i}] has unknown key(s) {stray} — "
+                    f"expected some of {sorted(ALLOWED[kind])}"
+                )
+    for i, rule in enumerate(decisions.get("split") or []):
+        for j, spec in enumerate(rule["into"]):
+            missing = [k for k in ("name", "definition", "aliases") if k not in spec]
+            if missing:
+                raise CurationError(f"split[{i}].into[{j}] is missing {missing}")
+            if not spec["aliases"]:
+                raise CurationError(
+                    f"split[{i}].into[{j}] ({spec['name']!r}) has no aliases"
+                )
+            stray = sorted(set(spec) - set(ALLOWED_SPLIT_INTO))
+            if stray:
+                raise CurationError(
+                    f"split[{i}].into[{j}] has unknown key(s) {stray}"
+                )
+
+
+def apply_decisions(head: list[dict], decisions: dict) -> tuple[list[dict], dict]:
+    _validate(decisions)
     entries = [dict(e) for e in head]
     before = {a for e in entries for a in e["aliases"]}
     dropped: set[str] = set()
@@ -138,6 +213,12 @@ def apply_decisions(head: list[dict], decisions: dict) -> tuple[list[dict], dict
         # name in the taxonomy that matches no article at all.
         if source["aliases"]:
             source["name"] = rule.get("remainder", source["name"])
+            # A split changes what the remainder MEANS, so its inherited
+            # definition can quietly become false — it was written to describe
+            # a set that no longer exists.
+            if rule.get("remainder_definition"):
+                source["definition"] = " ".join(
+                    str(rule["remainder_definition"]).split())
             entries[idx:idx + 1] = made + [source]
         else:
             entries[idx:idx + 1] = made

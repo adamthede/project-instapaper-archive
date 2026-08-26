@@ -34,6 +34,10 @@ data/*
 # calls for it to be human-readable, diffable and editable. None of that is
 # possible while it sits under an ignore rule.
 !data/taxonomy/
+# ...but only the YAML in it. Un-ignoring the whole directory would silently
+# start tracking any large derived file a later phase happens to write there.
+data/taxonomy/*
+!data/taxonomy/*.yaml
 scripts/data/
 **/archive_index.parquet
 **/review_history.parquet

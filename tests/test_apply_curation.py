@@ -119,9 +119,11 @@ def test_reassign_moves_aliases_rather_than_dropping_them():
     ({"reject": [{"name": "Technolgy"}]}, "Technolgy"),
     ({"merge": [{"into": "Typo", "absorb": ["Privacy"]}]}, "Typo"),
     ({"merge": [{"into": "Privacy", "absorb": ["Nope"]}]}, "Nope"),
-    ({"split": [{"from": "Nope", "into": []}]}, "Nope"),
-    ({"reassign_aliases": [{"from": "Nope", "to": "Privacy", "aliases": []}]}, "Nope"),
-    ({"drop_aliases": [{"from": "Nope", "aliases": []}]}, "Nope"),
+    ({"split": [{"from": "Nope", "into": [
+        {"name": "X", "definition": "d", "aliases": ["Tech"]}]}]}, "Nope"),
+    ({"reassign_aliases": [{"from": "Nope", "to": "Privacy",
+                            "aliases": ["Tech"]}]}, "Nope"),
+    ({"drop_aliases": [{"from": "Nope", "aliases": ["Tech"]}]}, "Nope"),
 ])
 def test_a_misspelled_entry_name_raises_instead_of_doing_nothing(decisions, needle):
     with pytest.raises(CurationError, match=needle):
@@ -150,6 +152,105 @@ def test_the_real_decisions_file_uses_only_known_keys():
     if not DECISIONS.exists():
         pytest.skip("decisions file absent")
     assert set(yaml.safe_load(DECISIONS.read_text())) <= KNOWN_KEYS
+
+
+@pytest.mark.parametrize("decisions, needle", [
+    ({"merge": [{"into": "Technology", "absorb": []}]}, "absorb is empty"),
+    ({"reassign_aliases": [{"from": "Technology", "to": "Privacy",
+                            "aliases": []}]}, "aliases is empty"),
+    ({"drop_aliases": [{"from": "Technology", "aliases": []}]}, "aliases is empty"),
+    ({"split": [{"from": "Technology", "into": []}]}, "into is empty"),
+])
+def test_an_empty_rule_list_raises(decisions, needle):
+    """The quiet cousin of a misspelled key. `absorb: []` parses fine, applies
+    to nothing, and reports a clean run — nobody writes one on purpose."""
+    with pytest.raises(CurationError, match=needle):
+        apply_decisions(head(("Technology", ["Tech"]), ("Privacy", ["Privacy"])), decisions)
+
+
+@pytest.mark.parametrize("decisions, needle", [
+    ({"reject": [{"nmae": "Technology"}]}, r"missing \['name'\]"),
+    ({"merge": [{"into": "Technology"}]}, r"missing \['absorb'\]"),
+    ({"reassign_aliases": [{"from": "Technology", "to": "Privacy"}]}, r"missing \['aliases'\]"),
+    ({"split": [{"from": "Technology", "into": [
+        {"name": "X", "aliases": ["Tech"]}]}]}, r"missing \['definition'\]"),
+])
+def test_a_rule_missing_a_required_key_raises_CurationError_not_KeyError(decisions, needle):
+    """These were escaping as bare KeyError — loud, but it reads as a crash
+    rather than as 'your decisions file is wrong, here, on this rule'."""
+    with pytest.raises(CurationError, match=needle):
+        apply_decisions(head(("Technology", ["Tech"]), ("Privacy", ["Privacy"])), decisions)
+
+
+@pytest.mark.parametrize("decisions", [
+    {"reject": [{"name": "Technology", "wyh": "typo'd prose key"}]},
+    {"drop_aliases": [{"from": "Technology", "aliases": ["Tech"], "form": "x"}]},
+    {"split": [{"from": "Technology", "remainder_defintion": "typo",
+                "into": [{"name": "X", "definition": "d", "aliases": ["Tech"]}]}]},
+])
+def test_a_misspelled_key_INSIDE_a_rule_raises(decisions):
+    """Same silence one level down. `remainder_defintion` would leave the
+    remainder describing a set the split just destroyed."""
+    with pytest.raises(CurationError, match="unknown key"):
+        apply_decisions(head(("Technology", ["Tech"]), ("Privacy", ["Privacy"])), decisions)
+
+
+def test_a_misspelled_key_inside_a_split_into_spec_raises():
+    with pytest.raises(CurationError, match="unknown key"):
+        apply_decisions(
+            head(("Technology", ["Tech"])),
+            {"split": [{"from": "Technology", "into": [
+                {"name": "X", "definiton": "typo", "definition": "d",
+                 "aliases": ["Tech"]}]}]},
+        )
+
+
+def test_prose_keys_are_allowed_everywhere():
+    """evidence/why are for the human reader and are never consulted. The
+    strictness above must not make the file undocumentable."""
+    out, _ = apply_decisions(
+        head(("Technology", ["Tech"]), ("Privacy", ["Privacy"])),
+        {"reject": [{"name": "Technology", "evidence": "e", "why": "w"}]},
+    )
+    assert [e["name"] for e in out] == ["Privacy"]
+
+
+def test_a_split_can_restate_the_remainders_definition():
+    """A split changes what the remainder means, so its inherited definition
+    can quietly become false."""
+    out, _ = apply_decisions(
+        head(("Econ", ["China", "Greece"])),
+        {"split": [{"from": "Econ", "remainder": "Econ",
+                    "remainder_definition": "everyone but China",
+                    "into": [{"name": "China", "definition": "d",
+                              "aliases": ["China"]}]}]},
+    )
+    assert [e["definition"] for e in out if e["name"] == "Econ"] == ["everyone but China"]
+
+
+def test_an_entry_cannot_absorb_itself():
+    with pytest.raises(CurationError, match="cannot absorb itself"):
+        apply_decisions(head(("A", ["a"])), {"merge": [{"into": "A", "absorb": ["A"]}]})
+
+
+def test_an_alias_cannot_appear_from_nowhere(monkeypatch):
+    """The mirror of the conservation check: an applier bug that INVENTS an
+    alias is as wrong as one that loses it, and just as invisible."""
+    import vocab.apply_curation as mod
+
+    real_take = mod._take
+
+    def inventive(entry, aliases, what):
+        taken = real_take(entry, aliases, what)
+        entry["aliases"].append("conjured-from-thin-air")
+        return taken
+
+    monkeypatch.setattr(mod, "_take", inventive)
+    with pytest.raises(CurationError, match="appeared from nowhere"):
+        mod.apply_decisions(
+            head(("A", ["keep", "drop-me"])),
+            {"drop_aliases": [{"from": "A", "aliases": ["drop-me"]}]},
+        )
 
 
 def test_reassigning_an_alias_to_the_same_entry_raises():
@@ -216,6 +317,81 @@ def test_duplicate_entry_names_raise():
             {"split": [{"from": "Culture", "remainder": "Arts",
                         "into": [{"name": "X", "definition": "d", "aliases": ["a"]}]}]},
         )
+
+
+# --- end to end against the real derivation -------------------------------
+
+# --- structural checks over the COMMITTED pair, needing no derivation -----
+#
+# The two end-to-end tests below skip on any machine without the 237MB
+# derivation, and this repo has no CI — so on a fresh clone the shipped
+# taxonomy would go entirely unvalidated. These run anywhere, because they
+# read only the two files git actually carries.
+
+def _committed_pair():
+    if not (DECISIONS.exists() and TAXONOMY.exists()):
+        pytest.skip("committed taxonomy pair absent")
+    return (yaml.safe_load(DECISIONS.read_text()),
+            yaml.safe_load(TAXONOMY.read_text()))
+
+
+def test_the_shipped_taxonomy_is_internally_sound():
+    _, tax = _committed_pair()
+    entries = tax["entries"]
+    seen = {}
+    for e in entries:
+        assert e["definition"].strip(), f"{e['name']} has an empty definition"
+        assert "\n" not in e["definition"], f"{e['name']} definition has a newline"
+        assert e["aliases"], f"{e['name']} has no aliases"
+        for a in e["aliases"]:
+            assert a not in seen, f"alias {a!r} in both {seen.get(a)!r} and {e['name']!r}"
+            seen[a] = e["name"]
+    names = [e["name"] for e in entries]
+    assert len(names) == len(set(names)), "duplicate entry names"
+
+
+def test_the_generated_header_agrees_with_the_body_it_heads():
+    """The header is what a human eyeballs. If it can drift from the entries
+    below it, it is worse than no header at all."""
+    _, tax = _committed_pair()
+    header = TAXONOMY.read_text().splitlines()
+    line = next(ln for ln in header if "entries," in ln)
+    n_entries = int(line.split()[1].replace(",", ""))
+    n_aliases = int(line.split()[3].replace(",", ""))
+    assert n_entries == len(tax["entries"])
+    assert n_aliases == sum(len(e["aliases"]) for e in tax["entries"])
+
+
+def test_every_decision_is_visible_in_the_shipped_taxonomy():
+    """Checks the OUTCOME of each decision against the committed file, rather
+    than re-running the applier. Catches a v1.yaml regenerated from a stale or
+    edited decisions file even where the derivation is unavailable."""
+    dec, tax = _committed_pair()
+    by_name = {e["name"]: e for e in tax["entries"]}
+    aliases = {a for e in tax["entries"] for a in e["aliases"]}
+
+    for rule in dec.get("reject") or []:
+        assert rule["name"] not in by_name, f"rejected {rule['name']} still present"
+    for rule in dec.get("merge") or []:
+        assert rule["into"] in by_name
+        for absorbed in rule["absorb"]:
+            assert absorbed not in by_name, f"absorbed {absorbed} still present"
+    for rule in dec.get("split") or []:
+        for spec in rule["into"]:
+            assert spec["name"] in by_name, f"split never created {spec['name']}"
+            assert set(spec["aliases"]) <= set(by_name[spec["name"]]["aliases"])
+        for gone in rule.get("drop_aliases") or []:
+            assert gone not in aliases, f"dropped alias {gone!r} still present"
+    for rule in dec.get("reassign_aliases") or []:
+        # The one the reviewer proved silently fails on a from==to typo, with
+        # entry and alias counts both unchanged. Assert the aliases LANDED.
+        assert set(rule["aliases"]) <= set(by_name[rule["to"]]["aliases"]), (
+            f"reassigned aliases never landed in {rule['to']}")
+        assert not (set(rule["aliases"]) & set(by_name[rule["from"]]["aliases"])), (
+            f"reassigned aliases still in {rule['from']}")
+    for rule in dec.get("drop_aliases") or []:
+        for gone in rule["aliases"]:
+            assert gone not in aliases, f"dropped alias {gone!r} still present"
 
 
 # --- end to end against the real derivation -------------------------------
