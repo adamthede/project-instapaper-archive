@@ -250,6 +250,7 @@ def apply_decisions(head: list[dict], decisions: dict) -> tuple[list[dict], dict
             audit["dropped_aliases"].append({"from": source["name"], "alias": alias})
 
     _check_invariants(entries, before, dropped)
+    audit["excluded_aliases"] = sorted(dropped)
     return entries, audit
 
 
@@ -284,7 +285,7 @@ def _check_invariants(entries: list[dict], before: set[str], dropped: set[str]) 
         raise CurationError(f"aliases appeared from nowhere: {sorted(invented)[:10]}")
 
 
-def render(entries: list[dict], decisions: dict) -> str:
+def render(entries: list[dict], decisions: dict, audit: dict | None = None) -> str:
     doc = {
         "version": decisions.get("version", 1),
         "generated_by": "scripts/vocab/apply_curation.py",
@@ -294,6 +295,13 @@ def render(entries: list[dict], decisions: dict) -> str:
              "aliases": e["aliases"]}
             for e in entries
         ],
+        # Strings deliberately kept OUT of the vocabulary, carried here so the
+        # taxonomy file is self-describing. Phase C's miss rate is the metric
+        # that says when to cut a v2, and without this it counts our own
+        # rejections as gaps: "Technology" alone is 1,125 unmatched articles
+        # and dominates the most-missed list, which is meant to be the v2
+        # candidate list. A deliberate exclusion is not a gap.
+        "excluded_aliases": (audit or {}).get("excluded_aliases", []),
     }
     header = (
         "# Controlled vocabulary v1 — the source of truth for concepts + topics.\n"
@@ -319,7 +327,7 @@ def main(argv=None) -> int:
     decisions = yaml.safe_load(args.decisions.read_text())
     head = load_head(args.clusters, args.names)
     entries, audit = apply_decisions(head, decisions)
-    rendered = render(entries, decisions)
+    rendered = render(entries, decisions, audit)
 
     if args.check:
         if not args.out.exists():
