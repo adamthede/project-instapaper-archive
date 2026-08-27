@@ -34,6 +34,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from matter import sync as sync_module  # noqa: E402
+import freshness  # noqa: E402
 from matter.api import MatterClient  # noqa: E402
 from matter.credentials import load_token, looks_like_matter_token, redact, token_path  # noqa: E402
 from matter.errors import MatterError  # noqa: E402
@@ -92,6 +93,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Regenerate _site from the vault's synthesis files. "
                              "Unconditional: the weekly synthesis job writes week "
                              "files this sync never counts.")
+    parser.add_argument(
+        "--no-freshness-check", action="store_true",
+        help="do not fast-forward the checkout to origin before running "
+             "(the nightly does this so a merged fix actually reaches production)")
     parser.add_argument("--deploy", action="store_true",
                         help="Publish _site to Cloudflare Pages with wrangler. "
                              "Skipped if --rebuild-site failed; a failure here "
@@ -221,6 +226,21 @@ def _record_failure(args, message: str) -> None:
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     configure_logging(args)
+
+    # Before anything expensive: make sure this is the merged code. The launchd
+    # job has no git step, so without this the nightly rebuilds and deploys from
+    # whatever is checked out -- which has already silently shipped stale code
+    # for two days once. Fail-open: a git problem must never cost a night.
+    # NOTE this may not return: a successful pull re-execs so the new code is
+    # what actually runs, since modules are already imported by this point.
+    freshness_status = "not checked"
+    if not args.no_freshness_check:
+        try:
+            freshness_status = freshness.ensure_fresh(REPO_ROOT, argv)
+        except Exception as exc:  # noqa: BLE001 - never block the night
+            log.warning("freshness check failed (%s); continuing", exc)
+            freshness_status = f"error: {exc}"
+        log.info("code freshness: %s", freshness_status)
 
     try:
         if args.check_auth:
