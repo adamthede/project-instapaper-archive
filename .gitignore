@@ -42,6 +42,14 @@ scripts/data/
 **/archive_index.parquet
 **/review_history.parquet
 
+# Wrangler's local build cache. Regenerated on every deploy; it has been
+# showing up as untracked noise in every `git status` since the site went live.
+.wrangler/
+
+# Rendered mockups. The GENERATORS are tracked (site/mockup_*.py) because the
+# next design question needs them; their 732KB of output is not source.
+docs/mockups/
+
 # Local chat/export artifacts
 chats/cursor_expanding_article_archive_analys.md
 

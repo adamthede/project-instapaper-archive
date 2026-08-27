@@ -5,8 +5,11 @@ priority: "P1"
 project: "articles"
 created: 2026-08-20
 linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/20"
-# Phase A shipped in PR #13; linked_pr tracks the LATEST phase PR so /shipped
-# and the Reconciler can trace this plan to work in flight.
+# Phases A (PR #13), B (#17), C (#18) and E (#20) are DONE and live.
+# ONLY PHASE D REMAINS — nightly per-article classification. It was never on
+# the critical path for the pages, which is why they shipped without it: new
+# articles simply carry no canonical entries until D lands, and the miss rate
+# reports that honestly. linked_pr tracks the latest phase PR.
 depends_on:
   - "Phase 5b measurement (PR #10) — the failure this plan answers"
   - "LM Studio: text-embedding-nomic-embed-text-v1.5 (verified available 2026-08-20)"
