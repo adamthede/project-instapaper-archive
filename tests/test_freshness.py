@@ -123,17 +123,110 @@ def test_untracked_files_do_not_block_a_pull(origin_and_clone, monkeypatch):
 
 def test_a_pull_re_execs_so_the_new_code_is_what_runs(origin_and_clone, monkeypatch):
     """Modules are already imported by the time this runs. Without the re-exec
-    the pull fixes the NEXT night while reporting success for tonight."""
+    the pull fixes the NEXT night while reporting success for tonight.
+
+    The argv passed here is ARGPARSE-shaped — no script name — because that is
+    what `main(argv=None)` receives and hands on. The original version of this
+    test passed ["x.py", "--full"], a shape the real caller never produces, so
+    it made a broken path look correct: execv would have run
+    `python --full --deploy`, exit 2, and since execv has already replaced the
+    process that exit IS the nightly.
+    """
     origin, clone = origin_and_clone
     advance(origin)
     calls = []
     monkeypatch.setattr(freshness.os, "execv", lambda exe, argv: calls.append((exe, argv)))
+    monkeypatch.setattr(freshness.sys, "argv", ["/abs/path/export.py", "--full"])
 
     with pytest.raises(AssertionError):        # execv is mocked, so we fall through
-        freshness.ensure_fresh(clone, argv=["x.py", "--full"])
+        freshness.ensure_fresh(clone, argv=["--full", "--deploy"])
 
     assert calls, "pulled without re-execing — tonight would run the old code"
-    assert calls[0][1][1:] == ["x.py", "--full"], "re-exec lost the original arguments"
+    exe, argv = calls[0]
+    # argv[0] must be the SCRIPT, or python is handed a flag as its program.
+    assert argv[1] == "/abs/path/export.py", f"argv[0] is not the script: {argv}"
+    assert argv[2:] == ["--full", "--deploy"], "re-exec lost the original arguments"
+    # The interpreter must be sys.executable. The plist runs
+    # /opt/homebrew/bin/python3 because the TCC grant for ~/Documents is
+    # attributed to that exact binary; re-execing through another python loses
+    # the grant and the run dies with EPERM.
+    assert exe == freshness.sys.executable
+    assert argv[0] == freshness.sys.executable
+
+
+def test_no_argv_re_execs_with_the_real_sys_argv(origin_and_clone, monkeypatch):
+    """The launchd path: main(argv=None), so ensure_fresh falls back to
+    sys.argv entire — which already carries the script at [0]."""
+    origin, clone = origin_and_clone
+    advance(origin)
+    calls = []
+    monkeypatch.setattr(freshness.os, "execv", lambda exe, argv: calls.append((exe, argv)))
+    monkeypatch.setattr(freshness.sys, "argv", ["/abs/export.py", "--full", "--deploy"])
+
+    with pytest.raises(AssertionError):
+        freshness.ensure_fresh(clone)
+
+    assert calls[0][1][1:] == ["/abs/export.py", "--full", "--deploy"]
+
+
+def test_a_re_exec_sets_the_one_shot_flag(origin_and_clone, monkeypatch):
+    """The READER of the flag was tested; the SETTER was not, so removing the
+    line that prevents the loop left the suite green."""
+    origin, clone = origin_and_clone
+    advance(origin)
+    monkeypatch.setattr(freshness.os, "execv", lambda *a: None)
+    monkeypatch.setattr(freshness.sys, "argv", ["/abs/export.py"])
+    # execv is stubbed, so control falls through to the "unreachable" guard.
+    with pytest.raises(AssertionError, match="unreachable"):
+        freshness.ensure_fresh(clone, argv=[])
+    assert freshness.os.environ.get(freshness.RE_EXEC_ENV) == "1", (
+        "the flag is never set, so the guard reading it can never fire")
+
+
+def test_a_diverged_clean_tree_is_never_merged(origin_and_clone):
+    """--ff-only is the guard against an unattended merge commit landing in
+    Adam's working checkout at 04:45. A diverged tree can be perfectly CLEAN,
+    so the dirty check does not cover this.
+    """
+    origin, clone = origin_and_clone
+    advance(origin)                                   # origin +1
+    (clone / "local.py").write_text("mine\n")
+    git(clone, "add", "-A")
+    git(clone, "commit", "-qm", "local work")         # clone +1, diverged
+
+    before = git(clone, "rev-parse", "HEAD").stdout.strip()
+    status = freshness.ensure_fresh(clone)
+
+    assert status.startswith("stale:") and "ff-only" in status
+    assert git(clone, "rev-parse", "HEAD").stdout.strip() == before, "HEAD moved"
+    merges = git(clone, "log", "--merges", "--oneline").stdout.strip()
+    assert merges == "", f"an unattended merge commit was created: {merges}"
+
+
+def test_the_cli_opt_out_flag_gates_the_check():
+    """ARCHIVE_SKIP_PULL was tested; --no-freshness-check was not."""
+    import sys as _sys
+    _sys.path.insert(0, str(REPO_ROOT / "scripts" / "core"))
+    import export_matter_to_archive as cli
+    assert cli.build_parser().parse_args([]).no_freshness_check is False
+    assert cli.build_parser().parse_args(["--no-freshness-check"]).no_freshness_check is True
+
+
+def test_the_freshness_check_runs_before_the_expensive_work():
+    """The whole design depends on re-execing BEFORE the SMB walk. Moving the
+    block to the end of main() leaves every other test green."""
+    src = (REPO_ROOT / "scripts" / "core" / "export_matter_to_archive.py").read_text()
+    body = src[src.index("def main("):]
+    assert body.index("ensure_fresh") < body.index("run_sync(config)"), (
+        "the freshness check no longer precedes the sync")
+
+
+def test_the_subprocess_calls_carry_a_timeout():
+    """Verified as present rather than exercised: a fetch that hangs rather
+    than fails would hold the nightly open indefinitely."""
+    import inspect
+    src = inspect.getsource(freshness._git)
+    assert "timeout=timeout" in src
 
 
 def test_the_re_exec_is_one_shot(origin_and_clone, monkeypatch):
@@ -184,14 +277,22 @@ def test_a_detached_head_is_survivable(origin_and_clone):
     assert freshness.ensure_fresh(clone) == "unknown (detached HEAD)"
 
 
-def test_a_branch_with_no_upstream_names_that_reason(origin_and_clone):
-    """A nightly running from an unpushed feature branch is a real state. It
-    must not be reported as 'not a git checkout', which sends the operator
-    looking for a broken install."""
+def test_a_branch_not_on_the_remote_says_so(origin_and_clone):
+    """A nightly running from an unpushed feature branch is a real state, and
+    it is not a network problem. The previous assertion accepted BOTH the
+    correct message and 'cannot reach origin/...', so the test's stated purpose
+    — not sending the operator after the wrong cause — was unmet by the message
+    it actually received."""
     _origin, clone = origin_and_clone
     git(clone, "checkout", "-qb", "feature/local-only")
     status = freshness.ensure_fresh(clone)
-    assert "feature/local-only" in status and status.startswith("unknown")
+    assert status == "unknown (feature/local-only is not on origin)", status
+
+
+def test_a_missing_origin_remote_says_so_rather_than_blaming_the_network(origin_and_clone):
+    _origin, clone = origin_and_clone
+    git(clone, "remote", "rename", "origin", "upstream")
+    assert freshness.ensure_fresh(clone) == "unknown (no remote named origin)"
 
 
 def test_git_timing_out_is_survivable(origin_and_clone, monkeypatch):

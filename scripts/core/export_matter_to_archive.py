@@ -209,6 +209,9 @@ def run_post_sync_legs(args, result) -> dict:
     return legs
 
 
+_FRESHNESS = "not checked"
+
+
 def _record_failure(args, message: str) -> None:
     """Write a heartbeat for a run that never produced a SyncResult.
 
@@ -219,7 +222,8 @@ def _record_failure(args, message: str) -> None:
         return
     moment = utcnow()
     result = SyncResult(started_at=moment, finished_at=moment,
-                        outcome="fail", error_message=message)
+                        outcome="fail", error_message=message,
+                        freshness=_FRESHNESS)
     write_heartbeat(Path(args.heartbeat).expanduser(), result)
 
 
@@ -234,13 +238,17 @@ def main(argv=None) -> int:
     # NOTE this may not return: a successful pull re-execs so the new code is
     # what actually runs, since modules are already imported by this point.
     freshness_status = "not checked"
-    if not args.no_freshness_check:
+    # --dry-run must not fast-forward the checkout or replace the process.
+    # Reaching for a dry run to inspect behaviour and having git mutated is a
+    # surprise nobody should get.
+    if not args.no_freshness_check and not args.dry_run:
         try:
             freshness_status = freshness.ensure_fresh(REPO_ROOT, argv)
         except Exception as exc:  # noqa: BLE001 - never block the night
             log.warning("freshness check failed (%s); continuing", exc)
             freshness_status = f"error: {exc}"
         log.info("code freshness: %s", freshness_status)
+        globals()["_FRESHNESS"] = freshness_status
 
     try:
         if args.check_auth:
@@ -263,6 +271,10 @@ def main(argv=None) -> int:
         )
 
         result = run_sync(config)
+        # Onto the heartbeat, which is the channel the cockpit reads. A
+        # `stale:` night now SAYS it ran stale code instead of only whispering
+        # it into a log file.
+        result.freshness = freshness_status
 
     except MatterError as exc:
         # These carry their own remediation; a traceback would bury it.

@@ -73,7 +73,17 @@ def _state(repo: Path):
     # Untracked files are normal here — the vault, caches, .wrangler. Only
     # TRACKED modifications mean a pull could clobber real work.
     dirty = [ln for ln in porcelain.splitlines() if ln and not ln.startswith("??")]
+    # One failed fetch conflated four different operator problems: network
+    # down, branch absent from the remote, no remote named origin, and a
+    # read-only .git. At 04:45 "cannot reach origin" sends someone to check
+    # the network for a problem that is none of those. Name the real one.
+    ok, remotes = _git(repo, "remote")
+    if not ok or "origin" not in remotes.split():
+        return "unknown (no remote named origin)"
     if not _git(repo, "fetch", "origin", branch, "--quiet")[0]:
+        ok, _ = _git(repo, "ls-remote", "--exit-code", "--heads", "origin", branch)
+        if not ok:
+            return f"unknown ({branch} is not on origin)"
         return f"unknown (cannot reach origin/{branch})"
     ok, behind = _git(repo, "rev-list", "--count", f"HEAD..origin/{branch}")
     if not ok or not behind.isdigit():
@@ -86,6 +96,14 @@ def ensure_fresh(repo: Path, argv=None) -> str:
 
     Returns a short status string for the caller to log and record. Does not
     return at all in the re-exec case — the process is replaced.
+
+    `argv` is ARGPARSE-shaped (no script name), because that is what a
+    `main(argv=None)` signature receives. execv needs argv[0] to be the script,
+    so the script name is prepended here rather than trusted from the caller.
+    Getting this wrong turned a module whose entire contract is "never be the
+    reason a night produces nothing" into exactly that reason: execv would run
+    `python --full --deploy`, which exits 2 — and since execv has already
+    replaced the process, that exit IS the nightly.
     """
     repo = Path(repo)
     if os.environ.get(SKIP_ENV) == "1":
@@ -125,8 +143,16 @@ def ensure_fresh(repo: Path, argv=None) -> str:
     log.warning("freshness: pulled %d commit(s) on %s (%s -> %s); re-execing so "
                 "the new code is what runs", behind, branch, before[:8], after[:8])
     os.environ[RE_EXEC_ENV] = "1"
+    # sys.argv[0] is the script under launchd; sys.argv entire when no argv was
+    # passed. Never `argv` alone — see the docstring.
+    exec_argv = [sys.argv[0], *argv] if argv is not None else list(sys.argv)
     try:
-        os.execv(sys.executable, [sys.executable, *(argv or sys.argv)])
+        # sys.executable, NOT a resolved-from-PATH python: the plist runs
+        # /opt/homebrew/bin/python3 because the TCC grant for ~/Documents is
+        # attributed to that exact binary. Re-execing through a different
+        # interpreter loses the grant and the run dies with EPERM — a failure
+        # this fleet has a documented history of.
+        os.execv(sys.executable, [sys.executable, *exec_argv])
     except OSError as exc:
         # Could not replace the process. The pull already happened, so the code
         # on disk is now NEWER than the code running — say so rather than let

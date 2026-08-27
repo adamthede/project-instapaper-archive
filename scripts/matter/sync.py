@@ -111,6 +111,13 @@ class SyncResult:
     reread_candidates: int = 0
     rereads_recorded: int = 0
     errors: int = 0
+    # What the code-freshness check found at the top of the run. This is in the
+    # heartbeat rather than only the log because the failure this whole feature
+    # exists to fix -- a nightly quietly running stale code -- went unnoticed for
+    # two days precisely BECAUSE its only symptom would have been in a log
+    # nobody reads at 04:45. A WARNING in the same file is the same failure at
+    # one remove; the heartbeat is what the cockpit surfaces.
+    freshness: str = "not checked"
     seen: int = 0
     highlights: int = 0
     requests: int = 0
@@ -145,6 +152,7 @@ class SyncResult:
             "throttled_seconds": round(self.throttled_seconds, 1),
             "watermark_before": self.watermark_before,
             "watermark_after": self.watermark_after,
+            "freshness": self.freshness,
             "dedupe_source": self.dedupe_source,
             "dedupe_degraded": self.dedupe_degraded,
             "error": self.error_message,
