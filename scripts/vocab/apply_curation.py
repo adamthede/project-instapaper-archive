@@ -39,6 +39,24 @@ class CurationError(RuntimeError):
     """A decision does not match the data it claims to describe."""
 
 
+def derivation_stats(clusters_path: Path) -> dict:
+    """The funnel the taxonomy came down: raw strings -> clusters -> gate.
+
+    Recorded INTO v1.yaml because clusters.json is gitignored (9.5MB) and the
+    site build has to be able to state its own provenance on a fresh clone.
+    Without this the Collapse section would have to hardcode three numbers that
+    would then silently rot the first time the derivation is re-run.
+    """
+    doc = json.loads(clusters_path.read_text())
+    return {
+        "strings": doc["n_strings"],
+        "clusters": len(doc["clusters"]),
+        "articles_at_derivation": doc["n_articles"],
+        "similarity": doc["params"]["similarity"],
+        "embed_model": doc["params"]["embed_model"],
+    }
+
+
 def load_head(clusters_path: Path, names_path: Path) -> list[dict]:
     """The curated head, as ordered entries with their member strings."""
     names = [json.loads(line) for line in names_path.read_text().splitlines() if line.strip()]
@@ -251,6 +269,7 @@ def apply_decisions(head: list[dict], decisions: dict) -> tuple[list[dict], dict
 
     _check_invariants(entries, before, dropped)
     audit["excluded_aliases"] = sorted(dropped)
+    audit["head_size"] = len(head)
     return entries, audit
 
 
@@ -285,10 +304,18 @@ def _check_invariants(entries: list[dict], before: set[str], dropped: set[str]) 
         raise CurationError(f"aliases appeared from nowhere: {sorted(invented)[:10]}")
 
 
-def render(entries: list[dict], decisions: dict, audit: dict | None = None) -> str:
+def render(entries: list[dict], decisions: dict, audit: dict | None = None,
+           derivation: dict | None = None) -> str:
     doc = {
         "version": decisions.get("version", 1),
         "generated_by": "scripts/vocab/apply_curation.py",
+        # Provenance, so the site can state where the vocabulary came from
+        # without reading the gitignored derivation artifacts.
+        "derivation": derivation or {},
+        # The number Adam actually read at the gate, i.e. the head size before
+        # any decision was applied. Deriving it from the output instead
+        # double-counts: split-created entries never appeared at the gate.
+        "gate_reviewed": (audit or {}).get("head_size", len(entries)),
         "entries": [
             {"name": e["name"], "axis": e["axis"],
              "definition": " ".join(str(e["definition"]).split()),
@@ -327,7 +354,8 @@ def main(argv=None) -> int:
     decisions = yaml.safe_load(args.decisions.read_text())
     head = load_head(args.clusters, args.names)
     entries, audit = apply_decisions(head, decisions)
-    rendered = render(entries, decisions, audit)
+    rendered = render(entries, decisions, audit,
+                      derivation_stats(args.clusters))
 
     if args.check:
         if not args.out.exists():

@@ -115,7 +115,8 @@ def _fold(s):
     return " ".join(str(s).lower().split())
 
 
-KNOWN_TOP_LEVEL = frozenset({"version", "generated_by", "entries", "excluded_aliases"})
+KNOWN_TOP_LEVEL = frozenset({"version", "generated_by", "entries", "excluded_aliases",
+                             "derivation", "gate_reviewed"})
 
 
 def load(path: Path) -> Taxonomy:

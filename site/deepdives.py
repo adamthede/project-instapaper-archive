@@ -574,6 +574,9 @@ def render_people(corpus, limit=100, site_title="The Week in Reading", domain=""
     return page(f"People — {site_title}", body, depth=1)
 
 
+CANONICAL_COLUMN = "canonical_entries"
+
+
 def concepts_verdict(corpus):
     """Whether /concepts/ may be built, with the numbers behind the answer.
 
@@ -584,8 +587,30 @@ def concepts_verdict(corpus):
     concepts page. This function exists so the verdict is recomputed on every
     build rather than frozen into a comment: if a normalization pass ever lands
     (the audit's recommendation #9), the numbers move and the answer with them.
+
+    THAT PASS LANDED. This reads the CURATED column now, and the numbers moved:
+    248 entries, 41.2% top-20, 0.0% singletons.
+
+    Two notes for whoever revisits this.
+
+    The column must be the POOLED one. Split by source field, canonical_concepts
+    reaches 29.7% and canonical_topics 32.3% - both under the bar, and both
+    within a point of the raw axes. Phase A settled that these are one semantic
+    axis split by an unreliable label; reading either half here walks back into
+    the failure it settled.
+
+    And head coverage is the WEAKEST evidence on offer: it clears the bar by
+    about 196 articles, and dropping `Social Media` alone would fail it. The
+    strong evidence is 248 entries at 0.0% singletons against 50,722 raw strings
+    at 74%. The bar stays as a safety net against a broken join, not as the
+    argument for the page.
     """
-    report = vocabulary_report(corpus.rows, "concepts")
+    if CANONICAL_COLUMN not in corpus.rows.columns:
+        # Index predates the taxonomy join, or the join was skipped. Fall back
+        # to the raw column so the answer is "no page" rather than a crash.
+        report = vocabulary_report(corpus.rows, "concepts")
+        return report, report["rankable"], RANKABLE_HEAD_COVERAGE
+    report = vocabulary_report(corpus.rows, CANONICAL_COLUMN)
     return report, report["rankable"], RANKABLE_HEAD_COVERAGE
 
 

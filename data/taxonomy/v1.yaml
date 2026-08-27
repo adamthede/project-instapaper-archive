@@ -6,6 +6,13 @@
 # 248 entries, 2469 aliases.
 version: 1
 generated_by: scripts/vocab/apply_curation.py
+derivation:
+  strings: 73099
+  clusters: 54226
+  articles_at_derivation: 16346
+  similarity: 0.89
+  embed_model: text-embedding-nomic-embed-text-v1.5
+gate_reviewed: 250
 entries:
 - name: Social Media
   axis: topic

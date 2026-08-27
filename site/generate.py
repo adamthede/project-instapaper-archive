@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import corpus as corpus_mod  # noqa: E402
 import deepdives  # noqa: E402
 import trends  # noqa: E402
+import vocabulary  # noqa: E402
 from htmlkit import e, n, page  # noqa: E402,F401
 
 SITE_TITLE = "The Week in Reading"
@@ -41,6 +42,7 @@ SITE_TITLE = "The Week in Reading"
 SITE_EPOCH_WEEK = "2005-W01"
 DOMAIN = "reading.adamthede.com"
 DEFAULT_INDEX = Path(__file__).resolve().parents[1] / "data" / "archive_index.parquet"
+TAXONOMY_PATH = Path(__file__).resolve().parents[1] / "data" / "taxonomy" / "v1.yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -562,7 +564,8 @@ def render_hero(corpus_data):
 """
 
 
-def render_index(weeks, year_pages=(), facets=False, excluded=0, corpus_data=None):
+def render_index(weeks, year_pages=(), facets=False, excluded=0,
+                 corpus_data=None, facet_names=()):
     total_articles = sum(int(m["article_count"]) for m in weeks)
     total_words = sum(int(m["total_words"]) for m in weeks)
     total_hours = round(sum(float(m["reading_time_hours"]) for m in weeks), 1)
@@ -678,10 +681,31 @@ def render_index(weeks, year_pages=(), facets=False, excluded=0, corpus_data=Non
     if facets:
         years_html = "".join(
             f'<a href="years/{e(y)}/">{e(y)}</a>' for y in sorted(year_pages))
+        # Built from the facets that ACTUALLY exist rather than hardcoded, so
+        # a page can never ship unreachable again. /concepts/ and /together/
+        # did exactly that: rendered, deployed, and linked from nowhere on the
+        # site — a closed loop with no entrance.
+        # Iterate over what is ON DISK and look up a label, rather than over a
+        # label list filtered by disk. The direction matters: filtering a
+        # hardcoded list guards against linking to a page that does not exist,
+        # which was never the failure. The failure was a page that exists and
+        # is linked from nowhere — and a list-first loop cannot see that, so a
+        # new facet would ship unreachable exactly as /concepts/ did.
+        FACET_LABELS = {"trends": "Trends", "orgs": "Organizations",
+                        "people": "People", "locations": "Places",
+                        "concepts": "Concepts",
+                        "together": "What travels together",
+                        "articles": "Every article"}
+        FACET_ORDER = list(FACET_LABELS)
+        facet_links = "".join(
+            f'<a href="{e(name)}/">{e(FACET_LABELS.get(name, name.title()))}</a>'
+            for name in sorted(facet_names,
+                               key=lambda x: (FACET_ORDER.index(x)
+                                              if x in FACET_ORDER else len(FACET_ORDER), x)))
         facet_nav = f"""
   <section>
     <div class="label viz-title">Beyond the week</div>
-    <div class="yearheads"><a href="trends/">Trends</a><a href="orgs/">Organizations</a><a href="people/">People</a><a href="locations/">Places</a><a href="articles/">Every article</a></div>
+    <div class="yearheads">{facet_links}</div>
     <div class="label viz-title" style="margin-top:22px">Year rollups</div>
     <div class="yearheads">{years_html}</div>
   </section>
@@ -816,6 +840,39 @@ def render_deep_dives(tmp, weeks, corpus_data):
           f"{report['singleton_share']:.1f}% singletons -> "
           f"{'RANKABLE' if rankable else 'not rankable, no /concepts/ page'}")
 
+    # /concepts/ and /together/ exist only while the verdict above says they may.
+    # The gate is a safety net against a broken join, not a formality: if the
+    # taxonomy stops being applied, these pages stop being built rather than
+    # rendering an empty vocabulary.
+    # THREE conditions, not one. `rankable` alone is not enough: on an index
+    # with no canonical column the verdict falls back to the raw `concepts`
+    # field, which on a small corpus trivially clears the bar — and the render
+    # path then dies on KeyError('canonical_entries'), taking every other
+    # deep-dive page down with it. The column's presence is the real
+    # precondition; the bar is the quality check on top of it.
+    joined = deepdives.CANONICAL_COLUMN in corpus_data.rows.columns
+    tax_doc = vocabulary.load_taxonomy(TAXONOMY_PATH) if joined else None
+    if joined and rankable and tax_doc:
+        # Tallied ONCE and handed to both pages. Each computing its own cost
+        # 0.36s of the 15.8s build for an identical result.
+        tallied = vocabulary.tally(corpus_data.rows)
+        (tmp / "concepts").mkdir()
+        (tmp / "concepts" / "index.html").write_text(
+            vocabulary.render_concepts(corpus_data, tax_doc, tallied=tallied,
+                                       site_title=SITE_TITLE, domain=DOMAIN),
+            encoding="utf-8")
+        (tmp / "together").mkdir()
+        (tmp / "together" / "index.html").write_text(
+            vocabulary.render_together(corpus_data, tallied=tallied,
+                                       site_title=SITE_TITLE, domain=DOMAIN),
+            encoding="utf-8")
+        print(f"  built /concepts/ and /together/ from taxonomy "
+              f"v{tax_doc.get('version')} ({len(tax_doc.get('entries') or [])} entries)")
+    elif not joined:
+        print("  index has no taxonomy join -> /concepts/ and /together/ not built")
+    elif not tax_doc:
+        print("  no taxonomy readable -> /concepts/ and /together/ not built")
+
     (tmp / "trends").mkdir()
     (tmp / "trends" / "index.html").write_text(
         trends.render_trends(corpus_data, site_title=SITE_TITLE, domain=DOMAIN),
@@ -864,7 +921,7 @@ def generate(synthesis_dir, out_dir, index_path=None):
         (tmp / "weeks").mkdir(parents=True)
         (tmp / MARKER).write_text("generated by site/generate.py\n")
         (tmp / "style.css").write_text(
-            STYLE + deepdives.EXTRA_STYLE + trends.TRENDS_STYLE, encoding="utf-8")
+            STYLE + deepdives.EXTRA_STYLE + trends.TRENDS_STYLE + vocabulary.VOCAB_STYLE, encoding="utf-8")
         corpus_data = load_corpus_or_none(index_path)
         year_pages = set()
         if corpus_data is not None and len(corpus_data):
@@ -879,8 +936,12 @@ def generate(synthesis_dir, out_dir, index_path=None):
                 print(f"deep-dive pages failed ({err!r}): rendering weeks only",
                       file=sys.stderr)
                 year_pages = set()
+                # Every facet the deep-dive leg can write must be listed, or a
+                # build that "rendered weeks only" still deploys a survivor with
+                # broken outbound links — /concepts/ did, pointing at a
+                # /together/ that was never written.
                 for stale in ("years", "orgs", "people", "locations", "trends",
-                              "articles", "articles.json"):
+                              "articles", "articles.json", "concepts", "together"):
                     p = tmp / stale
                     if p.is_dir():
                         shutil.rmtree(p, ignore_errors=True)
@@ -889,6 +950,14 @@ def generate(synthesis_dir, out_dir, index_path=None):
         (tmp / "index.html").write_text(
             render_index(weeks, year_pages=year_pages, facets=bool(year_pages),
                          excluded=len(pre_epoch),
+                         # The names of the facet dirs actually on disk. The
+                         # `facets` flag above only says the leg ran; the nav
+                         # has to know WHICH pages exist or it links to 404s
+                         # (or, as /concepts/ did, silently omits a page that
+                         # shipped with no entrance anywhere on the site).
+                         facet_names=[d.name for d in sorted(tmp.iterdir())
+                                      if d.is_dir()
+                                      and (d / "index.html").exists()],
                          # Only when the deep-dive leg SUCCEEDED: a corpus that
                          # blew up mid-render must not still be feeding the
                          # hero, or the index would advertise an archive whose
@@ -948,7 +1017,12 @@ def main():
     years = len(list((out / "years").glob("*/index.html"))) if (out / "years").exists() else 0
     payload = (out / "articles.json")
     extra = f", {years} year pages" if years else ""
-    facets = [name for name in ("trends", "orgs", "people", "locations", "articles")
+    # `concepts` and `together` are listed here so the summary stops claiming
+    # five facets on a build that produced seven — and so a night where the
+    # gate declines to build them shows up in the one line most likely to be
+    # read, not only in the verdict further up.
+    facets = [name for name in ("trends", "orgs", "people", "locations", "articles",
+                                "concepts", "together")
               if (out / name / "index.html").exists()]
     if facets:
         extra += f", {len(facets)} facet pages ({', '.join(facets)})"
