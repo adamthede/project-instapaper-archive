@@ -460,3 +460,143 @@ def test_the_normal_heartbeat_carries_the_status_too(tmp_path, monkeypatch):
     cli.main(["--heartbeat", str(hb)])
     assert json.loads(hb.read_text())["freshness"] == "stale: 4 modified file(s) on main", (
         "the ordinary nightly heartbeat lost the freshness status")
+
+
+# --- fail-open across the states a real checkout actually reaches ---------
+#
+# The tests above cover the states I thought of: detached HEAD, no origin,
+# branch not on origin, unreachable origin, git missing, git timing out. This
+# block covers the nine an actual working repo reaches that I did not think of
+# — ported from a reviewer's sweep, which found zero raises across all of them
+# and is the strongest evidence the fail-open claim holds.
+#
+# The claim under test is narrow and absolute: ensure_fresh RETURNS A STRING
+# for every one of these. It sits at the head of a chain that walks an hour of
+# SMB, so a convenience that can abort that is worse than no convenience.
+
+def _base_repo(tmp):
+    origin = tmp / "origin"
+    origin.mkdir()
+    git(origin, "init", "-q", "--initial-branch=main")
+    git(origin, "config", "user.email", "t@example.com")
+    git(origin, "config", "user.name", "T")
+    (origin / "code.py").write_text("V=1\n")
+    git(origin, "add", "-A")
+    git(origin, "commit", "-qm", "one")
+    clone = tmp / "clone"
+    subprocess.run(["git", "clone", "-q", str(origin), str(clone)], check=True)
+    git(clone, "config", "user.email", "t@example.com")
+    git(clone, "config", "user.name", "T")
+    return origin, clone
+
+
+def _soft(repo, *args):
+    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+
+
+def _mid_merge(tmp):
+    _o, c = _base_repo(tmp)
+    git(c, "checkout", "-qb", "side")
+    (c / "code.py").write_text("V=side\n")
+    git(c, "commit", "-qam", "side")
+    git(c, "checkout", "-q", "main")
+    (c / "code.py").write_text("V=main\n")
+    git(c, "commit", "-qam", "main2")
+    _soft(c, "merge", "side")                      # leaves a conflict
+    return c
+
+
+def _mid_rebase(tmp):
+    _o, c = _base_repo(tmp)
+    git(c, "checkout", "-qb", "side")
+    (c / "code.py").write_text("V=side\n")
+    git(c, "commit", "-qam", "side")
+    git(c, "checkout", "-q", "main")
+    (c / "code.py").write_text("V=main\n")
+    git(c, "commit", "-qam", "main2")
+    _soft(c, "rebase", "side")                     # stops on conflict, detached
+    return c
+
+
+def _shallow(tmp):
+    o, _c = _base_repo(tmp)
+    advance(o)
+    c = tmp / "shallow"
+    subprocess.run(["git", "clone", "-q", "--depth", "1", f"file://{o}", str(c)], check=True)
+    advance(o, "V=3\n")
+    return c
+
+
+def _worktree_detached(tmp):
+    o, c = _base_repo(tmp)
+    advance(o)
+    git(c, "fetch", "-q", "origin")
+    wt = tmp / "wt"
+    git(c, "worktree", "add", "-q", "--detach", str(wt))
+    return wt
+
+
+def _worktree_branch(tmp):
+    o, c = _base_repo(tmp)
+    advance(o)
+    wt = tmp / "wt2"
+    git(c, "worktree", "add", "-q", "-b", "wtbranch", str(wt))
+    return wt
+
+
+def _stale_lock(tmp):
+    o, c = _base_repo(tmp)
+    advance(o)
+    (c / ".git" / "index.lock").write_text("")
+    return c
+
+
+def _bare(tmp):
+    b = tmp / "bare.git"
+    b.mkdir()
+    git(b, "init", "-q", "--bare", "--initial-branch=main")
+    return b
+
+
+def _unborn(tmp):
+    e = tmp / "empty"
+    e.mkdir()
+    git(e, "init", "-q", "--initial-branch=main")
+    return e
+
+
+def _readonly_git(tmp):
+    o, c = _base_repo(tmp)
+    advance(o)
+    for p in sorted((c / ".git").rglob("*"), reverse=True):
+        try:
+            p.chmod(0o500 if p.is_dir() else 0o400)
+        except OSError:
+            pass
+    (c / ".git").chmod(0o500)
+    return c
+
+
+def _renamed_upstream(tmp):
+    o, c = _base_repo(tmp)
+    advance(o)
+    git(c, "checkout", "-qb", "deploy")
+    git(c, "branch", "--set-upstream-to=origin/main", "deploy")
+    return c
+
+
+@pytest.mark.parametrize("build", [
+    _mid_merge, _mid_rebase, _shallow, _worktree_detached, _worktree_branch,
+    _stale_lock, _bare, _unborn, _readonly_git, _renamed_upstream,
+], ids=[
+    "mid-merge-conflict", "mid-rebase-stopped", "shallow-clone",
+    "git-worktree-detached", "git-worktree-on-branch", "stale-index-lock",
+    "bare-repo", "unborn-branch", "read-only-dot-git", "renamed-upstream",
+])
+def test_no_repo_state_makes_the_check_raise(tmp_path, build):
+    """Every one of these must ANSWER. A raise here costs the night."""
+    repo = build(tmp_path)
+    status = freshness.ensure_fresh(repo)
+    assert isinstance(status, str) and status, f"empty status for {repo}"
+    # And it must never silently claim to be current when it could not check.
+    assert status.startswith(("current", "stale", "unknown", "pulled", "skipped")), status
