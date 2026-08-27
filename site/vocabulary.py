@@ -63,10 +63,6 @@ VOCAB_STYLE = """
    above them. The page body is overflow-x:clip, so without a scroll
    container here the far years are CLIPPED rather than reachable. */
 .cascade .crow{min-width:560px}
-@media (max-width:560px){
-  .crow{grid-template-columns:110px 1fr 34px;gap:8px}
-  .cn{font-size:11px}
-}
 .crow{display:grid;grid-template-columns:186px 1fr 42px;align-items:center;gap:12px;padding:1px 0}
 .crow:hover .cn{opacity:1;color:var(--brand)}
 .cn{font-size:12.5px;opacity:.72;text-align:right;overflow:hidden;
@@ -76,6 +72,13 @@ VOCAB_STYLE = """
 .cy{font-size:9.5px;opacity:.38;text-align:center;font-variant-numeric:tabular-nums}
 .cpk{font-size:10.5px;opacity:.4;font-variant-numeric:tabular-nums}
 .chead .cn,.chead .cpk{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;opacity:.4}
+/* AFTER the .crow base rule, not before it: equal specificity means source
+   order decides, and this block previously lost to the rule it overrides. */
+@media (max-width:560px){
+  .crow{grid-template-columns:110px 1fr 34px;gap:8px}
+  .cn{font-size:11px}
+}
+
 
 .funnel{margin-top:20px;max-width:720px}
 .fstage{display:grid;grid-template-columns:104px 1fr;align-items:center;gap:14px;padding:7px 0}
@@ -94,7 +97,8 @@ VOCAB_STYLE = """
 .ka{font-size:12px;opacity:.6;text-align:right}
 
 .mwrap{overflow-x:auto;padding-bottom:6px}
-.mhead,.mrow{display:grid;grid-template-columns:196px 1fr;gap:10px;align-items:center}
+.mhead,.mrow{display:grid;grid-template-columns:196px 1fr;gap:10px;
+ align-items:center;width:max-content}
 .mcells{display:grid;grid-template-columns:repeat(var(--cols),14px);gap:2px}
 .mc{width:14px;height:14px;display:block;background:transparent;border-radius:1px}
 .mc.self{background:repeating-linear-gradient(45deg,#44403c,#44403c 1px,transparent 1px,transparent 3px)}
@@ -387,9 +391,10 @@ def render_concepts(corpus_data, taxonomy_doc, derivation=None, tallied=None,
     per, totals, _co, years = tallied or tally(rows)
     report = vocabulary_report(rows, "canonical_entries")
     raw = vocabulary_report(rows, "concepts")
-    # as_list here too — round 1 fixed tally() and left this line, which
-    # failed on the same null row with the same six-page blast radius.
-    tagged = sum(1 for _, r in rows.iterrows() if as_list(r.get("canonical_entries")))
+    # vocabulary_report already computed this, through as_list and NaN-safe.
+    # Re-deriving it cost a second full-frame iteration (0.242s vs 0.022s) for
+    # an identical 13,229 — the as_list fix was right, the extra pass was not.
+    tagged = report["tagged"]
     entries = taxonomy_doc.get("entries") or []
     alias_counts = {x["name"]: len(x["aliases"]) for x in entries}
     excluded = len(taxonomy_doc.get("excluded_aliases") or [])

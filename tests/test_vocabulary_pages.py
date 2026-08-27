@@ -322,7 +322,13 @@ def test_the_seriation_beats_the_orderings_it_claims_to_beat_synthetically():
     version below skips there, which is the wrong place for a guard to vanish.
     """
     import itertools
-    blocks = [["a1", "a2", "a3"], ["b1", "b2", "b3"], ["c1", "c2", "c3"]]
+    # Names CROSS-CUT the blocks on purpose. With a1/a2/a3 naming the block
+    # letter is the sort prefix, so alphabetical order IS the perfect seriation
+    # and `cost(seriated) < cost(sorted(names))` compares 252 with 252 — the
+    # same arithmetic that made the reverse-alphabetical baseline vacuous.
+    blocks = [["apple", "melon", "zebra"],
+              ["berry", "nutmeg", "yak"],
+              ["cherry", "olive", "xray"]]
     co = collections.Counter()
     for block in blocks:
         for x, y in itertools.combinations(block, 2):
@@ -346,6 +352,9 @@ def test_the_seriation_beats_the_orderings_it_claims_to_beat_synthetically():
     interleaved = [b[i] for i in range(3) for b in blocks]
     assert cost(seriated) < cost(interleaved), (
         f"seriated {cost(seriated)} not better than interleaved {cost(interleaved)}")
+    # Now meaningful, because the names no longer sort into their blocks.
+    assert cost(seriated) < cost(sorted(names)), (
+        f"seriated {cost(seriated)} not better than alphabetical {cost(sorted(names))}")
     # Every block must come out contiguous — that is what "blocks on the
     # diagonal" means, and it is the claim the page makes.
     for block in blocks:
@@ -433,21 +442,27 @@ def test_the_disclosure_numbers_are_the_real_ones():
     none of them was pinned: a mutation making the page announce "Showing 11,369
     of 11,369 pairs (100%)" left the suite entirely green. A disclosure nobody
     checks is worse than no disclosure, because it reads as verified."""
+    # THREE omitted pairs at different weights, or max() and min() agree and
+    # "the strongest omitted" is unassertable — a weakest-omitted mutation
+    # passed against a single-pair fixture.
     df = frame(
         [{"year": 2020, "canonical_entries": ["Big", "Also"],
           "concepts": [], "topics": []}] * 5
+        + [{"year": 2020, "canonical_entries": ["Mid", "Pair"],
+            "concepts": [], "topics": []}] * 3
         + [{"year": 2020, "canonical_entries": ["Rare", "Tiny"],
             "concepts": [], "topics": []}] * 2)
     _per, totals, co, _years = vocabulary.tally(df)
     html = vocabulary.render_matrix(totals, co, limit=2)
 
-    # 2 pairs exist; the top-2 matrix draws exactly 1 of them.
-    assert "Showing 1 of 2 pairs" in html, html[html.find("Showing"):][:80]
-    assert "(50%" in html, "pair share is not the real fraction"
-    # Weight: Big+Also is 5 of 7 shared articles = 71%.
-    assert "71% by shared-article weight" in html, "weight share is not real"
-    # And the omitted pair must be the STRONGEST omitted, not the weakest.
-    assert "Rare + Tiny (2 articles)" in html
+    # 3 pairs exist; the top-2 matrix draws exactly 1 of them.
+    assert "Showing 1 of 3 pairs" in html, html[html.find("Showing"):][:80]
+    assert "(33%" in html, "pair share is not the real fraction"
+    # Weight: Big+Also is 5 of 10 shared articles = 50%.
+    assert "50% by shared-article weight" in html, "weight share is not real"
+    # The STRONGEST omitted (Mid+Pair at 3), not the weakest (Rare+Tiny at 2).
+    assert "Mid + Pair (3 articles)" in html
+    assert "Rare + Tiny" not in html, "named the weakest omitted pair"
 
 
 def test_the_omitted_pair_disclosure_escapes_the_names_it_prints():
@@ -498,10 +513,10 @@ def test_every_colour_in_the_stylesheet_clears_the_floor_it_claims():
         "#0c0a09": "tooltip background — its INK is 15.7:1 on it",
         "#44403c": "the self-cell hatch, which encodes NO information",
     }
-    found = set(re.findall(r"(#[0-9a-fA-F]{3,6})\b", vocabulary.VOCAB_STYLE))
+    found = set(re.findall(r"(#[0-9a-fA-F]{3,8})\b", vocabulary.VOCAB_STYLE))
     assert found, "no colours found — did VOCAB_STYLE change shape?"
-    assert not re.search(r"\brgb\(", vocabulary.VOCAB_STYLE), (
-        "an rgb() colour would slip past the hex scan above")
+    assert not re.search(r"\brgba?\(", vocabulary.VOCAB_STYLE), (
+        "an rgb()/rgba() colour would slip past the hex scan above")
     data_ink = sorted(c for c in found if c not in NON_DATA_INK)
     assert data_ink, "every colour was classified as non-data-ink — suspicious"
     for c in data_ink:
