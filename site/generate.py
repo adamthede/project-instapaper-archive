@@ -685,14 +685,23 @@ def render_index(weeks, year_pages=(), facets=False, excluded=0,
         # a page can never ship unreachable again. /concepts/ and /together/
         # did exactly that: rendered, deployed, and linked from nowhere on the
         # site — a closed loop with no entrance.
+        # Iterate over what is ON DISK and look up a label, rather than over a
+        # label list filtered by disk. The direction matters: filtering a
+        # hardcoded list guards against linking to a page that does not exist,
+        # which was never the failure. The failure was a page that exists and
+        # is linked from nowhere — and a list-first loop cannot see that, so a
+        # new facet would ship unreachable exactly as /concepts/ did.
+        FACET_LABELS = {"trends": "Trends", "orgs": "Organizations",
+                        "people": "People", "locations": "Places",
+                        "concepts": "Concepts",
+                        "together": "What travels together",
+                        "articles": "Every article"}
+        FACET_ORDER = list(FACET_LABELS)
         facet_links = "".join(
-            f'<a href="{name}/">{e(label)}</a>'
-            for name, label in (("trends", "Trends"), ("orgs", "Organizations"),
-                                ("people", "People"), ("locations", "Places"),
-                                ("concepts", "Concepts"),
-                                ("together", "What travels together"),
-                                ("articles", "Every article"))
-            if name in set(facet_names))
+            f'<a href="{e(name)}/">{e(FACET_LABELS.get(name, name.title()))}</a>'
+            for name in sorted(facet_names,
+                               key=lambda x: (FACET_ORDER.index(x)
+                                              if x in FACET_ORDER else len(FACET_ORDER), x)))
         facet_nav = f"""
   <section>
     <div class="label viz-title">Beyond the week</div>
@@ -844,14 +853,19 @@ def render_deep_dives(tmp, weeks, corpus_data):
     joined = deepdives.CANONICAL_COLUMN in corpus_data.rows.columns
     tax_doc = vocabulary.load_taxonomy(TAXONOMY_PATH) if joined else None
     if joined and rankable and tax_doc:
+        # Tallied ONCE and handed to both pages. Each computing its own cost
+        # 0.36s of the 15.8s build for an identical result.
+        tallied = vocabulary.tally(corpus_data.rows)
         (tmp / "concepts").mkdir()
         (tmp / "concepts" / "index.html").write_text(
-            vocabulary.render_concepts(corpus_data, tax_doc, site_title=SITE_TITLE,
-                                       domain=DOMAIN), encoding="utf-8")
+            vocabulary.render_concepts(corpus_data, tax_doc, tallied=tallied,
+                                       site_title=SITE_TITLE, domain=DOMAIN),
+            encoding="utf-8")
         (tmp / "together").mkdir()
         (tmp / "together" / "index.html").write_text(
-            vocabulary.render_together(corpus_data, site_title=SITE_TITLE,
-                                       domain=DOMAIN), encoding="utf-8")
+            vocabulary.render_together(corpus_data, tallied=tallied,
+                                       site_title=SITE_TITLE, domain=DOMAIN),
+            encoding="utf-8")
         print(f"  built /concepts/ and /together/ from taxonomy "
               f"v{tax_doc.get('version')} ({len(tax_doc.get('entries') or [])} entries)")
     elif not joined:

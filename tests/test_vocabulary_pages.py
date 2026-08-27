@@ -36,32 +36,48 @@ def frame(rows):
 
 
 def tiny():
-    """A fixture whose orderings all DISAGREE.
+    """A fixture where every ordering DISAGREES with every other.
 
-    Rewritten twice, and the second rewrite is the instructive one. Version 1
-    let a volume-sort mutation pass because the early-peaking entry also had
-    the most articles. Version 2 fixed that by giving each entry exactly ONE
-    year — which quietly made "peak year" indistinguishable from "first year",
-    "last year" and "the only year", and per-entry-PEAK indistinguishable from
-    per-entry-TOTAL. Six further mutations sailed through, including "not
-    sorted by peak at all".
+    Rewritten three times. Each earlier version fixed the collision it was
+    written for and reintroduced another in a different direction:
 
-    So `Lens` spans four years with an INTERIOR peak, and the two entries
-    disagree on every axis a mutation could confuse:
+      v1  early-peaking entry also had the most articles -> volume order ==
+          peak order, and a volume-sort mutation passed.
+      v2  every entry occupied exactly ONE year -> "peak" became
+          indistinguishable from "first", "last" and "only", and per-entry
+          scaling from global scaling. Six mutations escaped.
+      v3  (this) the largest entry peaks LAST, the earliest-starting entry
+          peaks LATE, one entry has an interior peak well below the global
+          maximum, one pair TIES on peak year, and one cell sits at 5% of its
+          entry's peak.
 
-        Lens   2006:1  2010:5  2014:2  2020:1   first 2006  peak 2010  last 2020  total 9
-        AI                             2020:4   first 2020  peak 2020  last 2020  total 4
+        Lens    2006:1  2010:6  2012:4  2014:2  2020:1   peak 2010  total 14
+        Cinema  2005:3                  2018:4           peak 2018  first 2005
+        Radio   2008:3                  2016:3           TIED peak -> 2008
+        AI      2015:1                  2020:20          peak 2020  LARGEST
 
-    peak order   -> Lens, AI     first order -> Lens, AI
-    last order   -> AI, Lens     volume      -> Lens, AI  (but see the assertions)
+    What each property defeats:
+      AI largest but peaks last      -> volume order != peak order
+      Cinema starts first, peaks late -> first-year order != peak order
+      Lens peak 6 vs global max 20    -> global scaling demotes it visibly
+      Lens peak 6 vs its total 14     -> per-entry PEAK != per-entry TOTAL
+      AI 2015 at 1/20 = 5%            -> a quiet-but-nonzero cell a
+                                         frac<=0.08 blanking would eat
+      Radio's tie                     -> pins the (count, -year) tie-break
     """
-    rows = ([{"year": 2006, "canonical_entries": ["Lens"], "concepts": [], "topics": []}]
-            + [{"year": 2010, "canonical_entries": ["Lens"], "concepts": [], "topics": []}] * 5
-            + [{"year": 2014, "canonical_entries": ["Lens"], "concepts": [], "topics": []}] * 2
-            + [{"year": 2020, "canonical_entries": ["Lens"], "concepts": [], "topics": []}]
-            + [{"year": 2020, "canonical_entries": ["Artificial Intelligence"],
-                "concepts": [], "topics": []}] * 4)
-    return frame(rows)
+    def rows_for(name, per_year):
+        out = []
+        for year, count in per_year.items():
+            out += [{"year": year, "canonical_entries": [name],
+                     "concepts": [], "topics": []}] * count
+        return out
+
+    return frame(
+        rows_for("Lens", {2006: 1, 2010: 6, 2012: 4, 2014: 2, 2020: 1})
+        + rows_for("Cinema", {2005: 3, 2018: 4})
+        + rows_for("Radio", {2008: 3, 2016: 3})
+        + rows_for("Artificial Intelligence", {2015: 1, 2020: 20})
+    )
 
 
 # --- 1. the gate ----------------------------------------------------------
@@ -115,8 +131,11 @@ def test_the_cascade_is_ordered_by_peak_year_not_by_volume():
     # The DISPLAYED peak must be the real peak — not the first year (2006) and
     # not the last (2020). Lens spans 2006-2020 and peaks in 2010, so this one
     # assertion rules out three separate mutations at once.
-    assert peaks == [2010, 2020], f"expected Lens@2010 then AI@2020, got {peaks}"
-    assert peaks == sorted(peaks), "cascade not in ascending peak order"
+    # Radio 2008, Lens 2010, Cinema 2018, AI 2020. Volume order would be
+    # AI(21), Lens(14), Cinema(7), Radio(6) — completely different — and
+    # first-year order would start with Cinema(2005). One assertion, three
+    # mutations ruled out.
+    assert peaks == [2008, 2010, 2018, 2020], f"got {peaks}"
 
 
 def test_a_year_with_no_articles_gets_no_mark_rather_than_a_colour():
@@ -132,9 +151,18 @@ def test_a_year_with_no_articles_gets_no_mark_rather_than_a_colour():
     # so it sits low on the ramp but is not blank — otherwise "read nothing
     # that year" and "read a little" render identically.
     lens = [ch for ch in html.split("<div class='crow'>")
-            if "class='cn'>Lens<" in ch][0]
+            if re.search(r"class='cn'[^>]*>Lens<", ch)][0]
     marked = len(re.findall(r"style='background:", lens))
-    assert marked == 4, f"Lens has 4 non-empty years, {marked} marked"
+    assert marked == 5, f"Lens has 5 non-empty years, {marked} marked"
+
+    # The sharpest case: AI's 2015 cell is 1 article against a peak of 20 —
+    # 5% of its own peak. A blanking threshold anywhere at or above that eats
+    # a real year, and no fixture with only loud cells can see it.
+    ai = [ch for ch in html.split("<div class='crow'>")
+          if re.search(r"class='cn'[^>]*>Artificial Intelligence<", ch)][0]
+    assert len(re.findall(r"style='background:", ai)) == 2, (
+        "AI's quiet 2015 cell was blanked — 'read a little' now renders as "
+        "'read nothing'")
 
 
 def test_cascade_intensity_is_per_entry_not_global():
@@ -148,10 +176,10 @@ def test_cascade_intensity_is_per_entry_not_global():
     chunks = html.split("<div class='crow'>")[1:]
     by_name = {}
     for ch in chunks:
-        m = re.search(r"class='cn'>([^<]*)</span>", ch)
+        m = re.search(r"class='cn'[^>]*>([^<]*)</span>", ch)
         if m and m.group(1):
             by_name[m.group(1)] = ch
-    for nm in ("Lens", "Artificial Intelligence"):
+    for nm in ("Lens", "Cinema", "Artificial Intelligence"):
         assert nm in by_name, f"{nm} missing from the cascade"
         assert top in by_name[nm], (
             f"{nm} never reaches the top ramp step — intensity is global, not per-entry")
@@ -160,11 +188,16 @@ def test_cascade_intensity_is_per_entry_not_global():
     # are 40% of the peak and must land mid-ramp. Scaled by the total they are
     # 22% and drop a step — a real visual difference on any multi-year entry,
     # and invisible to a fixture where every entry occupies one year.
+    # Lens peaks at 6 against a GLOBAL max of 20. Under global scaling its peak
+    # is 30% and lands mid-ramp; per-entry it is 100% and must reach the top.
     lens = by_name["Lens"]
     swatches = re.findall(r"background:(#[0-9a-fA-F]{6})", lens)
-    assert vocabulary.ORANGE[2] in swatches, (
-        f"2014 did not land mid-ramp; got {swatches} — intensity is scaled by "
-        "the entry total rather than its peak")
+    assert vocabulary.ORANGE[4] in swatches, (
+        f"Lens never reaches the top step; got {swatches} — intensity is "
+        "scaled globally, not per-entry")
+    # ...and its 2012 cell (4 of a peak of 6 = 67%) must sit BELOW the top,
+    # which per-entry TOTAL scaling (4 of 14 = 29%) would also fail.
+    assert vocabulary.ORANGE[3] in swatches or vocabulary.ORANGE[2] in swatches
 
 
 # --- 3. the palette -------------------------------------------------------
@@ -253,7 +286,7 @@ def test_the_shipped_taxonomy_carries_its_own_provenance():
     assert doc.get("gate_reviewed", 0) >= len(doc["entries"])
 
 
-def test_an_unjoined_index_does_not_take_down_the_other_deep_dives(tmp_path):
+def test_a_null_entity_column_does_not_take_down_the_deep_dive_leg(tmp_path):
     """Behaviour, not source text.
 
     The first version of this test asserted two literal lines existed in
@@ -262,7 +295,6 @@ def test_an_unjoined_index_does_not_take_down_the_other_deep_dives(tmp_path):
     harmless rename. It also duplicated a pre-existing trends-layer test that
     does the real check. This builds the failure instead.
     """
-    per, totals, co, years = vocabulary.tally(tiny())
     # A row whose entity column is None is the shape that raised TypeError
     # inside the deep-dive try/except and cost six page groups.
     df = frame([
@@ -282,6 +314,44 @@ def test_tally_survives_every_shape_an_entity_column_arrives_in(value):
                  "concepts": [], "topics": []}])
     per, totals, co, years = vocabulary.tally(df)       # must not raise
     assert isinstance(totals, collections.Counter)
+
+
+def test_the_seriation_beats_the_orderings_it_claims_to_beat_synthetically():
+    """Same metric, planted blocks, NO parquet — so the matrix's whole payoff is
+    still guarded on a machine that has never seen the archive. The real-index
+    version below skips there, which is the wrong place for a guard to vanish.
+    """
+    import itertools
+    blocks = [["a1", "a2", "a3"], ["b1", "b2", "b3"], ["c1", "c2", "c3"]]
+    co = collections.Counter()
+    for block in blocks:
+        for x, y in itertools.combinations(block, 2):
+            co[frozenset((x, y))] = 20
+    for x, y in itertools.combinations([b[0] for b in blocks], 2):
+        co[frozenset((x, y))] = 1          # weak cross-block links
+    names = [n for b in blocks for n in b]
+
+    def cost(order):
+        pos = {nm: i for i, nm in enumerate(order)}
+        return sum(v * abs(pos[a] - pos[b])
+                   for k, v in co.items() for a, b in [tuple(k)]
+                   if a in pos and b in pos)
+
+    seriated = vocabulary._seriate(names, co)
+    # The baseline has to actually SCATTER the blocks. Alphabetical and
+    # reverse-alphabetical both group these names by accident (the block letter
+    # sorts first), so either would score identically to a perfect seriation
+    # and the assertion would compare 252 with 252. Interleaving is the honest
+    # bad ordering: one member of each block, repeating.
+    interleaved = [b[i] for i in range(3) for b in blocks]
+    assert cost(seriated) < cost(interleaved), (
+        f"seriated {cost(seriated)} not better than interleaved {cost(interleaved)}")
+    # Every block must come out contiguous — that is what "blocks on the
+    # diagonal" means, and it is the claim the page makes.
+    for block in blocks:
+        idx = sorted(seriated.index(x) for x in block)
+        assert idx == list(range(idx[0], idx[0] + 3)), (
+            f"block {block} is not contiguous in {seriated}")
 
 
 def test_the_seriation_beats_the_orderings_it_claims_to_beat():
@@ -339,8 +409,16 @@ def test_entry_names_are_escaped_on_every_renderer(render):
     """Entry names are LLM output landing in single-quoted attributes. Removing
     e() from any of the four paths left the suite green before this existed."""
     df = frame([{"year": 2020, "canonical_entries": [HOSTILE, "Plain"],
+                 "concepts": [], "topics": []},
+                {"year": 2020, "canonical_entries": [HOSTILE, "Third"],
+                 "concepts": [], "topics": []},
+                {"year": 2020, "canonical_entries": ["Plain", "Fourth"],
                  "concepts": [], "topics": []}])
     per, totals, co, years = vocabulary.tally(df)
+    # limit=2 with 2 entries left the omitted-pair list EMPTY, so the
+    # disclosure note's name path was never exercised — which is exactly how an
+    # unescaped interpolation shipped on the commit that added these tests.
+    # limit must be BELOW the entry count for `off` to be non-empty.
     html = {"cascade": lambda: vocabulary.render_cascade(per, totals, years),
             "matrix": lambda: vocabulary.render_matrix(totals, co, limit=2),
             "collapse": lambda: vocabulary.render_collapse(
@@ -348,6 +426,51 @@ def test_entry_names_are_escaped_on_every_renderer(render):
     assert "<script>" not in html, "raw script tag reached the page"
     assert "Ev'il" not in html, "bare apostrophe would close a single-quoted attribute"
     assert "&#x27;" in html and "&lt;script&gt;" in html
+
+
+def test_the_disclosure_numbers_are_the_real_ones():
+    """Three user-facing honesty claims, added in direct response to review, and
+    none of them was pinned: a mutation making the page announce "Showing 11,369
+    of 11,369 pairs (100%)" left the suite entirely green. A disclosure nobody
+    checks is worse than no disclosure, because it reads as verified."""
+    df = frame(
+        [{"year": 2020, "canonical_entries": ["Big", "Also"],
+          "concepts": [], "topics": []}] * 5
+        + [{"year": 2020, "canonical_entries": ["Rare", "Tiny"],
+            "concepts": [], "topics": []}] * 2)
+    _per, totals, co, _years = vocabulary.tally(df)
+    html = vocabulary.render_matrix(totals, co, limit=2)
+
+    # 2 pairs exist; the top-2 matrix draws exactly 1 of them.
+    assert "Showing 1 of 2 pairs" in html, html[html.find("Showing"):][:80]
+    assert "(50%" in html, "pair share is not the real fraction"
+    # Weight: Big+Also is 5 of 7 shared articles = 71%.
+    assert "71% by shared-article weight" in html, "weight share is not real"
+    # And the omitted pair must be the STRONGEST omitted, not the weakest.
+    assert "Rare + Tiny (2 articles)" in html
+
+
+def test_the_omitted_pair_disclosure_escapes_the_names_it_prints():
+    """The blocker this file failed to catch once. render_matrix's 'strongest
+    pair left off' note interpolated two entry names with no e(), and the
+    escaping test above could not see it because its limit left the omitted
+    list empty."""
+    # The hostile name must be OMITTED, so it has to be RARE — the top-N are
+    # the ones drawn, and the note names the strongest pair left OUT.
+    df = frame(
+        [{"year": 2020, "canonical_entries": ["Big", "Also"],
+          "concepts": [], "topics": []}] * 5
+        + [{"year": 2020, "canonical_entries": [HOSTILE, "Rare"],
+            "concepts": [], "topics": []}] * 2)
+    _per, totals, co, _years = vocabulary.tally(df)
+    html = vocabulary.render_matrix(totals, co, limit=2)   # draws Big+Also only
+    # NOT "left off:" — the source f-string wraps between those two words, so
+    # that assertion never matches and the test fails for the wrong reason.
+    # Assert on the DATA the path emits instead.
+    assert "articles)" in html and "Rare" in html, (
+        "fixture did not reach the omitted-pair disclosure")
+    assert "<script>" not in html
+    assert "Ev'il" not in html
 
 
 def test_adjacent_ramp_steps_stay_distinguishable():
@@ -365,14 +488,26 @@ def test_every_colour_in_the_stylesheet_clears_the_floor_it_claims():
     """The page argues every step is >=3:1. Three hardcoded colours in
     VOCAB_STYLE did not clear it, one of them the funnel's own data ink."""
     surface = _luminance("#1c1917")
-    data_ink = re.findall(r"\.(?:fstage|kbar) i\{[^}]*background:(#[0-9a-fA-F]{6})",
-                          vocabulary.VOCAB_STYLE)
-    # A regex that silently matches nothing would pass this test forever, so
-    # assert it found what it claims to: the funnel bars and the collapse bars.
-    assert len(data_ink) == 2, f"expected 2 data-ink colours, found {data_ink}"
+
+    # Extract EVERY colour and require each to be classified. A selector-scoped
+    # regex was evadable four ways — a space before the brace, a 3-digit hex,
+    # an rgb() form, or simply a NEW dark data-ink selector — each of which left
+    # the list non-empty so the "did it match anything" guard never fired.
+    # Here an unrecognised colour fails rather than being skipped.
+    NON_DATA_INK = {
+        "#0c0a09": "tooltip background — its INK is 15.7:1 on it",
+        "#44403c": "the self-cell hatch, which encodes NO information",
+    }
+    found = set(re.findall(r"(#[0-9a-fA-F]{3,6})\b", vocabulary.VOCAB_STYLE))
+    assert found, "no colours found — did VOCAB_STYLE change shape?"
+    assert not re.search(r"\brgb\(", vocabulary.VOCAB_STYLE), (
+        "an rgb() colour would slip past the hex scan above")
+    data_ink = sorted(c for c in found if c not in NON_DATA_INK)
+    assert data_ink, "every colour was classified as non-data-ink — suspicious"
     for c in data_ink:
         lum = _luminance(c)
         ratio = (max(lum, surface) + 0.05) / (min(lum, surface) + 0.05)
+        assert len(c) == 7, f"{c} is short-form hex; the luminance check needs #rrggbb"
         assert ratio >= 3.0, f"{c} is {ratio:.2f}:1 — below the floor the page claims"
 
 

@@ -57,7 +57,16 @@ VOCAB_STYLE = """
 .vlg{opacity:.45;letter-spacing:.06em;text-transform:uppercase;margin:0 5px}
 .vlg-note{opacity:.3;margin-left:10px}
 
-.cascade{margin-top:6px}
+.cascade{margin-top:6px;overflow-x:auto}
+/* 186px of name plus 42px of peak plus gaps leaves 22 columns sharing 48px
+   on a 390px phone - 2.2px each, narrower than the two-digit year labels
+   above them. The page body is overflow-x:clip, so without a scroll
+   container here the far years are CLIPPED rather than reachable. */
+.cascade .crow{min-width:560px}
+@media (max-width:560px){
+  .crow{grid-template-columns:110px 1fr 34px;gap:8px}
+  .cn{font-size:11px}
+}
 .crow{display:grid;grid-template-columns:186px 1fr 42px;align-items:center;gap:12px;padding:1px 0}
 .crow:hover .cn{opacity:1;color:var(--brand)}
 .cn{font-size:12.5px;opacity:.72;text-align:right;overflow:hidden;
@@ -90,13 +99,20 @@ VOCAB_STYLE = """
 .mc{width:14px;height:14px;display:block;background:transparent;border-radius:1px}
 .mc.self{background:repeating-linear-gradient(45deg,#44403c,#44403c 1px,transparent 1px,transparent 3px)}
 .mn{font-size:11.5px;opacity:.7;text-align:right;overflow:hidden;
- text-overflow:ellipsis;white-space:nowrap}
+ text-overflow:ellipsis;white-space:nowrap;
+ /* Sticky, or scrolling right to reach column 42 takes every row name
+    with it and leaves an unlabelled grid. The matrix is 876px against a
+    672px content box, so this bites on DESKTOP, not just on a phone. */
+ position:sticky;left:0;z-index:2;background:var(--bg);padding-right:4px}
 .mrow:hover .mn{opacity:1;color:var(--brand)}
-.mhead{height:126px;align-items:end;margin-bottom:4px}
-.mh{display:block;width:14px;height:120px;position:relative}
+.mhead{height:152px;align-items:end;margin-bottom:4px;overflow:hidden}
+.mh{display:block;width:14px;height:146px;position:relative;overflow:hidden}
 .mh b{position:absolute;bottom:0;left:50%;transform-origin:left bottom;
- transform:rotate(-90deg) translateX(4px);font-weight:400;font-size:10.5px;
- opacity:.5;white-space:nowrap}
+ transform:rotate(-90deg) translateX(4px);font-weight:400;font-size:10px;
+ opacity:.5;white-space:nowrap;
+ /* Five of 42 names exceeded the old 120px band and rendered up through
+    the legend above it. Bounded and ellipsised, not trusted to be short. */
+ max-width:142px;overflow:hidden;text-overflow:ellipsis}
 .plist{margin-top:14px;max-width:640px}
 .prow{display:flex;justify-content:space-between;gap:20px;padding:8px 0;
  border-top:1px solid var(--rule);font-size:13.5px}
@@ -142,7 +158,15 @@ def n(x):
 
 
 def _peak(series):
-    """The peak year, ties broken toward the earlier one — deterministically."""
+    """The peak year, ties broken toward the earlier one — deterministically.
+
+    Returns None for an empty series. An entry can have zero dated rows (every
+    row NaN-yeared), and `max()` on an empty Counter raises — which took out
+    the whole deep-dive leg from the SORT KEY, one line above the display that
+    was already guarded.
+    """
+    if not series:
+        return None
     return max(series, key=lambda y: (series[y], -y))
 
 
@@ -200,13 +224,18 @@ def render_cascade(per, totals, years, limit=CASCADE_LIMIT):
     # whatever order rows happened to arrive — two of the 60 cascade entries
     # moved five years vertically under a reversed or shuffled index, on a page
     # whose entire thesis is "ordered by the year each peaked".
-    ranked.sort(key=lambda nm: (_peak(per[nm]), -totals[nm]))
+    # Name is the final tie-break: two pairs tie on BOTH peak year and total
+    # (Mergers/Inflation at 2008/173, Privacy/Data Analysis at 2011/217), and
+    # Counter.most_common preserves insertion order for equal counts — so the
+    # rendered page differed between row shuffles. Cosmetic, but the page is
+    # regenerated nightly and a churning diff is a real cost.
+    ranked.sort(key=lambda nm: (_peak(per[nm]) or 0, -totals[nm], nm))
     head = "".join(f"<div class='cy'>{y % 100:02d}</div>" for y in years)
     out = ""
     for nm in ranked:
         s = per[nm]
         vmax = max(s.values()) if s else 0
-        pk = _peak(s) if s else ""
+        pk = _peak(s) or ""
         cells = ""
         for y in years:
             v = s.get(y, 0)
@@ -215,7 +244,7 @@ def render_cascade(per, totals, years, limit=CASCADE_LIMIT):
             tip = f"{nm} · {y} · {v} article{'' if v == 1 else 's'}"
             cells += (f"<i class='cc vtip' style='{style}' "
                       f"data-tip='{e(tip)}' title='{e(tip)}'></i>")
-        out += (f"<div class='crow'><span class='cn'>{e(nm)}</span>"
+        out += (f"<div class='crow'><span class='cn' title='{e(nm)}'>{e(nm)}</span>"
                 f"<span class='cgrid'>{cells}</span>"
                 f"<span class='cpk'>{pk}</span></div>")
     return f"""  <section>
@@ -254,7 +283,7 @@ def render_collapse(alias_counts, totals, excluded, n_strings, n_clusters,
         <i style="width:100%"></i></div>
       <div class="fstage"><b>{n(n_clusters)}</b><span>clusters after embedding</span>
         <i style="width:{n_clusters / n_strings * 100:.1f}%"></i></div>
-      <div class="fstage"><b>{n(n_gate)}</b><span>reviewed by hand at the curation gate</span>
+      <div class="fstage"><b>{n(n_gate)}</b><span>clusters reviewed by hand at the curation gate</span>
         <i style="width:{max(n_gate / n_strings * 100, 0.3):.2f}%"></i></div>
       <div class="fstage lead"><b>{n(kept)}</b><span>entries kept · {excluded} strings
         cut on purpose</span><i style="width:{max(kept / n_strings * 100, 0.3):.2f}%"></i></div>
@@ -304,8 +333,12 @@ def render_matrix(totals, co, limit=MATRIX_LIMIT):
     pair_share = 100 * shown_pairs / (total_pairs or 1)
     weight_share = 100 * shown_w / total_w
     off = [(v, sorted(k)) for k, v in co.items() if k not in shown]
-    omitted = (f"{max(off)[1][0]} + {max(off)[1][1]} ({max(off)[0]} articles)"
-               if off else "none")
+    # e() on the NAMES, not on the assembled string: these are entry names from
+    # the taxonomy and this is the only path on these pages that was still
+    # interpolating them raw. It shipped on the commit whose deliverable was
+    # escaping tests, and the test missed it because limit=2 left `off` empty.
+    omitted = (f"{e(max(off)[1][0])} + {e(max(off)[1][1])} "
+               f"({n(max(off)[0])} articles)" if off else "none")
     head = "".join(f"<span class='mh'><b>{e(nm)}</b></span>" for nm in order)
     body = ""
     for a in order:
@@ -322,7 +355,7 @@ def render_matrix(totals, co, limit=MATRIX_LIMIT):
                    if v else f"{a} + {b} · never together")
             cells += (f"<i class='mc vtip' style='{st}' "
                       f"data-tip='{e(tip)}' title='{e(tip)}'></i>")
-        body += (f"<div class='mrow'><span class='mn'>{e(a)}</span>"
+        body += (f"<div class='mrow'><span class='mn' title='{e(a)}'>{e(a)}</span>"
                  f"<span class='mcells'>{cells}</span></div>")
     return f"""  <section>
     <div class="label viz-title">The matrix · top {len(order)} entries, ordered so
@@ -332,7 +365,7 @@ def render_matrix(totals, co, limit=MATRIX_LIMIT):
       <div class="mhead"><span class="mn"></span><span class="mcells">{head}</span></div>
 {body}
     </div>
-    <div class="note">Showing {shown_pairs} of {total_pairs} pairs ({pair_share:.0f}%
+    <div class="note">Showing {n(shown_pairs)} of {n(total_pairs)} pairs ({pair_share:.0f}%
       by count, {weight_share:.0f}% by shared-article weight). Strongest pair left
       off: {omitted}. A node-link diagram of these pairs is a hairball. A matrix gives
       every pair its own cell — but only pays off if related entries are adjacent, so
@@ -354,7 +387,9 @@ def render_concepts(corpus_data, taxonomy_doc, derivation=None, tallied=None,
     per, totals, _co, years = tallied or tally(rows)
     report = vocabulary_report(rows, "canonical_entries")
     raw = vocabulary_report(rows, "concepts")
-    tagged = sum(1 for v in rows["canonical_entries"] if len(v))
+    # as_list here too — round 1 fixed tally() and left this line, which
+    # failed on the same null row with the same six-page blast radius.
+    tagged = sum(1 for _, r in rows.iterrows() if as_list(r.get("canonical_entries")))
     entries = taxonomy_doc.get("entries") or []
     alias_counts = {x["name"]: len(x["aliases"]) for x in entries}
     excluded = len(taxonomy_doc.get("excluded_aliases") or [])
