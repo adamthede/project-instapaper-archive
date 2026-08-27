@@ -402,7 +402,12 @@ def test_the_committed_taxonomy_matches_the_committed_decisions():
     decisions it claims to come from. A hand-edit to v1.yaml fails here."""
     decisions = yaml.safe_load(DECISIONS.read_text())
     entries, audit = apply_decisions(load_head(CLUSTERS, NAMES), decisions)
-    assert TAXONOMY.read_text() == render(entries, decisions, audit)
+    # Derivation provenance is part of the rendered file, so the drift check
+    # has to supply it the same way main() does — otherwise this fails on a
+    # correct file for the wrong reason.
+    from vocab.apply_curation import derivation_stats
+    assert TAXONOMY.read_text() == render(entries, decisions, audit,
+                                          derivation_stats(CLUSTERS))
 
 
 @needs_derivation
