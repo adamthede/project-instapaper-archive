@@ -367,8 +367,33 @@ def test_every_colour_in_the_stylesheet_clears_the_floor_it_claims():
     surface = _luminance("#1c1917")
     data_ink = re.findall(r"\.(?:fstage|kbar) i\{[^}]*background:(#[0-9a-fA-F]{6})",
                           vocabulary.VOCAB_STYLE)
-    assert data_ink, "no data-ink colours found — did the selectors change?"
+    # A regex that silently matches nothing would pass this test forever, so
+    # assert it found what it claims to: the funnel bars and the collapse bars.
+    assert len(data_ink) == 2, f"expected 2 data-ink colours, found {data_ink}"
     for c in data_ink:
         lum = _luminance(c)
         ratio = (max(lum, surface) + 0.05) / (min(lum, surface) + 0.05)
         assert ratio >= 3.0, f"{c} is {ratio:.2f}:1 — below the floor the page claims"
+
+
+def test_the_two_sub_floor_colours_are_measured_against_the_right_thing():
+    """Both were flagged as below 3:1, and both are fine — because the ratio
+    that matters is not the one against the page surface.
+
+    #0c0a09 is the TOOLTIP BACKGROUND. Its job is to be dark; what has to be
+    readable is the ink on top of it, which is 15.7:1.
+
+    #44403c is the diagonal hatch on the matrix's self-cells, which deliberately
+    encodes NO INFORMATION — an entry always co-occurs with itself. A recessive
+    non-data mark that stayed under the data floor is correct, not an oversight,
+    and raising it would draw a bright line through the middle of the matrix.
+    """
+    assert "#0c0a09" in vocabulary.VOCAB_STYLE and "#44403c" in vocabulary.VOCAB_STYLE
+    ink_on_tooltip = _luminance("#e7e5e4"), _luminance("#0c0a09")
+    ratio = (max(ink_on_tooltip) + 0.05) / (min(ink_on_tooltip) + 0.05)
+    assert ratio >= 4.5, f"tooltip text is {ratio:.2f}:1 on its own background"
+    # The hatch must stay recessive: brighter than this and it competes with data.
+    hatch = _luminance("#44403c")
+    surface = _luminance("#1c1917")
+    assert (hatch + 0.05) / (surface + 0.05) < 3.0, (
+        "the no-information hatch is now as loud as the data")
