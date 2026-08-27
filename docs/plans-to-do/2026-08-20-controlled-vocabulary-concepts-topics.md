@@ -4,7 +4,7 @@ status: "In Progress"
 priority: "P1"
 project: "articles"
 created: 2026-08-20
-linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/18"
+linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/20"
 # Phase A shipped in PR #13; linked_pr tracks the LATEST phase PR so /shipped
 # and the Reconciler can trace this plan to work in flight.
 depends_on:
@@ -253,7 +253,36 @@ Drift watch: when the running miss rate crosses a threshold, that is the
 signal to cut taxonomy v2 (re-cluster the unmatched tail, curate the delta,
 re-join - Phase C is cheap by design).
 
-### Phase E — The pages that follow
+### Phase E — DONE 2026-08-26
+
+Two pages, both live on the build: **/concepts/** (the Cascade, then the
+Collapse) and **/together/** (the co-occurrence matrix). The gate reads
+`canonical_entries` and returns RANKABLE at 41.2% top-20, 248 entries, 0.0%
+singletons.
+
+**The plan's prediction was wrong in a useful way.** "No code change should be
+needed; if one is, that is a bug in the gate" — the repoint was needed, and it
+was not a bug: `concepts_verdict` read the raw column, which was correct when
+written because no canonical column existed. The real lesson is the one that
+followed: gating the pages on `rankable` ALONE meant that on an index with no
+canonical column the verdict fell back to the raw field, trivially cleared the
+bar on a small corpus, and then died on `KeyError` inside the deep-dive
+try/except — silently taking /trends/, /orgs/, /people/ and /locations/ down
+with it. One missing column cost five pages. The column's presence is now a
+precondition in its own right.
+
+**Design decisions, for whoever revisits.** The Cascade is ordered by peak year,
+not volume — that sort IS the visualization, and by volume the same 1,320 cells
+say nothing. Intensity is per-entry, so a quiet entry's peak reads as clearly as
+a loud one's. Orange is promoted from accent to encoding on these two pages
+only. The ramp was validated rather than chosen (monotonic, every step ≥3:1
+against stone-900); three earlier orange ramps failed that floor because orange
+sits darker than amber at equal chroma. Both properties are pinned by tests.
+
+**Not done:** trends heatmap rows using the vocabulary, and Phase D (nightly
+per-article classification), which was never on the critical path for the pages.
+
+### Phase E — as originally specified
 
 - `/concepts/` and `/topics/` build automatically once coverage clears the
   existing `RANKABLE_HEAD_COVERAGE = 40%` constant, which is already
