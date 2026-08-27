@@ -36,10 +36,19 @@ log = logging.getLogger(__name__)
 RE_EXEC_ENV = "ARCHIVE_NIGHTLY_REEXECED"
 SKIP_ENV = "ARCHIVE_SKIP_PULL"
 TIMEOUT = 120
+# Classification probes, not transfers — see the ls-remote call below.
+PROBE_TIMEOUT = 20
 
 
-def _git(repo: Path, *args, timeout=TIMEOUT):
-    """Run git, returning (ok, stdout). Never raises."""
+def _git(repo: Path, *args, timeout=None):
+    """Run git, returning (ok, stdout). Never raises.
+
+    `timeout=None` then falling back to the module constant, rather than
+    `timeout=TIMEOUT` in the signature: a default argument binds ONCE at
+    definition time, so reassigning freshness.TIMEOUT silently did nothing.
+    A knob that looks adjustable and is not costs someone an afternoon.
+    """
+    timeout = TIMEOUT if timeout is None else timeout
     try:
         p = subprocess.run(["git", "-C", str(repo), *args],
                            capture_output=True, text=True, errors="replace",
@@ -81,7 +90,11 @@ def _state(repo: Path):
     if not ok or "origin" not in remotes.split():
         return "unknown (no remote named origin)"
     if not _git(repo, "fetch", "origin", branch, "--quiet")[0]:
-        ok, _ = _git(repo, "ls-remote", "--exit-code", "--heads", "origin", branch)
+        # A short timeout: this is a probe to CLASSIFY a failure that already
+        # happened, not a transfer. At the full 120s a dead network held the
+        # chain for up to four minutes before giving up.
+        ok, _ = _git(repo, "ls-remote", "--exit-code", "--heads", "origin", branch,
+                     timeout=PROBE_TIMEOUT)
         if not ok:
             return f"unknown ({branch} is not on origin)"
         return f"unknown (cannot reach origin/{branch})"

@@ -209,10 +209,7 @@ def run_post_sync_legs(args, result) -> dict:
     return legs
 
 
-_FRESHNESS = "not checked"
-
-
-def _record_failure(args, message: str) -> None:
+def _record_failure(args, message: str, freshness_status="not checked") -> None:
     """Write a heartbeat for a run that never produced a SyncResult.
 
     Without this the heartbeat only ever records successes, which makes it
@@ -223,7 +220,7 @@ def _record_failure(args, message: str) -> None:
     moment = utcnow()
     result = SyncResult(started_at=moment, finished_at=moment,
                         outcome="fail", error_message=message,
-                        freshness=_FRESHNESS)
+                        freshness=freshness_status)
     write_heartbeat(Path(args.heartbeat).expanduser(), result)
 
 
@@ -248,7 +245,6 @@ def main(argv=None) -> int:
             log.warning("freshness check failed (%s); continuing", exc)
             freshness_status = f"error: {exc}"
         log.info("code freshness: %s", freshness_status)
-        globals()["_FRESHNESS"] = freshness_status
 
     try:
         if args.check_auth:
@@ -279,11 +275,11 @@ def main(argv=None) -> int:
     except MatterError as exc:
         # These carry their own remediation; a traceback would bury it.
         log.error("%s", exc)
-        _record_failure(args, str(exc))
+        _record_failure(args, str(exc), freshness_status)
         return 2
     except KeyboardInterrupt:
         log.error("Interrupted. The watermark was not advanced; re-run to continue.")
-        _record_failure(args, "interrupted")
+        _record_failure(args, "interrupted", freshness_status)
         return 2
 
     summary = result.as_dict()

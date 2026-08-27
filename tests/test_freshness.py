@@ -18,6 +18,7 @@ NEXT night while reporting success for tonight. That is the same silent-stalenes
 bug wearing a different hat, which is why the re-exec is not optional and why
 the failed-re-exec path says the output is behind the disk.
 """
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -177,8 +178,13 @@ def test_a_re_exec_sets_the_one_shot_flag(origin_and_clone, monkeypatch):
     monkeypatch.setattr(freshness.os, "execv", lambda *a: None)
     monkeypatch.setattr(freshness.sys, "argv", ["/abs/export.py"])
     # execv is stubbed, so control falls through to the "unreachable" guard.
+    calls = []
+    monkeypatch.setattr(freshness.os, "execv", lambda e, a: calls.append(a))
     with pytest.raises(AssertionError, match="unreachable"):
         freshness.ensure_fresh(clone, argv=[])
+    # `argv is not None`, not `if argv`: with an empty list the re-exec must
+    # carry just the script, not fall back to the whole of sys.argv.
+    assert calls[0][1:] == ["/abs/export.py"], calls[0]
     assert freshness.os.environ.get(freshness.RE_EXEC_ENV) == "1", (
         "the flag is never set, so the guard reading it can never fire")
 
@@ -309,3 +315,148 @@ def test_git_missing_entirely_is_survivable(origin_and_clone, monkeypatch):
     monkeypatch.setattr(freshness.subprocess, "run", boom)
     _origin, clone = origin_and_clone
     assert "unknown" in freshness.ensure_fresh(clone)
+
+
+# --- the module's actual thesis, exercised end to end --------------------
+
+def test_after_a_re_exec_the_code_that_runs_is_the_code_that_was_pulled(tmp_path):
+    """The one test that proves what this module claims.
+
+    Every other execv here is stubbed, so none of them demonstrate the point:
+    that a process which pulls new code goes on to RUN that code rather than
+    the code it started with. This builds a throwaway origin and clone holding
+    a script that calls the real ensure_fresh, advances origin with a changed
+    source marker, and checks which marker the finishing process reports.
+
+    No vault, no network, no launchd, ~1s. Adapted from the reviewer's harness,
+    which closed a gap I could not close from inside the suite.
+    """
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    git(origin, "init", "-q", "--initial-branch=main")
+    git(origin, "config", "user.email", "t@example.com")
+    git(origin, "config", "user.name", "T")
+
+    runner = '''
+import json, os, sys
+sys.path.insert(0, {core!r})
+import freshness
+MARKER = "{marker}"
+status = freshness.ensure_fresh(os.path.dirname(os.path.abspath(__file__)), sys.argv[1:])
+print(json.dumps({{"marker": MARKER, "status": status, "argv": sys.argv,
+                   "flag": os.environ.get(freshness.RE_EXEC_ENV)}}))
+'''
+    core = str(REPO_ROOT / "scripts" / "core")
+    (origin / "run.py").write_text(runner.format(core=core, marker="OLD-CODE"))
+    git(origin, "add", "-A")
+    git(origin, "commit", "-qm", "one")
+
+    clone = tmp_path / "clone"
+    subprocess.run(["git", "clone", "-q", str(origin), str(clone)], check=True)
+    assert "OLD-CODE" in (clone / "run.py").read_text()
+
+    (origin / "run.py").write_text(runner.format(core=core, marker="NEW-CODE-FROM-THE-PULL"))
+    git(origin, "add", "-A")
+    git(origin, "commit", "-qm", "two")
+
+    proc = subprocess.run([sys.executable, str(clone / "run.py"), "--full", "--deploy"],
+                          capture_output=True, text=True, timeout=60)
+    assert proc.returncode == 0, proc.stderr
+    out = json.loads(proc.stdout.strip().splitlines()[-1])
+
+    # The process that FINISHED is running the pulled code, not the code it began with.
+    assert out["marker"] == "NEW-CODE-FROM-THE-PULL", (
+        "the re-exec did not happen, or ran the pre-pull code")
+    # It re-execed exactly once and the flag stopped it looping.
+    assert out["flag"] == "1"
+    assert out["status"] == "already re-execed this run"
+    # Arguments and the script path survived the replacement.
+    assert out["argv"][1:] == ["--full", "--deploy"]
+    assert out["argv"][0].endswith("run.py")
+
+
+# --- the heartbeat wiring: the fix for the finding that mattered most -----
+
+def _sync_result(**kw):
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    from matter.state import utcnow
+    from matter.sync import SyncResult
+    return SyncResult(started_at=utcnow(), **kw)
+
+
+def test_the_freshness_status_survives_the_heartbeat_json_round_trip():
+    """The whole point of moving this out of the log. A field that can silently
+    stop being written, in the feature built to eliminate silent staleness, is
+    the last place to leave untested."""
+    r = _sync_result(freshness="stale: 3 modified file(s) on main")
+    assert json.loads(json.dumps(r.as_dict()))["freshness"] == \
+        "stale: 3 modified file(s) on main"
+
+
+def test_a_run_that_skipped_the_check_says_so_rather_than_nothing():
+    assert _sync_result().as_dict()["freshness"] == "not checked"
+
+
+def test_the_failure_heartbeat_carries_the_status_of_ITS_OWN_run(tmp_path, monkeypatch):
+    """A module-level global made an early-failure heartbeat stamp the PREVIOUS
+    run's status — a heartbeat asserting something false about the run it
+    describes, in the feature built to stop exactly that."""
+    sys.path.insert(0, str(REPO_ROOT / "scripts" / "core"))
+    import export_matter_to_archive as cli
+
+    hb = tmp_path / "hb.json"
+    args = cli.build_parser().parse_args(["--heartbeat", str(hb)])
+    cli._record_failure(args, "boom", "stale: 2 modified file(s) on main")
+    assert json.loads(hb.read_text())["freshness"] == "stale: 2 modified file(s) on main"
+
+    cli._record_failure(args, "boom again")      # a later run that did not check
+    assert json.loads(hb.read_text())["freshness"] == "not checked", (
+        "this run reported a previous run's freshness")
+
+
+# --- the gates, exercised rather than parsed -----------------------------
+
+@pytest.mark.parametrize("argv, should_run", [
+    ([], True),
+    (["--no-freshness-check"], False),
+    (["--dry-run"], False),
+    (["--full", "--deploy"], True),
+])
+def test_the_check_is_gated_by_the_flags_that_claim_to_gate_it(argv, should_run, monkeypatch):
+    """The previous version asserted argparse set an attribute, which left the
+    BRANCH unexercised — mutating the condition to `if True:` stayed green."""
+    sys.path.insert(0, str(REPO_ROOT / "scripts" / "core"))
+    import export_matter_to_archive as cli
+
+    called = []
+    monkeypatch.setattr(cli.freshness, "ensure_fresh",
+                        lambda *a, **k: called.append(a) or "current (main)")
+    monkeypatch.setattr(cli, "resolve_vault_path",
+                        lambda *_a, **_k: (_ for _ in ()).throw(SystemExit(0)))
+    with pytest.raises(SystemExit):
+        cli.main(argv + ["--no-heartbeat"])
+    assert bool(called) is should_run
+
+
+def test_the_normal_heartbeat_carries_the_status_too(tmp_path, monkeypatch):
+    """The success path, which the SyncResult-level tests above cannot see:
+    they build the object directly, so removing `result.freshness = ...` from
+    main() left every one of them green while the nightly's ordinary heartbeat
+    silently lost the field."""
+    sys.path.insert(0, str(REPO_ROOT / "scripts" / "core"))
+    import export_matter_to_archive as cli
+    from matter.state import utcnow
+    from matter.sync import SyncResult
+
+    hb = tmp_path / "hb.json"
+    monkeypatch.setattr(cli.freshness, "ensure_fresh",
+                        lambda *a, **k: "stale: 4 modified file(s) on main")
+    monkeypatch.setattr(cli, "resolve_vault_path", lambda *_a, **_k: tmp_path)
+    monkeypatch.setattr(cli, "run_sync",
+                        lambda _c: SyncResult(started_at=utcnow(), finished_at=utcnow(),
+                                              outcome="ok"))
+    monkeypatch.setattr(cli, "run_post_sync_legs", lambda *_a, **_k: {})
+
+    cli.main(["--heartbeat", str(hb)])
+    assert json.loads(hb.read_text())["freshness"] == "stale: 4 modified file(s) on main", (
+        "the ordinary nightly heartbeat lost the freshness status")
