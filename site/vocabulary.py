@@ -35,8 +35,9 @@ nothing so that Social Media can be bright, which is the opposite of the point.
 import collections
 import html
 import pathlib
+import sys
 
-from corpus import vocabulary_report  # noqa: F401  (re-exported for callers)
+from corpus import as_list, vocabulary_report  # noqa: F401
 from htmlkit import page
 
 e = html.escape
@@ -71,7 +72,7 @@ VOCAB_STYLE = """
 .fstage{display:grid;grid-template-columns:104px 1fr;align-items:center;gap:14px;padding:7px 0}
 .fstage b{font-size:22px;font-weight:300;font-variant-numeric:tabular-nums;text-align:right}
 .fstage span{font-size:12px;opacity:.5;grid-column:2}
-.fstage i{grid-column:2;height:8px;background:#7a3f14;display:block;margin-top:3px;min-width:3px}
+.fstage i{grid-column:2;height:8px;background:#a4551c;display:block;margin-top:3px;min-width:3px}
 .fstage.lead i{background:var(--brand)}
 .fstage.lead b{color:var(--brand)}
 .collapse{margin-top:8px}
@@ -117,20 +118,32 @@ def load_taxonomy(path):
     taxonomy must cost the two pages, never the whole site build. generate.py
     is the last step of a nightly that has already walked the vault.
     """
+    # Validate with the STRICT loader rather than re-deriving a weaker one.
+    # scripts/core/taxonomy.load rejects entries missing aliases, null aliases,
+    # non-mapping entries, null names and scalar excluded_aliases — each with a
+    # comment saying why. A second permissive loader here let all five straight
+    # back through to crash the render, which is precisely the defect commit
+    # 64f1c55 was written to close. One validator, used twice.
     try:
+        core = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "core"
+        if str(core) not in sys.path:
+            sys.path.insert(0, str(core))
+        import taxonomy as strict
         import yaml
-        doc = yaml.safe_load(pathlib.Path(path).read_text())
+        strict.load(path)                        # raises TaxonomyError if unusable
+        return yaml.safe_load(pathlib.Path(path).read_text())
     except Exception as exc:  # noqa: BLE001 - the site build outranks this file
-        print(f"  WARNING: taxonomy unreadable ({exc}); vocabulary pages skipped")
+        print(f"  WARNING: taxonomy unusable ({exc}); vocabulary pages skipped")
         return None
-    if not isinstance(doc, dict) or not (doc.get("entries") or []):
-        print("  WARNING: taxonomy has no entries; vocabulary pages skipped")
-        return None
-    return doc
 
 
 def n(x):
     return f"{x:,}"
+
+
+def _peak(series):
+    """The peak year, ties broken toward the earlier one — deterministically."""
+    return max(series, key=lambda y: (series[y], -y))
 
 
 def _step(v, vmax):
@@ -158,9 +171,16 @@ def tally(rows):
     co = collections.Counter()
     years = collections.Counter()
     for _, r in rows.iterrows():
-        ents = sorted(set(r["canonical_entries"]))
-        if "year" in r and r["year"] == r["year"]:
-            y = int(r["year"])
+        # as_list, not the raw value: its docstring is "Entity columns arrive as
+        # lists, numpy arrays, or NaN", and this was the only module in site/
+        # reading an entity column without it. A single None row raised
+        # TypeError inside the deep-dive try/except and cost SIX page groups
+        # plus articles.json — the same blast radius as the column bug, from a
+        # different trigger.
+        ents = sorted({x for x in as_list(r.get("canonical_entries")) if isinstance(x, str)})
+        y = r.get("year")
+        if y is not None and y == y:            # NaN-safe
+            y = int(y)
             years[y] += 1
             for name in ents:
                 per[name][y] += 1
@@ -175,20 +195,26 @@ def render_cascade(per, totals, years, limit=CASCADE_LIMIT):
     ranked = [nm for nm, _ in totals.most_common(limit)]
     # Peak year ascending, then volume descending inside a year. This sort IS
     # the visualization — by count instead, the same cells say nothing.
-    ranked.sort(key=lambda nm: (max(per[nm], key=lambda y: per[nm][y]), -totals[nm]))
+    # (count, -year) so a tie resolves to the EARLIER year deterministically.
+    # max() alone returns the first maximal key in Counter insertion order, i.e.
+    # whatever order rows happened to arrive — two of the 60 cascade entries
+    # moved five years vertically under a reversed or shuffled index, on a page
+    # whose entire thesis is "ordered by the year each peaked".
+    ranked.sort(key=lambda nm: (_peak(per[nm]), -totals[nm]))
     head = "".join(f"<div class='cy'>{y % 100:02d}</div>" for y in years)
     out = ""
     for nm in ranked:
         s = per[nm]
         vmax = max(s.values()) if s else 0
-        pk = max(s, key=lambda y: s[y]) if s else ""
+        pk = _peak(s) if s else ""
         cells = ""
         for y in years:
             v = s.get(y, 0)
             col = _step(v, vmax)
             style = f"background:{col}" if col else ""
             tip = f"{nm} · {y} · {v} article{'' if v == 1 else 's'}"
-            cells += f"<i class='cc vtip' style='{style}' data-tip='{e(tip)}'></i>"
+            cells += (f"<i class='cc vtip' style='{style}' "
+                      f"data-tip='{e(tip)}' title='{e(tip)}'></i>")
         out += (f"<div class='crow'><span class='cn'>{e(nm)}</span>"
                 f"<span class='cgrid'>{cells}</span>"
                 f"<span class='cpk'>{pk}</span></div>")
@@ -266,6 +292,20 @@ def render_matrix(totals, co, limit=MATRIX_LIMIT):
     order = _seriate(top, co)
     vmax = max((co.get(frozenset((a, b)), 0)
                 for a in order for b in order if a != b), default=1)
+    # What the top-N cut hides, computed rather than hand-waved. This codebase
+    # states every other exclusion it makes (pre-min-year weeks, the people
+    # quarantine, the grade-level clip); a matrix that draws 6% of the pairs
+    # under a headline of 11,369 should not be the exception.
+    shown = {frozenset((a, b)) for a in order for b in order if a != b}
+    shown_w = sum(co.get(k, 0) for k in shown if k in co)
+    total_w = sum(co.values()) or 1
+    shown_pairs = sum(1 for k in shown if co.get(k))
+    total_pairs = len([1 for v in co.values() if v])
+    pair_share = 100 * shown_pairs / (total_pairs or 1)
+    weight_share = 100 * shown_w / total_w
+    off = [(v, sorted(k)) for k, v in co.items() if k not in shown]
+    omitted = (f"{max(off)[1][0]} + {max(off)[1][1]} ({max(off)[0]} articles)"
+               if off else "none")
     head = "".join(f"<span class='mh'><b>{e(nm)}</b></span>" for nm in order)
     body = ""
     for a in order:
@@ -280,7 +320,8 @@ def render_matrix(totals, co, limit=MATRIX_LIMIT):
             st = f"background:{col}" if col else ""
             tip = (f"{a} + {b} · {v} article{'' if v == 1 else 's'} together"
                    if v else f"{a} + {b} · never together")
-            cells += f"<i class='mc vtip' style='{st}' data-tip='{e(tip)}'></i>"
+            cells += (f"<i class='mc vtip' style='{st}' "
+                      f"data-tip='{e(tip)}' title='{e(tip)}'></i>")
         body += (f"<div class='mrow'><span class='mn'>{e(a)}</span>"
                  f"<span class='mcells'>{cells}</span></div>")
     return f"""  <section>
@@ -291,7 +332,9 @@ def render_matrix(totals, co, limit=MATRIX_LIMIT):
       <div class="mhead"><span class="mn"></span><span class="mcells">{head}</span></div>
 {body}
     </div>
-    <div class="note">A node-link diagram of these pairs is a hairball. A matrix gives
+    <div class="note">Showing {shown_pairs} of {total_pairs} pairs ({pair_share:.0f}%
+      by count, {weight_share:.0f}% by shared-article weight). Strongest pair left
+      off: {omitted}. A node-link diagram of these pairs is a hairball. A matrix gives
       every pair its own cell — but only pays off if related entries are adjacent, so
       rows are seriated by nearest neighbour. The bright blocks on the diagonal are
       real clusters of attention. The diagonal itself is hatched: an entry always
@@ -304,11 +347,11 @@ def _stat(value, label):
             f'<div class="label">{e(label)}</div></div>')
 
 
-def render_concepts(corpus_data, taxonomy_doc, derivation=None,
+def render_concepts(corpus_data, taxonomy_doc, derivation=None, tallied=None,
                     site_title="The Week in Reading", domain=""):
     """The /concepts/ page: the Cascade, then the Collapse."""
     rows = corpus_data.rows
-    per, totals, _co, years = tally(rows)
+    per, totals, _co, years = tallied or tally(rows)
     report = vocabulary_report(rows, "canonical_entries")
     raw = vocabulary_report(rows, "concepts")
     tagged = sum(1 for v in rows["canonical_entries"] if len(v))
@@ -344,10 +387,11 @@ def render_concepts(corpus_data, taxonomy_doc, derivation=None,
     return page("Concepts", body, depth=1)
 
 
-def render_together(corpus_data, site_title="The Week in Reading", domain=""):
+def render_together(corpus_data, tallied=None,
+                    site_title="The Week in Reading", domain=""):
     """The /together/ page: co-occurrence as an ordered matrix."""
     rows = corpus_data.rows
-    _per, totals, co, _years = tally(rows)
+    _per, totals, co, _years = tallied or tally(rows)
     pairs = "".join(
         f"<div class='prow'><span class='pn'>{e(sorted(k)[0])} <em>+</em> "
         f"{e(sorted(k)[1])}</span><span class='pv num'>{n(v)}</span></div>"

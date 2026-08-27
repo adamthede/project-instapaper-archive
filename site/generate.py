@@ -564,7 +564,8 @@ def render_hero(corpus_data):
 """
 
 
-def render_index(weeks, year_pages=(), facets=False, excluded=0, corpus_data=None):
+def render_index(weeks, year_pages=(), facets=False, excluded=0,
+                 corpus_data=None, facet_names=()):
     total_articles = sum(int(m["article_count"]) for m in weeks)
     total_words = sum(int(m["total_words"]) for m in weeks)
     total_hours = round(sum(float(m["reading_time_hours"]) for m in weeks), 1)
@@ -680,10 +681,22 @@ def render_index(weeks, year_pages=(), facets=False, excluded=0, corpus_data=Non
     if facets:
         years_html = "".join(
             f'<a href="years/{e(y)}/">{e(y)}</a>' for y in sorted(year_pages))
+        # Built from the facets that ACTUALLY exist rather than hardcoded, so
+        # a page can never ship unreachable again. /concepts/ and /together/
+        # did exactly that: rendered, deployed, and linked from nowhere on the
+        # site — a closed loop with no entrance.
+        facet_links = "".join(
+            f'<a href="{name}/">{e(label)}</a>'
+            for name, label in (("trends", "Trends"), ("orgs", "Organizations"),
+                                ("people", "People"), ("locations", "Places"),
+                                ("concepts", "Concepts"),
+                                ("together", "What travels together"),
+                                ("articles", "Every article"))
+            if name in set(facet_names))
         facet_nav = f"""
   <section>
     <div class="label viz-title">Beyond the week</div>
-    <div class="yearheads"><a href="trends/">Trends</a><a href="orgs/">Organizations</a><a href="people/">People</a><a href="locations/">Places</a><a href="articles/">Every article</a></div>
+    <div class="yearheads">{facet_links}</div>
     <div class="label viz-title" style="margin-top:22px">Year rollups</div>
     <div class="yearheads">{years_html}</div>
   </section>
@@ -909,8 +922,12 @@ def generate(synthesis_dir, out_dir, index_path=None):
                 print(f"deep-dive pages failed ({err!r}): rendering weeks only",
                       file=sys.stderr)
                 year_pages = set()
+                # Every facet the deep-dive leg can write must be listed, or a
+                # build that "rendered weeks only" still deploys a survivor with
+                # broken outbound links — /concepts/ did, pointing at a
+                # /together/ that was never written.
                 for stale in ("years", "orgs", "people", "locations", "trends",
-                              "articles", "articles.json"):
+                              "articles", "articles.json", "concepts", "together"):
                     p = tmp / stale
                     if p.is_dir():
                         shutil.rmtree(p, ignore_errors=True)
@@ -919,6 +936,14 @@ def generate(synthesis_dir, out_dir, index_path=None):
         (tmp / "index.html").write_text(
             render_index(weeks, year_pages=year_pages, facets=bool(year_pages),
                          excluded=len(pre_epoch),
+                         # The names of the facet dirs actually on disk. The
+                         # `facets` flag above only says the leg ran; the nav
+                         # has to know WHICH pages exist or it links to 404s
+                         # (or, as /concepts/ did, silently omits a page that
+                         # shipped with no entrance anywhere on the site).
+                         facet_names=[d.name for d in sorted(tmp.iterdir())
+                                      if d.is_dir()
+                                      and (d / "index.html").exists()],
                          # Only when the deep-dive leg SUCCEEDED: a corpus that
                          # blew up mid-render must not still be feeding the
                          # hero, or the index would advertise an archive whose

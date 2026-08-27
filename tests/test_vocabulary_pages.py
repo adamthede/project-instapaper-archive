@@ -13,6 +13,8 @@ pinned by a test that fails for that specific reason:
      >= 3:1 against the surface. The check is encoded here so a later "let's
      make it prettier" has to re-earn it rather than just look nice locally.
 """
+import collections
+import os
 import pathlib
 import re
 import sys
@@ -34,24 +36,32 @@ def frame(rows):
 
 
 def tiny():
-    """Two entries whose PEAK order and VOLUME order disagree.
+    """A fixture whose orderings all DISAGREE.
 
-    This is the whole point of the fixture and it took a surviving mutation to
-    get right. The first version had iPod peaking earlier AND carrying more
-    articles, so sorting by peak year and sorting by volume produced the
-    identical order — the test could not tell the two apart, and replacing the
-    peak sort with a volume sort left it green.
+    Rewritten twice, and the second rewrite is the instructive one. Version 1
+    let a volume-sort mutation pass because the early-peaking entry also had
+    the most articles. Version 2 fixed that by giving each entry exactly ONE
+    year — which quietly made "peak year" indistinguishable from "first year",
+    "last year" and "the only year", and per-entry-PEAK indistinguishable from
+    per-entry-TOTAL. Six further mutations sailed through, including "not
+    sorted by peak at all".
 
-        iPod   1 article,  2006 only   -> peaks FIRST, smallest
-        AI     4 articles, 2020 only   -> peaks LAST,  largest
+    So `Lens` spans four years with an INTERIOR peak, and the two entries
+    disagree on every axis a mutation could confuse:
 
-    Peak order:   iPod, AI.   Volume order:  AI, iPod.
+        Lens   2006:1  2010:5  2014:2  2020:1   first 2006  peak 2010  last 2020  total 9
+        AI                             2020:4   first 2020  peak 2020  last 2020  total 4
+
+    peak order   -> Lens, AI     first order -> Lens, AI
+    last order   -> AI, Lens     volume      -> Lens, AI  (but see the assertions)
     """
-    return frame(
-        [{"year": 2006, "canonical_entries": ["iPod"], "concepts": [], "topics": []}]
-        + [{"year": 2020, "canonical_entries": ["Artificial Intelligence"],
-            "concepts": [], "topics": []} for _ in range(4)]
-    )
+    rows = ([{"year": 2006, "canonical_entries": ["Lens"], "concepts": [], "topics": []}]
+            + [{"year": 2010, "canonical_entries": ["Lens"], "concepts": [], "topics": []}] * 5
+            + [{"year": 2014, "canonical_entries": ["Lens"], "concepts": [], "topics": []}] * 2
+            + [{"year": 2020, "canonical_entries": ["Lens"], "concepts": [], "topics": []}]
+            + [{"year": 2020, "canonical_entries": ["Artificial Intelligence"],
+                "concepts": [], "topics": []}] * 4)
+    return frame(rows)
 
 
 # --- 1. the gate ----------------------------------------------------------
@@ -99,12 +109,14 @@ def test_the_cascade_is_ordered_by_peak_year_not_by_volume():
     first for the right one. The assertion checks the PEAK COLUMN is ascending,
     which volume ordering cannot satisfy."""
     per, totals, _co, years = vocabulary.tally(tiny())
-    # The discriminating precondition: volume order is the REVERSE of peak order.
-    assert totals["iPod"] < totals["Artificial Intelligence"]
     html = vocabulary.render_cascade(per, totals, years)
     peaks = [int(y) for y in re.findall(r"class='cpk'>(\d{4})</span>", html)]
-    assert peaks == sorted(peaks), f"cascade not in peak order: {peaks}"
-    assert peaks[0] == 2006 and peaks[-1] == 2020
+
+    # The DISPLAYED peak must be the real peak — not the first year (2006) and
+    # not the last (2020). Lens spans 2006-2020 and peaks in 2010, so this one
+    # assertion rules out three separate mutations at once.
+    assert peaks == [2010, 2020], f"expected Lens@2010 then AI@2020, got {peaks}"
+    assert peaks == sorted(peaks), "cascade not in ascending peak order"
 
 
 def test_a_year_with_no_articles_gets_no_mark_rather_than_a_colour():
@@ -115,6 +127,14 @@ def test_a_year_with_no_articles_gets_no_mark_rather_than_a_colour():
     cells = re.findall(r"<i class='cc vtip' style='([^']*)'", html)
     assert "" in cells, "no unmarked cells — every year appears populated"
     assert any(c.startswith("background:") for c in cells)
+
+    # A QUIET year must still be marked. Lens 2006 is 1 of a peak of 5 (20%),
+    # so it sits low on the ramp but is not blank — otherwise "read nothing
+    # that year" and "read a little" render identically.
+    lens = [ch for ch in html.split("<div class='crow'>")
+            if "class='cn'>Lens<" in ch][0]
+    marked = len(re.findall(r"style='background:", lens))
+    assert marked == 4, f"Lens has 4 non-empty years, {marked} marked"
 
 
 def test_cascade_intensity_is_per_entry_not_global():
@@ -131,10 +151,20 @@ def test_cascade_intensity_is_per_entry_not_global():
         m = re.search(r"class='cn'>([^<]*)</span>", ch)
         if m and m.group(1):
             by_name[m.group(1)] = ch
-    for nm in ("iPod", "Artificial Intelligence"):
+    for nm in ("Lens", "Artificial Intelligence"):
         assert nm in by_name, f"{nm} missing from the cascade"
         assert top in by_name[nm], (
             f"{nm} never reaches the top ramp step — intensity is global, not per-entry")
+
+    # Scaled by each entry's PEAK (5), not its TOTAL (9): 2014's two articles
+    # are 40% of the peak and must land mid-ramp. Scaled by the total they are
+    # 22% and drop a step — a real visual difference on any multi-year entry,
+    # and invisible to a fixture where every entry occupies one year.
+    lens = by_name["Lens"]
+    swatches = re.findall(r"background:(#[0-9a-fA-F]{6})", lens)
+    assert vocabulary.ORANGE[2] in swatches, (
+        f"2014 did not land mid-ramp; got {swatches} — intensity is scaled by "
+        "the entry total rather than its peak")
 
 
 # --- 3. the palette -------------------------------------------------------
@@ -223,17 +253,122 @@ def test_the_shipped_taxonomy_carries_its_own_provenance():
     assert doc.get("gate_reviewed", 0) >= len(doc["entries"])
 
 
-def test_an_unjoined_index_does_not_take_down_the_other_deep_dives():
-    """The bug this pins: `rankable` alone gated the pages, and on an index with
-    no canonical column the verdict falls back to the raw `concepts` field —
-    which on a small corpus trivially clears the bar. The render path then died
-    on KeyError('canonical_entries') INSIDE the deep-dive try/except, so
-    /trends/, /orgs/, /people/ and /locations/ all silently stopped being
-    written. One missing column cost five pages.
-    """
-    import generate
+def test_an_unjoined_index_does_not_take_down_the_other_deep_dives(tmp_path):
+    """Behaviour, not source text.
 
-    src = pathlib.Path(generate.__file__).read_text()
-    # The column's presence must be a precondition in its own right.
-    assert "joined = deepdives.CANONICAL_COLUMN in corpus_data.rows.columns" in src
-    assert "if joined and rankable and tax_doc:" in src
+    The first version of this test asserted two literal lines existed in
+    generate.py. That is defeated by appending `joined = True` after them —
+    both lines still present, guard gone, suite green — and it breaks on any
+    harmless rename. It also duplicated a pre-existing trends-layer test that
+    does the real check. This builds the failure instead.
+    """
+    per, totals, co, years = vocabulary.tally(tiny())
+    # A row whose entity column is None is the shape that raised TypeError
+    # inside the deep-dive try/except and cost six page groups.
+    df = frame([
+        {"year": 2020, "canonical_entries": None, "concepts": [], "topics": []},
+        {"year": 2020, "canonical_entries": ["Lens"], "concepts": [], "topics": []},
+    ])
+    per, totals, _co, years = vocabulary.tally(df)      # must not raise
+    assert totals["Lens"] == 1
+    assert vocabulary.render_cascade(per, totals, years)
+
+
+@pytest.mark.parametrize("value", [None, float("nan"), "a bare string", 3])
+def test_tally_survives_every_shape_an_entity_column_arrives_in(value):
+    """corpus.as_list exists because this guarantee has failed before. This
+    module was the only one in site/ reading an entity column without it."""
+    df = frame([{"year": 2020, "canonical_entries": value,
+                 "concepts": [], "topics": []}])
+    per, totals, co, years = vocabulary.tally(df)       # must not raise
+    assert isinstance(totals, collections.Counter)
+
+
+def test_the_seriation_beats_the_orderings_it_claims_to_beat():
+    """The matrix's whole payoff is that related entries sit adjacent, and
+    nothing pinned it — seriation could be replaced by alphabetical, by input
+    order, or by picking the WEAKEST neighbour, and the suite stayed green.
+
+    Distance-weighted co-occurrence cost: sum of pair-weight times how far
+    apart the pair sits. Lower means tighter blocks.
+    """
+    idx = REPO_ROOT / "data" / "archive_index.parquet"
+    if not idx.exists():
+        pytest.skip("no built index")
+    c = corpus.load_corpus(str(idx))
+    if "canonical_entries" not in c.rows.columns:
+        pytest.skip("index predates the join")
+    _per, totals, co, _years = vocabulary.tally(c.rows)
+    names = [nm for nm, _ in totals.most_common(vocabulary.MATRIX_LIMIT)]
+
+    def cost(order):
+        pos = {nm: i for i, nm in enumerate(order)}
+        return sum(v * abs(pos[a] - pos[b])
+                   for k, v in co.items()
+                   for a, b in [tuple(k)]
+                   if a in pos and b in pos)
+
+    seriated = cost(vocabulary._seriate(names, co))
+    assert seriated < cost(sorted(names)), "no better than alphabetical"
+    assert seriated < cost(names), "no better than input order"
+
+
+def test_seriation_is_stable_across_hash_seeds():
+    """The previous version called _seriate twice in ONE process, which proves
+    nothing about hash seeding — the thing it was named for."""
+    import subprocess
+    script = (
+        "import sys,collections;sys.path.insert(0,'site');import vocabulary as V;"
+        "co=collections.Counter({frozenset(('a','b')):3,frozenset(('b','c')):2,"
+        "frozenset(('a','c')):1});print(V._seriate(['a','b','c','d'],co))")
+    outs = set()
+    for seed in ("0", "1", "42", "7919"):
+        env = {**os.environ, "PYTHONHASHSEED": seed}
+        r = subprocess.run([sys.executable, "-c", script], capture_output=True,
+                           text=True, cwd=REPO_ROOT, env=env)
+        assert r.returncode == 0, r.stderr
+        outs.add(r.stdout.strip())
+    assert len(outs) == 1, f"seriation varies with PYTHONHASHSEED: {outs}"
+
+
+HOSTILE = "Ev'il \"Quote\" <script>alert(1)</script> & more"
+
+
+@pytest.mark.parametrize("render", ["cascade", "matrix", "collapse"])
+def test_entry_names_are_escaped_on_every_renderer(render):
+    """Entry names are LLM output landing in single-quoted attributes. Removing
+    e() from any of the four paths left the suite green before this existed."""
+    df = frame([{"year": 2020, "canonical_entries": [HOSTILE, "Plain"],
+                 "concepts": [], "topics": []}])
+    per, totals, co, years = vocabulary.tally(df)
+    html = {"cascade": lambda: vocabulary.render_cascade(per, totals, years),
+            "matrix": lambda: vocabulary.render_matrix(totals, co, limit=2),
+            "collapse": lambda: vocabulary.render_collapse(
+                {HOSTILE: 5, "Plain": 1}, totals, 0, 100, 50, 10)}[render]()
+    assert "<script>" not in html, "raw script tag reached the page"
+    assert "Ev'il" not in html, "bare apostrophe would close a single-quoted attribute"
+    assert "&#x27;" in html and "&lt;script&gt;" in html
+
+
+def test_adjacent_ramp_steps_stay_distinguishable():
+    """The floor is pinned; the SEPARATION was not — and a 'let's make it
+    prettier' pass is likelier to compress the steps than to lower the floor.
+    At 11px and 14px cells, steps that converge make the ramp unreadable while
+    every existing test stays green."""
+    ls = [_luminance(c) for c in vocabulary.ORANGE]
+    for a, b in zip(ls, ls[1:]):
+        ratio = (b + 0.05) / (a + 0.05)
+        assert ratio >= 1.2, f"adjacent steps only {ratio:.2f}:1 apart"
+
+
+def test_every_colour_in_the_stylesheet_clears_the_floor_it_claims():
+    """The page argues every step is >=3:1. Three hardcoded colours in
+    VOCAB_STYLE did not clear it, one of them the funnel's own data ink."""
+    surface = _luminance("#1c1917")
+    data_ink = re.findall(r"\.(?:fstage|kbar) i\{[^}]*background:(#[0-9a-fA-F]{6})",
+                          vocabulary.VOCAB_STYLE)
+    assert data_ink, "no data-ink colours found — did the selectors change?"
+    for c in data_ink:
+        lum = _luminance(c)
+        ratio = (max(lum, surface) + 0.05) / (min(lum, surface) + 0.05)
+        assert ratio >= 3.0, f"{c} is {ratio:.2f}:1 — below the floor the page claims"
