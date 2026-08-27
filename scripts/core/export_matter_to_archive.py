@@ -34,6 +34,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from matter import sync as sync_module  # noqa: E402
+import freshness  # noqa: E402
 from matter.api import MatterClient  # noqa: E402
 from matter.credentials import load_token, looks_like_matter_token, redact, token_path  # noqa: E402
 from matter.errors import MatterError  # noqa: E402
@@ -92,6 +93,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Regenerate _site from the vault's synthesis files. "
                              "Unconditional: the weekly synthesis job writes week "
                              "files this sync never counts.")
+    parser.add_argument(
+        "--no-freshness-check", action="store_true",
+        help="do not fast-forward the checkout to origin before running "
+             "(the nightly does this so a merged fix actually reaches production)")
     parser.add_argument("--deploy", action="store_true",
                         help="Publish _site to Cloudflare Pages with wrangler. "
                              "Skipped if --rebuild-site failed; a failure here "
@@ -204,7 +209,7 @@ def run_post_sync_legs(args, result) -> dict:
     return legs
 
 
-def _record_failure(args, message: str) -> None:
+def _record_failure(args, message: str, freshness_status="not checked") -> None:
     """Write a heartbeat for a run that never produced a SyncResult.
 
     Without this the heartbeat only ever records successes, which makes it
@@ -214,13 +219,32 @@ def _record_failure(args, message: str) -> None:
         return
     moment = utcnow()
     result = SyncResult(started_at=moment, finished_at=moment,
-                        outcome="fail", error_message=message)
+                        outcome="fail", error_message=message,
+                        freshness=freshness_status)
     write_heartbeat(Path(args.heartbeat).expanduser(), result)
 
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     configure_logging(args)
+
+    # Before anything expensive: make sure this is the merged code. The launchd
+    # job has no git step, so without this the nightly rebuilds and deploys from
+    # whatever is checked out -- which has already silently shipped stale code
+    # for two days once. Fail-open: a git problem must never cost a night.
+    # NOTE this may not return: a successful pull re-execs so the new code is
+    # what actually runs, since modules are already imported by this point.
+    freshness_status = "not checked"
+    # --dry-run must not fast-forward the checkout or replace the process.
+    # Reaching for a dry run to inspect behaviour and having git mutated is a
+    # surprise nobody should get.
+    if not args.no_freshness_check and not args.dry_run:
+        try:
+            freshness_status = freshness.ensure_fresh(REPO_ROOT, argv)
+        except Exception as exc:  # noqa: BLE001 - never block the night
+            log.warning("freshness check failed (%s); continuing", exc)
+            freshness_status = f"error: {exc}"
+        log.info("code freshness: %s", freshness_status)
 
     try:
         if args.check_auth:
@@ -243,15 +267,19 @@ def main(argv=None) -> int:
         )
 
         result = run_sync(config)
+        # Onto the heartbeat, which is the channel the cockpit reads. A
+        # `stale:` night now SAYS it ran stale code instead of only whispering
+        # it into a log file.
+        result.freshness = freshness_status
 
     except MatterError as exc:
         # These carry their own remediation; a traceback would bury it.
         log.error("%s", exc)
-        _record_failure(args, str(exc))
+        _record_failure(args, str(exc), freshness_status)
         return 2
     except KeyboardInterrupt:
         log.error("Interrupted. The watermark was not advanced; re-run to continue.")
-        _record_failure(args, "interrupted")
+        _record_failure(args, "interrupted", freshness_status)
         return 2
 
     summary = result.as_dict()

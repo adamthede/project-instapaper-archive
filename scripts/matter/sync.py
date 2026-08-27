@@ -111,6 +111,22 @@ class SyncResult:
     reread_candidates: int = 0
     rereads_recorded: int = 0
     errors: int = 0
+    # What the code-freshness check found at the top of the run. It is in the
+    # heartbeat rather than only the log because the failure this feature exists
+    # to fix -- a nightly quietly running stale code -- went unnoticed for two
+    # days precisely BECAUSE its only symptom would have been in a log nobody
+    # reads at 04:45. A WARNING in that same file is the same failure at one
+    # remove.
+    #
+    # HALF DONE, deliberately. command-center's launchd_stats.py::_read_heartbeat
+    # is defensive -- it picks out start/finish/outcome and DISCARDS everything
+    # else -- so this key is safe to add (it cannot break that reader) but is
+    # not yet surfaced by it. Making a stale night visible in the cockpit needs
+    # either a command-center change to carry the key through, or a decision
+    # here about whether stale-but-successful should influence `outcome` and be
+    # picked up by the existing red/green logic. That is a design call, not a
+    # wiring one, so the value is recorded and the surfacing is left open.
+    freshness: str = "not checked"
     seen: int = 0
     highlights: int = 0
     requests: int = 0
@@ -145,6 +161,7 @@ class SyncResult:
             "throttled_seconds": round(self.throttled_seconds, 1),
             "watermark_before": self.watermark_before,
             "watermark_after": self.watermark_after,
+            "freshness": self.freshness,
             "dedupe_source": self.dedupe_source,
             "dedupe_degraded": self.dedupe_degraded,
             "error": self.error_message,
