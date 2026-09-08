@@ -85,10 +85,44 @@ own; and `concepts_gate()` was split out of `render_deep_dives()` so the row can
 be settled before the first page is written.
 
 One mockup value the data could not reproduce: the "this week" note's ", on
-energy and on AI" was typed from reading the digest. `top_topics` is empty in
-that week record and every recent one, so the clause is derived from that field
-and omitted when it is empty.
+energy and on AI" was typed from reading the digest. The clause is derived from
+`top_topics` and omitted when that field is empty, which it is in 2026-W35.
 
-**Not merged and not deployed.** The repo has no CI and no review bots, so the
-Readiness Rule's second leg is an adversarial review by an agent that did not
-write this. That is the open item.
+CORRECTION 2026-09-08, from the review: an earlier version of this note said
+the field is empty "in every recent week". That is wrong. It is carried by 511
+of the 827 week records and by 4 of the last 12, so the clause is
+**intermittent** - it will appear and disappear from the cover between nightly
+rebuilds depending on what the newest week's synthesis extracted. Keeping it
+derived is still right; the alternative, ranking the week's canonical entries,
+returns six subjects tied at one article each on 2026-W35.
+
+## Review round 1 — 2026-09-08
+
+Adversarial review returned REQUEST CHANGES with two blockers. Both fixed in
+commit 5a95049.
+
+**B1. The move orphaned the index it moved.** Every week page kept a kicker
+reading "The Week in Reading" and a nav link reading "All weeks", both aimed at
+`../../` - the weeks index until the day the cover took the root. 1,712 links
+across 856 pages whose text named one page and whose target was another, with
+no 404 anywhere because the page they reached exists. And the row marked WEEKS
+with a span on those pages, so there was no way back from there either: 827
+week pages and 22 year pages had no route to their own index.
+
+Fixed both ways. `htmlkit.weeks_index_href(depth)` reads the index's address
+off the installed page row, so the chrome links resolve to it from any depth
+and in both site shapes. And `nav()` separates `here` (this IS the page, a
+span) from `under` (this page sits beneath it, a marked anchor), so a child
+page marks its section and can still reach it. Measured on a build from a fresh
+clone: 0 of 827 week pages and 0 of 22 year pages stranded, 1,712 of 1,712
+chrome links landing on the index, 12,836 internal links crawled, 0 broken.
+
+**B2. The fidelity test read a file the PR did not add.** The approved mockup
+sat in `docs/mockups/`, which `.gitignore` covers, so the suite was green in
+the authoring worktree and red on a clean checkout. It is now
+`tests/fixtures/2026-09-08-reading-cover.html`, tracked, and the test does not
+skip when it is missing.
+
+Non-blocking items N1 through N4 were all folded into the same commit.
+
+**Not merged and not deployed.** Round 2 of review is the open item.
