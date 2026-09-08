@@ -7,6 +7,22 @@ makes it automatic.
 
 ## One-time setup (Adam) — PLACEHOLDER FIRST
 
+> **Updated 2026-09-07 (verified against the live dashboard):** Pages no longer offers a
+> "Disable access to pages.dev subdomain" switch; any bullet below that names it is superseded.
+> The working sequence, after the placeholder deploy:
+> 1. Custom domains tab -> Set up a custom domain -> `reading.adamthede.com`. The DNS record is created for
+>    you; "Verifying" is the certificate step and turns Active within a few minutes.
+> 2. Pages project -> Settings -> Access policy -> Enable. This creates a Zero Trust Access
+>    application for `*.reading-adamthede.pages.dev`, which covers every per-deployment preview.
+> 3. Zero Trust -> Access -> Applications -> open that application -> add two more domains:
+>    `reading.adamthede.com` and the bare `reading-adamthede.pages.dev` (the wildcard does not match the bare host).
+>    Policy: Allow, Include = Emails, Adam's address only. Save.
+> 4. Test all three hostnames in a private window while the deploy is still the blank
+>    placeholder: `https://reading.adamthede.com`, `https://reading-adamthede.pages.dev`, and one `<hash>.reading-adamthede.pages.dev`
+>    preview URL. Each must show the Access login before the page.
+> 5. Only then build and deploy the real site.
+
+
 **Do not deploy the real content first.** Deploying before Access is
 configured leaves the whole archive publicly readable for as long as the
 dashboard work takes. The exposure is not hypothetical: the moment Cloudflare
