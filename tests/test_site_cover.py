@@ -100,6 +100,11 @@ ROWS = [
     ("2011-09-01", "legacy_htm", None, 250, ["Innovation"]),
     ("2012-01-10", "instapaper", "https://www.example.com/a", 600,
      ["Social Media", "Mobile Devices"]),
+    # Between the seam and the AI window on purpose: without a row here,
+    # "since 2018" and "since 2016" select the same articles and the constant
+    # that says which is a free variable no test can see.
+    ("2016-05-05", "instapaper", "https://old.example.net/g", 200,
+     ["Innovation"]),
     ("2018-04-02", "instapaper", "https://sub.example.org/b", 400,
      ["Artificial Intelligence"]),
     ("2019-06-03", "instapaper", "https://news.example.net/c", 1500,
@@ -555,6 +560,81 @@ def test_a_row_target_that_was_not_built_stops_the_build(tmp_path):
     assert "orgs/" in str(err.value)
 
 
+def test_the_cumulative_series_end_where_the_totals_do(index_file, synth_dir):
+    """Catches a step chart drawn off the wrong column.
+
+    The four step charts are the only figures on the cover with no printed
+    value of their own except their endpoint, which makes them the easiest
+    place for a wrong column to hide: swap `word_count` for
+    `reading_time_min` in `cover.series` and the cumulative-words line still
+    rises plausibly, still ends at a number, and every printed fact stays
+    right. Pinning each cumulative series to the total it is a running sum of
+    is what makes that visible.
+    """
+    import corpus as C
+    c = C.load_corpus(index_file)
+    weeks = gen.load_weeks(synth_dir)
+    axis = cover.axis_for(c.rows, weeks)
+    S, _ = cover.series(axis, c.rows, weeks)
+
+    assert sum(S["art"]) == len(ROWS)
+    assert S["wcum"][-1] == sum(r[3] * WORDS_PER_MINUTE for r in ROWS)
+    assert S["acum"][-1] == sum(w[1] for w in WEEKS)
+    assert sum(S["wkq"]) == len(WEEKS)
+    assert S["dcum"][-1] == len({_host(r[2]) for r in ROWS if r[2]})
+    # Every series is drawn on the one shared axis, or the four columns are
+    # four different charts wearing the same tick labels.
+    for key in ("art", "wcum", "acum", "wkq", "dq", "dcum", "vq", "airoll"):
+        assert len(S[key]) == axis.count, key
+
+
+def test_every_link_on_the_moved_index_resolves_from_its_new_address(site, built):
+    """Catches an href the move forgot to rewrite.
+
+    This is the failure the byte-comparison cannot see: that test strips the
+    `../` from every href before comparing, so an href that was never rewritten
+    normalises to exactly the same string as one that was. Resolving each link
+    against the built tree from the page's real location is what tells them
+    apart - a week link left as `weeks/2012-W02/` resolves to
+    `/weeks/weeks/2012-W02/` and is not there.
+    """
+    page_html = site["weeks/index.html"]
+    here = (built / "weeks").resolve()
+    checked = 0
+    for href in re.findall(r'href="([^"]+)"', page_html):
+        if href.startswith(("http", "#")):
+            continue
+        target = (here / href).resolve()
+        if href.endswith(".css"):
+            assert target.is_file(), href
+        else:
+            assert (target / "index.html").is_file(), \
+                f"{href} does not resolve from /weeks/"
+        checked += 1
+    assert checked > len(WEEKS), "the index links almost nothing: check the regex"
+
+
+def test_a_build_whose_row_names_a_missing_page_refuses_to_swap(
+        synth_dir, index_file, tmp_path, monkeypatch):
+    """Catches the broken-row guard being disconnected from the build.
+
+    The guard function has its own test; this one holds that `generate()` still
+    calls it. The row is forced to name a page nothing will write, and the
+    build has to abort before the swap - which is what keeps the last good site
+    standing on the night a prediction goes wrong. Delete the call and this
+    build ships a site whose every page carries a dead link.
+    """
+    real = gen.page_row
+    monkeypatch.setattr(gen, "page_row",
+                        lambda built, weeks_at_root=False:
+                        real(built, weeks_at_root) + [("x", "Ghost", "ghost/")])
+    out = tmp_path / "_ghost"
+    with pytest.raises(SystemExit) as err:
+        gen.generate(synth_dir, out, index_path=index_file)
+    assert "ghost/" in str(err.value)
+    assert not out.exists(), "a refused build must not swap a broken site in"
+
+
 def test_the_row_is_generated_once_not_pasted_into_a_renderer(site):
     """Catches a copy of the row markup in a second module.
 
@@ -570,16 +650,22 @@ def test_the_row_is_generated_once_not_pasted_into_a_renderer(site):
             f"{module} spells the row out instead of calling htmlkit.nav()"
 
 
-def test_a_build_does_not_leak_its_row_into_the_next_one(built, synth_dir,
-                                                         index_file, tmp_path):
+def test_a_build_does_not_leak_its_row_into_the_next_one(synth_dir, tmp_path):
     """Catches the module-level row outliving the build that installed it.
 
     The row is narrowed per build, which is module state on htmlkit. A build
     that installs a narrow row and does not restore it would hand the next
-    build - or a renderer called on its own, as every other test file does -
-    a row from a corpus it knows nothing about. `generate()` restores it in a
+    build - or a renderer called on its own, as every other test file does - a
+    row from a corpus it knows nothing about. `generate()` restores it in a
     finally block; drop that and this fails.
+
+    The build here is the weeks-only one, deliberately: a full build's row IS
+    the module default, so a leak from it is invisible. This one installs a
+    single-item row, which is exactly what must not survive.
     """
+    before = list(htmlkit._page_row)
+    gen.generate(synth_dir, tmp_path / "_weeksonly", index_path=None)
+    assert htmlkit._page_row == before
     assert htmlkit._page_row == htmlkit.PAGE_ROW
 
 
@@ -730,8 +816,11 @@ def test_nothing_on_the_cover_is_pinned_wider_than_the_viewport(built, site):
     assert "@media(max-width:760px){.wideh1{font-size:48px}.fgrid{grid-template-columns:1fr" in css
     assert "@media(max-width:1080px){.fgrid{grid-template-columns:1fr1fr" in css
     # The cover's measure is a max-width, not a width: at 390px the column is
-    # 390px wide, not 1180 with 790 hanging off the side.
+    # 390px wide, not 1180 with 790 hanging off the side. And the class has to
+    # be emitted, or the rule is dead and the cover renders in the 720px
+    # reading column with four columns crushed into it.
     assert ".page.wide{max-width:1180px}" in css
+    assert '<div class="page wide">' in site["index.html"]
     for svg in re.findall(r"<svg[^>]*>", site["index.html"]):
         assert "viewBox=" in svg, svg
         assert not re.search(r'\swidth="\d', svg), svg
