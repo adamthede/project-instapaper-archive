@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>reading.adamthede.com cover mockup, 8 September 2026</title>
+<style>
+:root{
+  --bg:#1c1917; --bg-raise:#292524; --bg-sink:#161312;
+  --ink:#e7e5e4; --ink-2:#a8a29e; --ink-3:#78716c; --ink-4:#57504c;
+  --rule:#44403c; --rule-2:#302b28;
+  --brand:#FF8F3B;
+  --amber:#fbbf24;
+  --rose:#fb7185;
+  --serif:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:ui-sans-serif,-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow-x:clip}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;font-size:15px}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.label{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+
+.mockbar{background:#241d17;border-bottom:1px solid #4a3a24;padding:12px 24px}
+.mockbar .in{max-width:1180px;margin:0 auto;display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+.mockbar b{color:var(--brand);font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:400}
+.mockbar span{color:var(--ink-2);font-size:13.5px;max-width:840px}
+
+.stickynav{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--rule)}
+.snin{max-width:1180px;margin:0 auto;padding:11px 24px;display:flex;align-items:baseline;gap:26px;flex-wrap:wrap}
+.wordmark{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--brand);text-decoration:none;white-space:nowrap}
+.wordmark i{font-style:normal;color:var(--ink-4)}
+.wordmark i::before{content:" / "}
+.sitelinks{margin-left:auto;display:flex;gap:18px;font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-4)}
+.sitelinks a{color:var(--ink-3);text-decoration:none}
+.sitelinks a:hover{color:var(--brand)}
+.sitelinks .on{color:var(--ink);border-bottom:1px solid var(--amber);padding-bottom:3px}
+
+.stamp{max-width:1180px;margin:0 auto;padding:16px 24px 0;display:flex;gap:16px;align-items:baseline;flex-wrap:wrap;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.stamp .pgn{color:var(--brand)}
+.stamp .url{color:var(--ink-2);letter-spacing:.04em;text-transform:none;font-size:12px}
+.stamp .note{color:var(--ink-4);letter-spacing:.04em;text-transform:none;margin-left:auto}
+
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px 96px}
+header.masthead{padding:64px 0 0}
+h1{font-family:var(--serif);font-weight:400;font-size:88px;line-height:.96;letter-spacing:-.022em}
+.dateline{margin-top:18px;font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;color:var(--ink-4);text-transform:uppercase}
+
+.fgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:40px;margin-top:66px}
+.fcol{min-width:0}
+.ftitle{font-family:var(--serif);font-size:27px;font-weight:400;letter-spacing:-.012em;color:var(--ink);padding-bottom:9px;border-bottom:1px solid var(--rule);margin:0}
+.fticks{margin-top:9px;color:var(--ink-4);font-size:9px;letter-spacing:.06em;display:flex;justify-content:space-between}
+.fstrip{display:block;width:100%;height:auto;margin-top:16px}
+.fstrip .favg{font-family:var(--mono);font-size:7px;fill:var(--amber);letter-spacing:.03em}
+.fstrip .ftick{font-family:var(--mono);font-size:7px;fill:#6d635c;letter-spacing:.06em}
+.fsteprow{margin-top:22px;padding-top:11px;border-top:1px dotted var(--rule)}
+.fsl{display:block;color:var(--ink-4)}
+.fstep{display:block;width:100%;height:auto;margin-top:5px}
+.fsev{display:block;text-align:right;font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:2px}
+.fhero{display:block;margin-top:36px;padding-top:16px;border-top:1px solid var(--rule)}
+.fhl{display:block;color:var(--ink-3);line-height:1.4}
+.fhv{display:block;font-family:var(--serif);font-size:74px;font-weight:400;line-height:.92;letter-spacing:-.03em;color:var(--ink-2);margin:10px 0 0}
+.fhv em{font-style:normal;font-size:.34em;color:var(--ink-4);letter-spacing:0}
+.fhero.accent .fhv{color:var(--amber)}
+.fhd{display:block;margin-top:12px;color:var(--ink-4);line-height:1.55}
+.fsec{display:grid;grid-template-columns:1fr 1fr;margin-top:34px}
+.fs{display:block;padding:15px 12px 15px 0;border-top:1px dotted var(--rule)}
+.fs:nth-child(even){padding-left:14px;border-left:1px dotted var(--rule)}
+.fs.wide{grid-column:1/3;padding-right:0;padding-left:0;border-left:none}
+.fsk{display:block;color:var(--ink-4);line-height:1.4}
+.fsv2{display:block;font-size:25px;font-weight:200;letter-spacing:-.02em;color:var(--ink);margin-top:8px;font-variant-numeric:tabular-nums}
+.fsv2 em{font-style:normal;font-size:.44em;color:var(--ink-4);margin-left:1px}
+.fss{display:block;margin-top:6px;font-family:var(--mono);font-size:9.5px;color:var(--ink-4);line-height:1.5;letter-spacing:.02em}
+.mini{list-style:none;margin-top:9px}
+.mini li{display:grid;grid-template-columns:1fr 40px;gap:5px;align-items:center;padding:3px 0;font-family:var(--mono);font-size:9.5px;color:var(--ink-3)}
+.mini .mk{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini .mb{grid-column:1/3;grid-row:2;height:1.5px;background:#2f2a27;margin:-1px 0 3px}
+.mini .mb i{display:block;height:100%;background:var(--amber);opacity:.65}
+.mini .mv{text-align:right;color:var(--ink-2)}
+.mini.dates li{grid-template-columns:1fr auto}
+.fnote{max-width:820px;margin:54px 0 0;font-family:var(--mono);font-size:10.5px;line-height:1.85;color:var(--ink-4);letter-spacing:.02em}
+.fnote b{color:var(--ink-2);font-weight:400}
+
+.below{border-top:1px solid var(--rule);margin-top:8px;padding-top:56px}
+.belowhead{display:flex;gap:20px;align-items:baseline;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--rule-2)}
+.belowhead h2{font-family:var(--serif);font-size:24px;font-weight:400;letter-spacing:-.012em}
+.belowhead .n{margin-left:auto;color:var(--ink-4)}
+.livecap{font-family:var(--serif);font-size:16px;line-height:1.62;color:var(--ink-2);max-width:660px;margin:16px 0 22px}
+.liveframe{position:relative;border:1px solid var(--rule-2);background:#1c1917;max-width:800px}
+.liveframe iframe{display:block;width:100%;height:1240px;border:0}
+.liveframe::after{content:"";position:absolute;left:0;right:0;bottom:0;height:120px;pointer-events:none;
+  background:linear-gradient(to bottom,rgba(28,25,23,0),var(--bg))}
+.livefoot{margin-top:12px;font-family:var(--mono);font-size:10.5px;color:var(--ink-4);letter-spacing:.02em;line-height:1.8}
+
+.decisions{border-top:1px solid var(--rule);background:var(--bg-sink);margin-top:80px;padding:60px 0 88px}
+.decisions .wrap{padding-bottom:0}
+.decisions h2{font-family:var(--serif);font-size:30px;font-weight:400;letter-spacing:-.012em}
+.decisions .lede{font-family:var(--serif);font-size:17px;line-height:1.65;color:var(--ink-2);max-width:660px;margin-top:14px}
+.dgrid{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--rule-2);margin-top:30px;border:1px solid var(--rule-2)}
+.dgrid li{background:var(--bg-sink);padding:20px 22px}
+.dgrid .q{font-family:var(--serif);font-size:17px;line-height:1.4}
+.dgrid .a{font-size:14px;line-height:1.6;color:var(--ink-2);margin-top:9px}
+.dgrid .a b{color:var(--ink);font-weight:400}
+.dgrid .tag{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);display:block;margin-bottom:10px}
+.dgrid .tag.mine{color:var(--amber)}
+.dgrid .tag.open{color:var(--rose)}
+
+footer{max-width:1180px;margin:0 auto;padding:44px 24px 72px;color:var(--ink-4);font-family:var(--mono);font-size:11px;line-height:1.8;letter-spacing:.04em}
+
+@media (max-width:1080px){
+  .fgrid{grid-template-columns:1fr 1fr;gap:44px}
+}
+@media (max-width:760px){
+  h1{font-size:48px}
+  .fgrid{grid-template-columns:1fr;gap:52px}
+  .fhv{font-size:62px}
+  .dgrid{grid-template-columns:1fr}
+  .snin{gap:8px 16px;padding:9px 20px}
+  .sitelinks{margin-left:0}
+  .liveframe iframe{height:1520px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="mockbar"><div class="in">
+  <b>Mockup, not a live site</b>
+  <span>A cover page for reading.adamthede.com, in the shape of the covers already live on
+  books and viewing. Every figure is computed from the reading archive and the week records.
+  Below the cover, the current index is rendered as it stands today.</span>
+</div></div>
+
+<div class="stickynav">
+  <div class="snin">
+    <a class="wordmark" href="#top">adamthede<i>reading</i></a>
+    <span class="sitelinks"><span class="on">Reading</span><a href="https://books.adamthede.com/">Books</a><a href="https://viewing.adamthede.com/">Viewing</a></span>
+  </div>
+</div>
+
+<article id="top">
+<div class="stamp"><span class="pgn">The cover</span><span class="url">reading.adamthede.com/</span><span class="note">proposed</span></div>
+<div class="wrap">
+  <header class="masthead">
+    <h1>A Reading Life</h1>
+    <p class="dateline num">2005 to 2026 &nbsp;&middot;&nbsp; 16,382 articles held in one index
+    &nbsp;&middot;&nbsp; as of 8 September 2026</p>
+  </header>
+
+  <div class="fgrid"><div class="fcol">
+<h2 class="ftitle">Articles</h2>
+<div class="fticks label"><span>2005</span><span>2010</span><span>2015</span><span>2020</span><span>2026</span></div>
+<svg viewBox="0 0 260 96" class="fstrip" role="img" aria-label="Articles read per quarter, 2005 to 2026, with the average of each era">
+<rect x="0.00" y="80.10" width="2.33" height="0.90" fill="#6f645c"/>
+<rect x="2.99" y="80.02" width="2.33" height="0.98" fill="#6f645c"/>
+<rect x="5.98" y="68.87" width="2.33" height="12.13" fill="#6f645c"/>
+<rect x="8.97" y="44.21" width="2.33" height="36.79" fill="#6f645c"/>
+<rect x="11.95" y="42.84" width="2.33" height="38.16" fill="#6f645c"/>
+<rect x="14.94" y="53.41" width="2.33" height="27.59" fill="#6f645c"/>
+<rect x="17.93" y="56.15" width="2.33" height="24.85" fill="#6f645c"/>
+<rect x="20.92" y="44.21" width="2.33" height="36.79" fill="#6f645c"/>
+<rect x="23.91" y="43.53" width="2.33" height="37.47" fill="#6f645c"/>
+<rect x="26.90" y="63.00" width="2.33" height="18.00" fill="#6f645c"/>
+<rect x="29.89" y="62.02" width="2.33" height="18.98" fill="#6f645c"/>
+<rect x="32.87" y="40.98" width="2.33" height="40.02" fill="#6f645c"/>
+<rect x="35.86" y="60.06" width="2.33" height="20.94" fill="#6f645c"/>
+<rect x="38.85" y="62.51" width="2.33" height="18.49" fill="#6f645c"/>
+<rect x="41.84" y="46.46" width="2.33" height="34.54" fill="#6f645c"/>
+<rect x="44.83" y="38.83" width="2.33" height="42.17" fill="#6f645c"/>
+<rect x="47.82" y="35.99" width="2.33" height="45.01" fill="#6f645c"/>
+<rect x="50.80" y="38.34" width="2.33" height="42.66" fill="#6f645c"/>
+<rect x="53.79" y="44.70" width="2.33" height="36.30" fill="#6f645c"/>
+<rect x="56.78" y="53.60" width="2.33" height="27.40" fill="#6f645c"/>
+<rect x="59.77" y="61.63" width="2.33" height="19.37" fill="#6f645c"/>
+<rect x="62.76" y="41.57" width="2.33" height="39.43" fill="#6f645c"/>
+<rect x="65.75" y="31.30" width="2.33" height="49.70" fill="#6f645c"/>
+<rect x="68.74" y="4.00" width="2.33" height="77.00" fill="#6f645c"/>
+<rect x="71.72" y="6.45" width="2.33" height="74.55" fill="#6f645c"/>
+<rect x="74.71" y="22.69" width="2.33" height="58.31" fill="#6f645c"/>
+<rect x="77.70" y="7.33" width="2.33" height="73.67" fill="#6f645c"/>
+<rect x="80.69" y="25.82" width="2.33" height="55.18" fill="#6f645c"/>
+<rect x="83.68" y="38.83" width="2.33" height="42.17" fill="#6f645c"/>
+<rect x="86.67" y="42.74" width="2.33" height="38.26" fill="#6f645c"/>
+<rect x="89.66" y="43.63" width="2.33" height="37.37" fill="#6f645c"/>
+<rect x="92.64" y="64.47" width="2.33" height="16.53" fill="#6f645c"/>
+<rect x="95.63" y="54.00" width="2.33" height="27.00" fill="#6f645c"/>
+<rect x="98.62" y="65.44" width="2.33" height="15.56" fill="#6f645c"/>
+<rect x="101.61" y="62.31" width="2.33" height="18.69" fill="#6f645c"/>
+<rect x="104.60" y="55.37" width="2.33" height="25.63" fill="#6f645c"/>
+<rect x="107.59" y="62.61" width="2.33" height="18.39" fill="#6f645c"/>
+<rect x="110.57" y="61.53" width="2.33" height="19.47" fill="#6f645c"/>
+<rect x="113.56" y="53.51" width="2.33" height="27.49" fill="#6f645c"/>
+<rect x="116.55" y="56.15" width="2.33" height="24.85" fill="#6f645c"/>
+<rect x="119.54" y="41.77" width="2.33" height="39.23" fill="#6f645c"/>
+<rect x="122.53" y="75.72" width="2.33" height="5.28" fill="#6f645c"/>
+<rect x="125.52" y="80.10" width="2.33" height="0.90" fill="#6f645c"/>
+<rect x="128.51" y="73.07" width="2.33" height="7.93" fill="#6f645c"/>
+<rect x="131.49" y="72.88" width="2.33" height="8.12" fill="#6f645c"/>
+<rect x="134.48" y="76.99" width="2.33" height="4.01" fill="#6f645c"/>
+<rect x="137.47" y="75.13" width="2.33" height="5.87" fill="#6f645c"/>
+<rect x="140.46" y="72.10" width="2.33" height="8.90" fill="#6f645c"/>
+<rect x="143.45" y="77.97" width="2.33" height="3.03" fill="#6f645c"/>
+<rect x="146.44" y="79.83" width="2.33" height="1.17" fill="#6f645c"/>
+<rect x="149.43" y="78.26" width="2.33" height="2.74" fill="#6f645c"/>
+<rect x="152.41" y="75.62" width="2.33" height="5.38" fill="#6f645c"/>
+<rect x="155.40" y="74.64" width="2.33" height="6.36" fill="#6f645c"/>
+<rect x="158.39" y="77.38" width="2.33" height="3.62" fill="#6f645c"/>
+<rect x="161.38" y="72.49" width="2.33" height="8.51" fill="#6f645c"/>
+<rect x="164.37" y="75.52" width="2.33" height="5.48" fill="#6f645c"/>
+<rect x="167.36" y="72.10" width="2.33" height="8.90" fill="#6f645c"/>
+<rect x="170.34" y="75.81" width="2.33" height="5.19" fill="#6f645c"/>
+<rect x="173.33" y="79.53" width="2.33" height="1.47" fill="#6f645c"/>
+<rect x="176.32" y="77.18" width="2.33" height="3.82" fill="#6f645c"/>
+<rect x="179.31" y="73.56" width="2.33" height="7.44" fill="#6f645c"/>
+<rect x="182.30" y="76.70" width="2.33" height="4.30" fill="#6f645c"/>
+<rect x="185.29" y="80.10" width="2.33" height="0.90" fill="#6f645c"/>
+<rect x="188.28" y="80.10" width="2.33" height="0.90" fill="#6f645c"/>
+<rect x="191.26" y="80.10" width="2.33" height="0.90" fill="#6f645c"/>
+<rect x="197.24" y="80.10" width="2.33" height="0.90" fill="#6f645c"/>
+<rect x="203.22" y="80.10" width="2.33" height="0.90" fill="#6f645c"/>
+<rect x="206.21" y="78.46" width="2.33" height="2.54" fill="#6f645c"/>
+<rect x="209.20" y="64.37" width="2.33" height="16.63" fill="#6f645c"/>
+<rect x="212.18" y="79.14" width="2.33" height="1.86" fill="#6f645c"/>
+<rect x="215.17" y="80.10" width="2.33" height="0.90" fill="#6f645c"/>
+<rect x="218.16" y="66.13" width="2.33" height="14.87" fill="#6f645c"/>
+<rect x="221.15" y="74.93" width="2.33" height="6.07" fill="#6f645c"/>
+<rect x="224.14" y="64.95" width="2.33" height="16.05" fill="#6f645c"/>
+<rect x="227.13" y="75.81" width="2.33" height="5.19" fill="#6f645c"/>
+<rect x="230.11" y="79.43" width="2.33" height="1.57" fill="#6f645c"/>
+<rect x="233.10" y="74.54" width="2.33" height="6.46" fill="#6f645c"/>
+<rect x="236.09" y="73.37" width="2.33" height="7.63" fill="#6f645c"/>
+<rect x="239.08" y="75.72" width="2.33" height="5.28" fill="#6f645c"/>
+<rect x="242.07" y="63.00" width="2.33" height="18.00" fill="#6f645c"/>
+<rect x="245.06" y="73.76" width="2.33" height="7.24" fill="#6f645c"/>
+<rect x="248.05" y="68.97" width="2.33" height="12.03" fill="#6f645c"/>
+<rect x="251.03" y="77.48" width="2.33" height="3.52" fill="#6f645c"/>
+<rect x="254.02" y="78.26" width="2.33" height="2.74" fill="#6f645c"/>
+<rect x="257.01" y="73.07" width="2.33" height="7.93" fill="#6f645c"/>
+<line x1="0.00" y1="45.04" x2="83.68" y2="45.04" stroke="#fbbf24" stroke-width=".7"/>
+<text x="2.00" y="41.54" class="favg">367.5</text>
+<line x1="83.68" y1="68.23" x2="191.26" y2="68.23" stroke="#fbbf24" stroke-width=".7"/>
+<text x="85.68" y="64.73" class="favg">130.5</text>
+<line x1="191.26" y1="75.07" x2="260.00" y2="75.07" stroke="#fbbf24" stroke-width=".7"/>
+<text x="193.26" y="71.57" class="favg">60.6</text>
+<line x1="0" y1="81" x2="260" y2="81" stroke="#3a3431" stroke-width=".5"/>
+<text x="0" y="93" class="ftick">articles read per quarter</text>
+</svg>
+<div class="fsteprow"><span class="fsl label">words, cumulative</span>
+<svg viewBox="0 0 260 34" class="fstep" role="img" aria-hidden="true">
+<polyline points="0.00,30.80 2.99,30.80 2.99,30.78 5.98,30.78 5.98,30.53 8.97,30.53 8.97,29.91 11.95,29.91 11.95,29.39 14.94,29.39 14.94,28.96 17.93,28.96 17.93,28.60 20.92,28.60 20.92,28.11 23.91,28.11 23.91,27.57 26.90,27.57 26.90,27.24 29.89,27.24 29.89,26.92 32.87,26.92 32.87,26.32 35.86,26.32 35.86,25.97 38.85,25.97 38.85,25.62 41.84,25.62 41.84,25.11 44.83,25.11 44.83,24.46 47.82,24.46 47.82,23.62 50.80,23.62 50.80,22.87 53.79,22.87 53.79,22.28 56.78,22.28 56.78,21.80 59.77,21.80 59.77,21.44 62.76,21.44 62.76,20.60 65.75,20.60 65.75,19.71 68.74,19.71 68.74,18.71 71.72,18.71 71.72,17.57 74.71,17.57 74.71,16.69 77.70,16.69 77.70,15.66 80.69,15.66 80.69,14.85 83.68,14.85 83.68,14.27 86.67,14.27 86.67,13.79 89.66,13.79 89.66,13.30 92.64,13.30 92.64,13.15 95.63,13.15 95.63,12.85 98.62,12.85 98.62,12.70 101.61,12.70 101.61,12.48 104.60,12.48 104.60,12.14 107.59,12.14 107.59,11.86 110.57,11.86 110.57,11.56 113.56,11.56 113.56,11.28 116.55,11.28 116.55,10.89 119.54,10.89 119.54,10.24 122.53,10.24 122.53,10.19 125.52,10.19 125.52,10.19 128.51,10.19 128.51,10.08 131.49,10.08 131.49,9.96 134.48,9.96 134.48,9.87 137.47,9.87 137.47,9.78 140.46,9.78 140.46,9.64 143.45,9.64 143.45,9.59 146.44,9.59 146.44,9.57 149.43,9.57 149.43,9.53 152.41,9.53 152.41,9.45 155.40,9.45 155.40,9.36 158.39,9.36 158.39,9.30 161.38,9.30 161.38,9.17 164.37,9.17 164.37,9.10 167.36,9.10 167.36,9.00 170.34,9.00 170.34,8.93 173.33,8.93 173.33,8.90 176.32,8.90 176.32,8.85 179.31,8.85 179.31,8.72 182.30,8.72 182.30,8.64 185.29,8.64 185.29,8.63 188.28,8.63 188.28,8.62 191.26,8.62 191.26,8.62 194.25,8.62 194.25,8.62 197.24,8.62 197.24,8.61 200.23,8.61 200.23,8.61 203.22,8.61 203.22,8.61 206.21,8.61 206.21,8.54 209.20,8.54 209.20,8.02 212.18,8.02 212.18,7.97 215.17,7.97 215.17,7.97 218.16,7.97 218.16,7.25 221.15,7.25 221.15,7.10 224.14,7.10 224.14,6.68 227.13,6.68 227.13,6.53 230.11,6.53 230.11,6.48 233.10,6.48 233.10,6.31 236.09,6.31 236.09,6.02 239.08,6.02 239.08,5.92 242.07,5.92 242.07,5.24 245.06,5.24 245.06,5.02 248.05,5.02 248.05,4.58 251.03,4.58 251.03,4.47 254.02,4.47 254.02,4.37 257.01,4.37 257.01,4.00 260.00,4.00" fill="none" stroke="#7d7268" stroke-width=".9"/>
+</svg><span class="fsev num">17.4M</span></div>
+<div class="fhero accent"><span class="fhl label">articles read</span><span class="fhv num">16,382</span><span class="fhd label">over 22 years and three ways of saving</span></div>
+<div class="fsec"><span class="fs"><span class="fsk label">words</span><span class="fsv2 num">17.4<em>M</em></span><span class="fss">17,358,714 in all</span></span><span class="fs"><span class="fsk label">reading time</span><span class="fsv2 num">1,216<em> hrs</em></span><span class="fss">at 238 words a minute</span></span><span class="fs"><span class="fsk label">busiest year</span><span class="fsv2 num">2011</span><span class="fss">2,675 articles, 2.5M words</span></span><span class="fs"><span class="fsk label">the 2012 seam</span><span class="fsv2 num">&minus;49<em>%</em></span><span class="fss">2,675 articles in 2011, 1,373 in 2012</span></span></div>
+</div><div class="fcol">
+<h2 class="ftitle">Weeks</h2>
+<div class="fticks label"><span>2005</span><span>2010</span><span>2015</span><span>2020</span><span>2026</span></div>
+<svg viewBox="0 0 260 96" class="fstrip" role="img" aria-label="Weeks with a written synthesis per quarter, with the average of each era">
+<rect x="0.00" y="59.00" width="2.33" height="22.00" fill="#6f645c"/>
+<rect x="2.99" y="48.00" width="2.33" height="33.00" fill="#6f645c"/>
+<rect x="5.98" y="37.00" width="2.33" height="44.00" fill="#6f645c"/>
+<rect x="8.97" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="11.95" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="14.94" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="17.93" y="15.00" width="2.33" height="66.00" fill="#6f645c"/>
+<rect x="20.92" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="23.91" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="26.90" y="20.50" width="2.33" height="60.50" fill="#6f645c"/>
+<rect x="29.89" y="15.00" width="2.33" height="66.00" fill="#6f645c"/>
+<rect x="32.87" y="4.00" width="2.33" height="77.00" fill="#6f645c"/>
+<rect x="35.86" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="38.85" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="41.84" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="44.83" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="47.82" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="50.80" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="53.79" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="56.78" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="59.77" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="62.76" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="65.75" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="68.74" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="71.72" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="74.71" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="77.70" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="80.69" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="83.68" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="86.67" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="89.66" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="92.64" y="4.00" width="2.33" height="77.00" fill="#6f645c"/>
+<rect x="95.63" y="15.00" width="2.33" height="66.00" fill="#6f645c"/>
+<rect x="98.62" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="101.61" y="4.00" width="2.33" height="77.00" fill="#6f645c"/>
+<rect x="104.60" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="107.59" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="110.57" y="15.00" width="2.33" height="66.00" fill="#6f645c"/>
+<rect x="113.56" y="15.00" width="2.33" height="66.00" fill="#6f645c"/>
+<rect x="116.55" y="9.50" width="2.33" height="71.50" fill="#6f645c"/>
+<rect x="119.54" y="15.00" width="2.33" height="66.00" fill="#6f645c"/>
+<rect x="122.53" y="37.00" width="2.33" height="44.00" fill="#6f645c"/>
+<rect x="125.52" y="59.00" width="2.33" height="22.00" fill="#6f645c"/>
+<rect x="128.51" y="37.00" width="2.33" height="44.00" fill="#6f645c"/>
+<rect x="131.49" y="31.50" width="2.33" height="49.50" fill="#6f645c"/>
+<rect x="134.48" y="26.00" width="2.33" height="55.00" fill="#6f645c"/>
+<rect x="137.47" y="26.00" width="2.33" height="55.00" fill="#6f645c"/>
+<rect x="140.46" y="31.50" width="2.33" height="49.50" fill="#6f645c"/>
+<rect x="143.45" y="53.50" width="2.33" height="27.50" fill="#6f645c"/>
+<rect x="146.44" y="42.50" width="2.33" height="38.50" fill="#6f645c"/>
+<rect x="149.43" y="48.00" width="2.33" height="33.00" fill="#6f645c"/>
+<rect x="152.41" y="31.50" width="2.33" height="49.50" fill="#6f645c"/>
+<rect x="155.40" y="20.50" width="2.33" height="60.50" fill="#6f645c"/>
+<rect x="158.39" y="31.50" width="2.33" height="49.50" fill="#6f645c"/>
+<rect x="161.38" y="20.50" width="2.33" height="60.50" fill="#6f645c"/>
+<rect x="164.37" y="15.00" width="2.33" height="66.00" fill="#6f645c"/>
+<rect x="167.36" y="20.50" width="2.33" height="60.50" fill="#6f645c"/>
+<rect x="170.34" y="15.00" width="2.33" height="66.00" fill="#6f645c"/>
+<rect x="173.33" y="48.00" width="2.33" height="33.00" fill="#6f645c"/>
+<rect x="176.32" y="31.50" width="2.33" height="49.50" fill="#6f645c"/>
+<rect x="179.31" y="31.50" width="2.33" height="49.50" fill="#6f645c"/>
+<rect x="182.30" y="26.00" width="2.33" height="55.00" fill="#6f645c"/>
+<rect x="185.29" y="64.50" width="2.33" height="16.50" fill="#6f645c"/>
+<rect x="188.28" y="70.00" width="2.33" height="11.00" fill="#6f645c"/>
+<rect x="191.26" y="70.00" width="2.33" height="11.00" fill="#6f645c"/>
+<rect x="197.24" y="75.50" width="2.33" height="5.50" fill="#6f645c"/>
+<rect x="203.22" y="75.50" width="2.33" height="5.50" fill="#6f645c"/>
+<rect x="206.21" y="59.00" width="2.33" height="22.00" fill="#6f645c"/>
+<rect x="209.20" y="20.50" width="2.33" height="60.50" fill="#6f645c"/>
+<rect x="212.18" y="64.50" width="2.33" height="16.50" fill="#6f645c"/>
+<rect x="215.17" y="75.50" width="2.33" height="5.50" fill="#6f645c"/>
+<rect x="218.16" y="37.00" width="2.33" height="44.00" fill="#6f645c"/>
+<rect x="221.15" y="53.50" width="2.33" height="27.50" fill="#6f645c"/>
+<rect x="224.14" y="37.00" width="2.33" height="44.00" fill="#6f645c"/>
+<rect x="227.13" y="48.00" width="2.33" height="33.00" fill="#6f645c"/>
+<rect x="230.11" y="53.50" width="2.33" height="27.50" fill="#6f645c"/>
+<rect x="233.10" y="53.50" width="2.33" height="27.50" fill="#6f645c"/>
+<rect x="236.09" y="64.50" width="2.33" height="16.50" fill="#6f645c"/>
+<rect x="239.08" y="31.50" width="2.33" height="49.50" fill="#6f645c"/>
+<rect x="242.07" y="31.50" width="2.33" height="49.50" fill="#6f645c"/>
+<rect x="245.06" y="20.50" width="2.33" height="60.50" fill="#6f645c"/>
+<rect x="248.05" y="20.50" width="2.33" height="60.50" fill="#6f645c"/>
+<rect x="251.03" y="31.50" width="2.33" height="49.50" fill="#6f645c"/>
+<rect x="254.02" y="20.50" width="2.33" height="60.50" fill="#6f645c"/>
+<rect x="257.01" y="42.50" width="2.33" height="38.50" fill="#6f645c"/>
+<line x1="0.00" y1="14.45" x2="83.68" y2="14.45" stroke="#fbbf24" stroke-width=".7"/>
+<text x="2.00" y="10.95" class="favg">12.1</text>
+<line x1="83.68" y1="26.55" x2="191.26" y2="26.55" stroke="#fbbf24" stroke-width=".7"/>
+<text x="85.68" y="23.05" class="favg">9.9</text>
+<line x1="191.26" y1="49.65" x2="260.00" y2="49.65" stroke="#fbbf24" stroke-width=".7"/>
+<text x="193.26" y="46.15" class="favg">5.7</text>
+<line x1="0" y1="81" x2="260" y2="81" stroke="#3a3431" stroke-width=".5"/>
+<text x="0" y="93" class="ftick">weeks carrying a synthesis</text>
+</svg>
+<div class="fsteprow"><span class="fsl label">articles covered, cumulative</span>
+<svg viewBox="0 0 260 34" class="fstep" role="img" aria-hidden="true">
+<polyline points="0.00,30.80 2.99,30.80 2.99,30.78 5.98,30.78 5.98,30.55 8.97,30.55 8.97,29.97 11.95,29.97 11.95,29.32 14.94,29.32 14.94,28.86 17.93,28.86 17.93,28.45 20.92,28.45 20.92,27.83 23.91,27.83 23.91,27.20 26.90,27.20 26.90,26.90 29.89,26.90 29.89,26.58 32.87,26.58 32.87,25.90 35.86,25.90 35.86,25.56 38.85,25.56 38.85,25.24 41.84,25.24 41.84,24.65 44.83,24.65 44.83,23.95 47.82,23.95 47.82,23.18 50.80,23.18 50.80,22.49 53.79,22.49 53.79,21.88 56.78,21.88 56.78,21.42 59.77,21.42 59.77,21.09 62.76,21.09 62.76,20.43 65.75,20.43 65.75,19.55 68.74,19.55 68.74,18.31 71.72,18.31 71.72,17.04 74.71,17.04 74.71,16.08 77.70,16.08 77.70,14.86 80.69,14.86 80.69,13.94 83.68,13.94 83.68,13.24 86.67,13.24 86.67,12.58 89.66,12.58 89.66,11.97 92.64,11.97 92.64,11.68 95.63,11.68 95.63,11.24 98.62,11.24 98.62,10.98 101.61,10.98 101.61,10.66 104.60,10.66 104.60,10.22 107.59,10.22 107.59,9.92 110.57,9.92 110.57,9.60 113.56,9.60 113.56,9.10 116.55,9.10 116.55,8.73 119.54,8.73 119.54,8.06 122.53,8.06 122.53,7.98 125.52,7.98 125.52,7.97 128.51,7.97 128.51,7.83 131.49,7.83 131.49,7.70 134.48,7.70 134.48,7.63 137.47,7.63 137.47,7.53 140.46,7.53 140.46,7.38 143.45,7.38 143.45,7.33 146.44,7.33 146.44,7.31 149.43,7.31 149.43,7.27 152.41,7.27 152.41,7.18 155.40,7.18 155.40,7.07 158.39,7.07 158.39,7.01 161.38,7.01 161.38,6.87 164.37,6.87 164.37,6.77 167.36,6.77 167.36,6.63 170.34,6.63 170.34,6.54 173.33,6.54 173.33,6.51 176.32,6.51 176.32,6.45 179.31,6.45 179.31,6.31 182.30,6.31 182.30,6.25 185.29,6.25 185.29,6.24 188.28,6.24 188.28,6.24 191.26,6.24 191.26,6.24 194.25,6.24 194.25,6.24 197.24,6.24 197.24,6.24 200.23,6.24 200.23,6.24 203.22,6.24 203.22,6.23 206.21,6.23 206.21,6.18 209.20,6.18 209.20,5.91 212.18,5.91 212.18,5.88 215.17,5.88 215.17,5.88 218.16,5.88 218.16,5.63 221.15,5.63 221.15,5.53 224.14,5.53 224.14,5.26 227.13,5.26 227.13,5.17 230.11,5.17 230.11,5.14 233.10,5.14 233.10,5.03 236.09,5.03 236.09,4.91 239.08,4.91 239.08,4.82 242.07,4.82 242.07,4.52 245.06,4.52 245.06,4.39 248.05,4.39 248.05,4.20 251.03,4.20 251.03,4.13 254.02,4.13 254.02,4.09 257.01,4.09 257.01,4.00 260.00,4.00" fill="none" stroke="#7d7268" stroke-width=".9"/>
+</svg><span class="fsev num">16,356</span></div>
+<div class="fhero"><span class="fhl label">weekly syntheses</span><span class="fhv num">827</span><span class="fhd label">one page per ISO week, written on-device</span></div>
+<div class="fsec"><span class="fs"><span class="fsk label">longest streak</span><span class="fsv2 num">358</span><span class="fss">weeks unbroken, Aug 2007 to Jun 2014</span></span><span class="fs"><span class="fsk label">quietest year</span><span class="fsv2 num">2021</span><span class="fss">3 weeks, 3 articles, 5,513 words</span></span><span class="fs"><span class="fsk label">deep dives</span><span class="fsv2 num">29</span><span class="fss">22 year rollups, 7 facets</span></span><span class="fs"><span class="fsk label">this week</span><span class="fsv2 num">10</span><span class="fss">articles in 2026-W35, 21,459 words, on energy and on AI</span></span></div>
+</div><div class="fcol">
+<h2 class="ftitle">Sources</h2>
+<div class="fticks label"><span>2005</span><span>2010</span><span>2015</span><span>2020</span><span>2026</span></div>
+<svg viewBox="0 0 260 96" class="fstrip" role="img" aria-label="Distinct publications appearing each quarter, with the average of each era">
+<rect x="65.75" y="73.59" width="2.33" height="7.41" fill="#6f645c"/>
+<rect x="68.74" y="53.62" width="2.33" height="27.38" fill="#6f645c"/>
+<rect x="71.72" y="53.05" width="2.33" height="27.95" fill="#6f645c"/>
+<rect x="74.71" y="58.19" width="2.33" height="22.81" fill="#6f645c"/>
+<rect x="77.70" y="66.17" width="2.33" height="14.83" fill="#6f645c"/>
+<rect x="80.69" y="76.44" width="2.33" height="4.56" fill="#6f645c"/>
+<rect x="83.68" y="30.81" width="2.33" height="50.19" fill="#6f645c"/>
+<rect x="86.67" y="21.11" width="2.33" height="59.89" fill="#6f645c"/>
+<rect x="89.66" y="39.93" width="2.33" height="41.07" fill="#6f645c"/>
+<rect x="92.64" y="65.03" width="2.33" height="15.97" fill="#6f645c"/>
+<rect x="95.63" y="47.35" width="2.33" height="33.65" fill="#6f645c"/>
+<rect x="98.62" y="63.89" width="2.33" height="17.11" fill="#6f645c"/>
+<rect x="101.61" y="53.05" width="2.33" height="27.95" fill="#6f645c"/>
+<rect x="104.60" y="39.93" width="2.33" height="41.07" fill="#6f645c"/>
+<rect x="107.59" y="50.77" width="2.33" height="30.23" fill="#6f645c"/>
+<rect x="110.57" y="47.92" width="2.33" height="33.08" fill="#6f645c"/>
+<rect x="113.56" y="50.77" width="2.33" height="30.23" fill="#6f645c"/>
+<rect x="116.55" y="40.50" width="2.33" height="40.50" fill="#6f645c"/>
+<rect x="119.54" y="6.85" width="2.33" height="74.15" fill="#6f645c"/>
+<rect x="122.53" y="69.02" width="2.33" height="11.98" fill="#6f645c"/>
+<rect x="125.52" y="79.29" width="2.33" height="1.71" fill="#6f645c"/>
+<rect x="128.51" y="61.61" width="2.33" height="19.39" fill="#6f645c"/>
+<rect x="131.49" y="58.76" width="2.33" height="22.24" fill="#6f645c"/>
+<rect x="134.48" y="65.03" width="2.33" height="15.97" fill="#6f645c"/>
+<rect x="137.47" y="62.75" width="2.33" height="18.25" fill="#6f645c"/>
+<rect x="140.46" y="58.76" width="2.33" height="22.24" fill="#6f645c"/>
+<rect x="143.45" y="75.87" width="2.33" height="5.13" fill="#6f645c"/>
+<rect x="146.44" y="79.29" width="2.33" height="1.71" fill="#6f645c"/>
+<rect x="149.43" y="76.44" width="2.33" height="4.56" fill="#6f645c"/>
+<rect x="152.41" y="68.45" width="2.33" height="12.55" fill="#6f645c"/>
+<rect x="155.40" y="70.16" width="2.33" height="10.84" fill="#6f645c"/>
+<rect x="158.39" y="77.01" width="2.33" height="3.99" fill="#6f645c"/>
+<rect x="161.38" y="61.04" width="2.33" height="19.96" fill="#6f645c"/>
+<rect x="164.37" y="65.03" width="2.33" height="15.97" fill="#6f645c"/>
+<rect x="167.36" y="58.19" width="2.33" height="22.81" fill="#6f645c"/>
+<rect x="170.34" y="66.74" width="2.33" height="14.26" fill="#6f645c"/>
+<rect x="173.33" y="73.59" width="2.33" height="7.41" fill="#6f645c"/>
+<rect x="176.32" y="67.88" width="2.33" height="13.12" fill="#6f645c"/>
+<rect x="179.31" y="55.33" width="2.33" height="25.67" fill="#6f645c"/>
+<rect x="182.30" y="66.17" width="2.33" height="14.83" fill="#6f645c"/>
+<rect x="185.29" y="78.15" width="2.33" height="2.85" fill="#6f645c"/>
+<rect x="188.28" y="79.86" width="2.33" height="1.14" fill="#6f645c"/>
+<rect x="191.26" y="79.86" width="2.33" height="1.14" fill="#6f645c"/>
+<rect x="203.22" y="79.29" width="2.33" height="1.71" fill="#6f645c"/>
+<rect x="206.21" y="69.59" width="2.33" height="11.41" fill="#6f645c"/>
+<rect x="209.20" y="29.67" width="2.33" height="51.33" fill="#6f645c"/>
+<rect x="212.18" y="72.44" width="2.33" height="8.56" fill="#6f645c"/>
+<rect x="215.17" y="80.10" width="2.33" height="0.90" fill="#6f645c"/>
+<rect x="218.16" y="13.13" width="2.33" height="67.87" fill="#6f645c"/>
+<rect x="221.15" y="57.04" width="2.33" height="23.96" fill="#6f645c"/>
+<rect x="224.14" y="23.39" width="2.33" height="57.61" fill="#6f645c"/>
+<rect x="227.13" y="58.19" width="2.33" height="22.81" fill="#6f645c"/>
+<rect x="230.11" y="73.59" width="2.33" height="7.41" fill="#6f645c"/>
+<rect x="233.10" y="52.48" width="2.33" height="28.52" fill="#6f645c"/>
+<rect x="236.09" y="49.63" width="2.33" height="31.37" fill="#6f645c"/>
+<rect x="239.08" y="59.90" width="2.33" height="21.10" fill="#6f645c"/>
+<rect x="242.07" y="4.00" width="2.33" height="77.00" fill="#6f645c"/>
+<rect x="245.06" y="47.35" width="2.33" height="33.65" fill="#6f645c"/>
+<rect x="248.05" y="39.93" width="2.33" height="41.07" fill="#6f645c"/>
+<rect x="251.03" y="65.60" width="2.33" height="15.40" fill="#6f645c"/>
+<rect x="254.02" y="69.02" width="2.33" height="11.98" fill="#6f645c"/>
+<rect x="257.01" y="41.64" width="2.33" height="39.36" fill="#6f645c"/>
+<line x1="0.00" y1="77.24" x2="83.68" y2="77.24" stroke="#fbbf24" stroke-width=".7"/>
+<text x="2.00" y="73.74" class="favg">6.6</text>
+<line x1="83.68" y1="59.21" x2="191.26" y2="59.21" stroke="#fbbf24" stroke-width=".7"/>
+<text x="85.68" y="55.71" class="favg">38.2</text>
+<line x1="191.26" y1="56.93" x2="260.00" y2="56.93" stroke="#fbbf24" stroke-width=".7"/>
+<text x="193.26" y="53.43" class="favg">42.2</text>
+<line x1="0" y1="81" x2="260" y2="81" stroke="#3a3431" stroke-width=".5"/>
+<text x="0" y="93" class="ftick">distinct sources per quarter</text>
+</svg>
+<div class="fsteprow"><span class="fsl label">sources, cumulative</span>
+<svg viewBox="0 0 260 34" class="fstep" role="img" aria-hidden="true">
+<polyline points="65.75,30.80 68.74,30.80 68.74,29.78 71.72,29.78 71.72,29.03 74.71,29.03 74.71,28.49 77.70,28.49 77.70,28.26 80.69,28.26 80.69,28.24 83.68,28.24 83.68,27.05 86.67,27.05 86.67,25.70 89.66,25.70 89.66,25.03 92.64,25.03 92.64,24.84 95.63,24.84 95.63,24.42 98.62,24.42 98.62,24.28 101.61,24.28 101.61,23.98 104.60,23.98 104.60,23.44 107.59,23.44 107.59,22.93 110.57,22.93 110.57,22.35 113.56,22.35 113.56,21.79 116.55,21.79 116.55,21.16 119.54,21.16 119.54,19.88 122.53,19.88 122.53,19.81 125.52,19.81 125.52,19.79 128.51,19.79 128.51,19.55 131.49,19.55 131.49,19.32 134.48,19.32 134.48,19.02 137.47,19.02 137.47,18.69 140.46,18.69 140.46,18.32 143.45,18.32 143.45,18.30 146.44,18.30 146.44,18.25 149.43,18.25 149.43,18.23 152.41,18.23 152.41,18.11 155.40,18.11 155.40,17.83 158.39,17.83 158.39,17.81 161.38,17.81 161.38,17.57 164.37,17.57 164.37,17.27 167.36,17.27 167.36,16.90 170.34,16.90 170.34,16.64 173.33,16.64 173.33,16.55 176.32,16.55 176.32,16.25 179.31,16.25 179.31,15.74 182.30,15.74 182.30,15.46 185.29,15.46 185.29,15.43 188.28,15.43 188.28,15.43 191.26,15.43 191.26,15.43 194.25,15.43 194.25,15.43 197.24,15.43 197.24,15.43 200.23,15.43 200.23,15.43 203.22,15.43 203.22,15.43 206.21,15.43 206.21,15.20 209.20,15.20 209.20,14.15 212.18,14.15 212.18,13.92 215.17,13.92 215.17,13.90 218.16,13.90 218.16,11.82 221.15,11.82 221.15,11.50 224.14,11.50 224.14,10.31 227.13,10.31 227.13,9.87 230.11,9.87 230.11,9.75 233.10,9.75 233.10,9.19 236.09,9.19 236.09,8.56 239.08,8.56 239.08,8.28 242.07,8.28 242.07,6.65 245.06,6.65 245.06,6.03 248.05,6.03 248.05,5.30 251.03,5.30 251.03,5.02 254.02,5.02 254.02,4.77 257.01,4.77 257.01,4.00 260.00,4.00" fill="none" stroke="#7d7268" stroke-width=".9"/>
+</svg><span class="fsev num">1,164</span></div>
+<div class="fhero"><span class="fhl label">distinct sources</span><span class="fhv num">1,164</span><span class="fhd label">counted over the 5,904 articles that kept a link</span></div>
+<div class="fsec"><span class="fs"><span class="fsk label">carries a link</span><span class="fsv2 num">36%</span><span class="fss">5,904 of 16,382 articles</span></span><span class="fs"><span class="fsk label">most read</span><span class="fsv2 num">1,028</span><span class="fss">nytimes.com, 17% of linked reading</span></span><span class="fs wide"><span class="fsk label">how it was saved</span><ul class="mini"><li><span class="mk">Legacy files</span><span class="mb"><i style="width:100.0%"></i></span><span class="mv num">10,478</span></li><li><span class="mk">Instapaper</span><span class="mb"><i style="width:53.8%"></i></span><span class="mv num">5,637</span></li><li><span class="mk">Matter</span><span class="mb"><i style="width:2.5%"></i></span><span class="mv num">266</span></li></ul><span class="fss">one article is unattributed</span></span><span class="fs wide"><span class="fsk label">top publications</span><ul class="mini"><li><span class="mk">nytimes.com</span><span class="mb"><i style="width:100.0%"></i></span><span class="mv num">1,028</span></li><li><span class="mk">businessinsider.com</span><span class="mb"><i style="width:47.3%"></i></span><span class="mv num">486</span></li><li><span class="mk">kurzweilai.net</span><span class="mb"><i style="width:30.9%"></i></span><span class="mv num">318</span></li><li><span class="mk">medium.com</span><span class="mb"><i style="width:25.0%"></i></span><span class="mv num">257</span></li><li><span class="mk">yahoonewsdigest-us.tumblr.com</span><span class="mb"><i style="width:16.2%"></i></span><span class="mv num">167</span></li></ul></span></div>
+</div><div class="fcol">
+<h2 class="ftitle">Subjects</h2>
+<div class="fticks label"><span>2005</span><span>2010</span><span>2015</span><span>2020</span><span>2026</span></div>
+<svg viewBox="0 0 260 96" class="fstrip" role="img" aria-label="Distinct controlled-vocabulary entries used each quarter, with the average of each era">
+<rect x="0.00" y="78.65" width="2.33" height="2.35" fill="#6f645c"/>
+<rect x="2.99" y="79.66" width="2.33" height="1.34" fill="#6f645c"/>
+<rect x="5.98" y="52.08" width="2.33" height="28.92" fill="#6f645c"/>
+<rect x="8.97" y="20.48" width="2.33" height="60.52" fill="#6f645c"/>
+<rect x="11.95" y="17.79" width="2.33" height="63.21" fill="#6f645c"/>
+<rect x="14.94" y="23.50" width="2.33" height="57.50" fill="#6f645c"/>
+<rect x="17.93" y="24.51" width="2.33" height="56.49" fill="#6f645c"/>
+<rect x="20.92" y="16.44" width="2.33" height="64.56" fill="#6f645c"/>
+<rect x="23.91" y="19.13" width="2.33" height="61.87" fill="#6f645c"/>
+<rect x="26.90" y="29.89" width="2.33" height="51.11" fill="#6f645c"/>
+<rect x="29.89" y="30.23" width="2.33" height="50.77" fill="#6f645c"/>
+<rect x="32.87" y="16.44" width="2.33" height="64.56" fill="#6f645c"/>
+<rect x="35.86" y="25.86" width="2.33" height="55.14" fill="#6f645c"/>
+<rect x="38.85" y="27.87" width="2.33" height="53.13" fill="#6f645c"/>
+<rect x="41.84" y="22.49" width="2.33" height="58.51" fill="#6f645c"/>
+<rect x="44.83" y="19.47" width="2.33" height="61.53" fill="#6f645c"/>
+<rect x="47.82" y="11.73" width="2.33" height="69.27" fill="#6f645c"/>
+<rect x="50.80" y="10.05" width="2.33" height="70.95" fill="#6f645c"/>
+<rect x="53.79" y="11.73" width="2.33" height="69.27" fill="#6f645c"/>
+<rect x="56.78" y="17.79" width="2.33" height="63.21" fill="#6f645c"/>
+<rect x="59.77" y="26.53" width="2.33" height="54.47" fill="#6f645c"/>
+<rect x="62.76" y="13.75" width="2.33" height="67.25" fill="#6f645c"/>
+<rect x="65.75" y="8.71" width="2.33" height="72.29" fill="#6f645c"/>
+<rect x="68.74" y="4.00" width="2.33" height="77.00" fill="#6f645c"/>
+<rect x="71.72" y="4.34" width="2.33" height="76.66" fill="#6f645c"/>
+<rect x="74.71" y="10.05" width="2.33" height="70.95" fill="#6f645c"/>
+<rect x="77.70" y="8.03" width="2.33" height="72.97" fill="#6f645c"/>
+<rect x="80.69" y="8.71" width="2.33" height="72.29" fill="#6f645c"/>
+<rect x="83.68" y="15.43" width="2.33" height="65.57" fill="#6f645c"/>
+<rect x="86.67" y="18.12" width="2.33" height="62.88" fill="#6f645c"/>
+<rect x="89.66" y="18.79" width="2.33" height="62.21" fill="#6f645c"/>
+<rect x="92.64" y="33.25" width="2.33" height="47.75" fill="#6f645c"/>
+<rect x="95.63" y="22.83" width="2.33" height="58.17" fill="#6f645c"/>
+<rect x="98.62" y="30.90" width="2.33" height="50.10" fill="#6f645c"/>
+<rect x="101.61" y="31.24" width="2.33" height="49.76" fill="#6f645c"/>
+<rect x="104.60" y="29.55" width="2.33" height="51.45" fill="#6f645c"/>
+<rect x="107.59" y="38.30" width="2.33" height="42.70" fill="#6f645c"/>
+<rect x="110.57" y="34.60" width="2.33" height="46.40" fill="#6f645c"/>
+<rect x="113.56" y="32.24" width="2.33" height="48.76" fill="#6f645c"/>
+<rect x="116.55" y="31.57" width="2.33" height="49.43" fill="#6f645c"/>
+<rect x="119.54" y="16.10" width="2.33" height="64.90" fill="#6f645c"/>
+<rect x="122.53" y="58.14" width="2.33" height="22.86" fill="#6f645c"/>
+<rect x="125.52" y="79.32" width="2.33" height="1.68" fill="#6f645c"/>
+<rect x="128.51" y="50.74" width="2.33" height="30.26" fill="#6f645c"/>
+<rect x="131.49" y="44.69" width="2.33" height="36.31" fill="#6f645c"/>
+<rect x="134.48" y="69.57" width="2.33" height="11.43" fill="#6f645c"/>
+<rect x="137.47" y="61.16" width="2.33" height="19.84" fill="#6f645c"/>
+<rect x="140.46" y="59.14" width="2.33" height="21.86" fill="#6f645c"/>
+<rect x="143.45" y="66.88" width="2.33" height="14.12" fill="#6f645c"/>
+<rect x="146.44" y="78.98" width="2.33" height="2.02" fill="#6f645c"/>
+<rect x="149.43" y="69.57" width="2.33" height="11.43" fill="#6f645c"/>
+<rect x="152.41" y="61.16" width="2.33" height="19.84" fill="#6f645c"/>
+<rect x="155.40" y="62.51" width="2.33" height="18.49" fill="#6f645c"/>
+<rect x="158.39" y="70.91" width="2.33" height="10.09" fill="#6f645c"/>
+<rect x="161.38" y="52.42" width="2.33" height="28.58" fill="#6f645c"/>
+<rect x="164.37" y="64.52" width="2.33" height="16.48" fill="#6f645c"/>
+<rect x="167.36" y="57.46" width="2.33" height="23.54" fill="#6f645c"/>
+<rect x="170.34" y="61.50" width="2.33" height="19.50" fill="#6f645c"/>
+<rect x="173.33" y="74.95" width="2.33" height="6.05" fill="#6f645c"/>
+<rect x="176.32" y="69.57" width="2.33" height="11.43" fill="#6f645c"/>
+<rect x="179.31" y="59.14" width="2.33" height="21.86" fill="#6f645c"/>
+<rect x="182.30" y="62.84" width="2.33" height="18.16" fill="#6f645c"/>
+<rect x="185.29" y="77.97" width="2.33" height="3.03" fill="#6f645c"/>
+<rect x="188.28" y="80.10" width="2.33" height="0.90" fill="#6f645c"/>
+<rect x="191.26" y="79.32" width="2.33" height="1.68" fill="#6f645c"/>
+<rect x="197.24" y="80.10" width="2.33" height="0.90" fill="#6f645c"/>
+<rect x="203.22" y="80.10" width="2.33" height="0.90" fill="#6f645c"/>
+<rect x="206.21" y="68.56" width="2.33" height="12.44" fill="#6f645c"/>
+<rect x="209.20" y="41.66" width="2.33" height="39.34" fill="#6f645c"/>
+<rect x="212.18" y="74.28" width="2.33" height="6.72" fill="#6f645c"/>
+<rect x="218.16" y="49.39" width="2.33" height="31.61" fill="#6f645c"/>
+<rect x="221.15" y="66.21" width="2.33" height="14.79" fill="#6f645c"/>
+<rect x="224.14" y="42.33" width="2.33" height="38.67" fill="#6f645c"/>
+<rect x="227.13" y="66.21" width="2.33" height="14.79" fill="#6f645c"/>
+<rect x="230.11" y="72.93" width="2.33" height="8.07" fill="#6f645c"/>
+<rect x="233.10" y="64.86" width="2.33" height="16.14" fill="#6f645c"/>
+<rect x="236.09" y="63.52" width="2.33" height="17.48" fill="#6f645c"/>
+<rect x="239.08" y="66.88" width="2.33" height="14.12" fill="#6f645c"/>
+<rect x="242.07" y="39.64" width="2.33" height="41.36" fill="#6f645c"/>
+<rect x="245.06" y="60.15" width="2.33" height="20.85" fill="#6f645c"/>
+<rect x="248.05" y="44.01" width="2.33" height="36.99" fill="#6f645c"/>
+<rect x="251.03" y="69.23" width="2.33" height="11.77" fill="#6f645c"/>
+<rect x="254.02" y="74.28" width="2.33" height="6.72" fill="#6f645c"/>
+<rect x="257.01" y="63.85" width="2.33" height="17.15" fill="#6f645c"/>
+<line x1="0.00" y1="22.86" x2="83.68" y2="22.86" stroke="#fbbf24" stroke-width=".7"/>
+<text x="2.00" y="19.36" class="favg">172.9</text>
+<line x1="83.68" y1="51.28" x2="191.26" y2="51.28" stroke="#fbbf24" stroke-width=".7"/>
+<text x="85.68" y="47.78" class="favg">88.4</text>
+<line x1="191.26" y1="65.73" x2="260.00" y2="65.73" stroke="#fbbf24" stroke-width=".7"/>
+<text x="193.26" y="62.23" class="favg">45.4</text>
+<line x1="0" y1="81" x2="260" y2="81" stroke="#3a3431" stroke-width=".5"/>
+<text x="0" y="93" class="ftick">vocabulary entries in use per quarter</text>
+</svg>
+<div class="fsteprow"><span class="fsl label">AI share, four quarters</span>
+<svg viewBox="0 0 260 34" class="fstep" role="img" aria-hidden="true">
+<polyline points="8.97,30.15 11.95,30.15 11.95,29.99 14.94,29.99 14.94,30.15 17.93,30.15 17.93,30.15 20.92,30.15 20.92,30.23 23.91,30.23 23.91,30.48 26.90,30.48 26.90,30.48 29.89,30.48 29.89,30.56 32.87,30.56 32.87,30.72 35.86,30.72 35.86,30.64 38.85,30.64 38.85,30.39 41.84,30.39 41.84,30.48 44.83,30.48 44.83,30.39 47.82,30.39 47.82,30.56 50.80,30.56 50.80,30.39 53.79,30.39 53.79,30.31 56.78,30.31 56.78,30.39 59.77,30.39 59.77,30.31 62.76,30.31 62.76,30.64 65.75,30.64 65.75,30.48 68.74,30.48 68.74,30.39 71.72,30.39 71.72,29.99 74.71,29.99 74.71,30.07 77.70,30.07 77.70,30.07 80.69,30.07 80.69,29.74 83.68,29.74 83.68,29.34 86.67,29.34 86.67,28.61 89.66,28.61 89.66,27.71 92.64,27.71 92.64,26.98 95.63,26.98 95.63,27.47 98.62,27.47 98.62,28.20 101.61,28.20 101.61,28.44 104.60,28.44 104.60,28.28 107.59,28.28 107.59,28.04 110.57,28.04 110.57,26.82 113.56,26.82 113.56,26.74 116.55,26.74 116.55,27.06 119.54,27.06 119.54,26.09 122.53,26.09 122.53,26.33 125.52,26.33 125.52,26.09 128.51,26.09 128.51,25.20 131.49,25.20 131.49,25.60 134.48,25.60 134.48,24.71 137.47,24.71 137.47,24.06 140.46,24.06 140.46,26.17 143.45,26.17 143.45,24.79 146.44,24.79 146.44,25.60 149.43,25.60 149.43,27.88 152.41,27.88 152.41,24.63 155.40,24.63 155.40,27.96 158.39,27.96 158.39,27.88 161.38,27.88 161.38,26.17 164.37,26.17 164.37,26.98 167.36,26.98 167.36,27.71 170.34,27.71 170.34,27.88 173.33,27.88 173.33,29.09 176.32,29.09 176.32,29.58 179.31,29.58 179.31,29.09 182.30,29.09 182.30,29.66 185.29,29.66 185.29,30.23 188.28,30.23 188.28,30.07 191.26,30.07 191.26,30.80 194.25,30.80 194.25,30.80 197.24,30.80 197.24,30.80 200.23,30.80 200.23,30.80 203.22,30.80 203.22,30.80 206.21,30.80 206.21,23.73 209.20,23.73 209.20,26.17 212.18,26.17 212.18,26.09 215.17,26.09 215.17,26.01 218.16,26.01 218.16,23.17 221.15,23.17 221.15,20.00 224.14,20.00 224.14,20.40 227.13,20.40 227.13,20.81 230.11,20.81 230.11,22.11 233.10,22.11 233.10,21.30 236.09,21.30 236.09,15.29 239.08,15.29 239.08,9.68 242.07,9.68 242.07,5.62 245.06,5.62 245.06,4.00 248.05,4.00 248.05,8.14 251.03,8.14 251.03,9.12 254.02,9.12 254.02,10.82 257.01,10.82 257.01,10.17 260.00,10.17" fill="none" stroke="#7d7268" stroke-width=".9"/>
+</svg><span class="fsev num">25.4%</span></div>
+<div class="fhero"><span class="fhl label">artificial intelligence</span><span class="fhv num">14.8<em>%</em></span><span class="fhd label">of tagged reading since 2018; it was 0.7% before 2012</span></div>
+<div class="fsec"><span class="fs"><span class="fsk label">tagged</span><span class="fsv2 num">80.8<em>%</em></span><span class="fss">13,233 of 16,382 articles</span></span><span class="fs"><span class="fsk label">vocabulary</span><span class="fsv2 num">248</span><span class="fss">curated entries, every one in use</span></span><span class="fs wide"><span class="fsk label">commonest subjects</span><ul class="mini"><li><span class="mk">Social Media</span><span class="mb"><i style="width:100.0%"></i></span><span class="mv num">1,120</span></li><li><span class="mk">Mobile Devices</span><span class="mb"><i style="width:83.7%"></i></span><span class="mv num">937</span></li><li><span class="mk">Business Strategy</span><span class="mb"><i style="width:78.7%"></i></span><span class="mv num">881</span></li><li><span class="mk">Venture Capital</span><span class="mb"><i style="width:71.9%"></i></span><span class="mv num">805</span></li><li><span class="mk">Entrepreneurship</span><span class="mb"><i style="width:70.9%"></i></span><span class="mv num">794</span></li></ul></span><span class="fs wide"><span class="fsk label">what moved</span><ul class="mini dates"><li><span class="mk">Artificial Intelligence</span><span class="mv num">+14.1</span></li><li><span class="mk">Influenza Pandemics</span><span class="mv num">+7.4</span></li><li><span class="mk">Social Media</span><span class="mv num">−5.3</span></li><li><span class="mk">Mobile Devices</span><span class="mv num">−5.9</span></li></ul><span class="fss">points of share, pre-2012 against 2018 on</span></span></div>
+</div></div>
+
+  <p class="fnote"><b>How to read the dates.</b> This archive is two archives wearing one schema.
+  The 10,478 legacy files carry no links and no read events: their date is the publication date
+  parsed out of a filename, so a quarter before 2012 says when the writing appeared, not when it
+  was read. The 5,903 Instapaper and Matter articles from 2012 on carry real save and archive
+  dates. Two thirds of the corpus, 10,672 articles, is dated by that proxy. Every strip and step
+  runs on one shared axis of quarters from 2005 Q1 to 2026 Q3, and the amber lines are the average
+  of each era, annotated with their value. There is no time of day anywhere in this archive, so
+  nothing here is drawn by hour.</p>
+</div>
+</article>
+
+<section class="below">
+<div class="wrap">
+  <div class="belowhead">
+    <h2>The Week in Reading</h2>
+    <span class="label">the index, unchanged, directly below the cover</span>
+    <span class="label n num">827 weeks</span>
+  </div>
+  <p class="livecap">The cover is a lid, not a replacement. This is the page that is live today,
+  rendered here exactly as it renders in production: the same four anchor numbers, the same
+  three-ways-of-saving bar, the same words-per-year strip that doubles as year navigation, and the
+  same week rows. Nothing about it changes.</p>
+  <div class="liveframe">
+    <iframe title="The current reading.adamthede.com index, first screen" loading="lazy" scrolling="no" srcdoc="&lt;!DOCTYPE html&gt;&lt;html lang=&quot;en&quot;&gt;&lt;head&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;&lt;style&gt;
+:root { --bg:#1c1917; --bg-raise:#292524; --ink:#e7e5e4; --ink-2:#a8a29e;
+  --ink-3:#78716c; --rule:#44403c; --amber:#fbbf24; --amber-dim:#92700c;
+  --brand:#FF8F3B; }
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { overflow-x:hidden; overflow-x:clip; }
+body { background:var(--bg); color:var(--ink); line-height:1.5;
+  font-family:ui-sans-serif,-apple-system,&quot;Helvetica Neue&quot;,sans-serif; }
+a { color:inherit; }
+.page { max-width:720px; margin:0 auto; padding:64px 24px 96px; }
+.label { font-family:ui-monospace,&quot;SF Mono&quot;,Menlo,monospace; font-size:11px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3); }
+.num { font-variant-numeric:tabular-nums; }
+header { border-bottom:1px solid var(--rule); padding-bottom:28px; }
+header .kicker { color:var(--brand); text-decoration:none; display:inline-block; }
+h1 { font-size:56px; font-weight:200; letter-spacing:-.02em; margin-top:10px; }
+h1 .wk { color:var(--amber); }
+.daterange { margin-top:6px; color:var(--ink-2); font-size:15px; }
+.provenance { margin-top:10px; color:var(--ink-2); }
+.stats { display:flex; gap:40px; flex-wrap:wrap; padding:32px 0;
+  border-bottom:1px solid var(--rule); }
+.stat .v { font-size:40px; font-weight:200; }
+.stat .v em { font-style:normal; font-size:20px; color:var(--ink-2); }
+.stat .l { margin-top:2px; }
+.stat .delta { margin-top:4px; font-family:ui-monospace,&quot;SF Mono&quot;,Menlo,monospace;
+  font-size:11px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.stat .delta b { color:var(--ink-2); font-weight:400; }
+.stat.time .v { color:var(--amber); }
+section { padding:36px 0 0; }
+.prose { font-family:Charter,Georgia,serif; font-size:17px; line-height:1.75;
+  max-width:640px; }
+.prose p+p { margin-top:1.2em; }
+.prose .lede::first-letter { color:var(--brand); font-size:3.1em; float:left;
+  line-height:.82; padding-right:8px; font-weight:400; }
+.thread { margin-top:28px; padding:18px 20px; background:var(--bg-raise);
+  border-left:2px solid var(--brand); font-family:Charter,Georgia,serif;
+  font-size:16px; }
+.prose .atitle, .thread .atitle { font-weight:700; color:var(--amber);
+  text-decoration:none; }
+a.atitle:hover { color:var(--brand); }
+.viz-title { margin-bottom:18px; }
+.days { display:flex; gap:2px; align-items:flex-end; height:140px; margin-top:8px; }
+.day { flex:1; display:flex; flex-direction:column; justify-content:flex-end; height:100%; }
+.day .bar { background:var(--amber-dim); border-radius:4px 4px 0 0; min-height:2px;
+  transition:background .15s; }
+.day.peak .bar { background:var(--amber); }
+.day:hover .bar { background:var(--brand); }
+.day .dl { text-align:center; margin-top:8px; }
+.day .dv { text-align:center; font-size:12px; color:var(--ink-2); margin-bottom:4px; }
+.day.peak .dv { color:var(--amber); }
+/* styled tooltips (trend bars + day bars) */
+[data-tip] { position:relative; }
+[data-tip]::after { content:attr(data-tip); position:absolute;
+  bottom:calc(100% + 10px); left:50%; transform:translateX(-50%);
+  background:#0c0a09; color:var(--ink); border:1px solid var(--rule);
+  border-left:2px solid var(--amber); padding:7px 11px; border-radius:4px;
+  font-family:ui-monospace,&quot;SF Mono&quot;,Menlo,monospace; font-size:11.5px;
+  letter-spacing:.02em; white-space:nowrap; opacity:0; pointer-events:none;
+  transition:opacity .12s; z-index:6; }
+[data-tip]:hover::after { opacity:1; }
+@media (hover:none) { [data-tip]::after { display:none; } }
+.roster { margin-top:8px; }
+.row { display:grid; grid-template-columns:44px 1fr 64px; gap:12px;
+  align-items:baseline; padding:7px 0; border-bottom:1px solid #2a2523;
+  text-decoration:none; }
+.row:hover { background:var(--bg-raise); }
+.row .d { font-size:12px; color:var(--ink-3); }
+.row .t { font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.row .t .src { color:var(--ink-3); font-size:12px; margin-left:8px; }
+.row .t .wbar { display:block; height:3px; border-radius:2px;
+  background:var(--amber-dim); margin-top:5px; }
+.row .w { font-size:12.5px; color:var(--ink-2); text-align:right; }
+.row.longest .t { color:var(--amber); }
+.row.longest .wbar { background:var(--amber); }
+.facets { display:flex; gap:40px; flex-wrap:wrap; margin-top:8px; }
+.facet .l { margin-bottom:8px; }
+.chip { display:inline-block; padding:4px 10px; margin:0 6px 6px 0;
+  background:var(--bg-raise); border-radius:3px; font-size:13px;
+  vertical-align:baseline; }
+.chip .c { color:var(--amber); font-size:.72em; margin-left:5px; }
+.empty { color:var(--ink-3); font-size:13px; font-style:italic; }
+.weeknav { display:flex; justify-content:space-between; margin-top:48px;
+  padding-top:16px; border-top:1px solid var(--rule); }
+.weeknav a { text-decoration:none; color:var(--ink-2); font-size:14px; }
+.weeknav a:hover { color:var(--brand); }
+.weeknav .home { color:var(--ink-3); font-family:ui-monospace,&quot;SF Mono&quot;,Menlo,monospace;
+  font-size:11px; letter-spacing:.14em; text-transform:uppercase; }
+header .kicker:hover { text-decoration:underline; }
+footer { margin-top:56px; border-top:1px solid var(--rule); padding-top:16px;
+  display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+/* index */
+.trend { display:flex; gap:2px; align-items:flex-end; height:110px; margin-top:24px; }
+.trend a { position:relative; }
+.trend .yl { position:absolute; bottom:-18px; left:50%; transform:translateX(-50%);
+  font-size:9px; color:var(--ink-3); letter-spacing:0; }
+.trend { margin-bottom:22px; }
+.yearhead { scroll-margin-top:24px; }
+.ystrip a.wb { align-self:flex-end; background:var(--amber-dim); border-radius:2px 2px 0 0; }
+.ystrip a.wb.peakw { background:var(--amber); }
+.ystrip a.wb:hover { background:var(--brand); outline:none; }
+details.yweeks summary { cursor:pointer; padding:8px 0 14px; list-style:none;
+  color:var(--ink-3); }
+details.yweeks summary:hover { color:var(--brand); }
+details.yweeks summary::before { content:&quot;▸ &quot;; }
+details.yweeks[open] summary::before { content:&quot;▾ &quot;; }
+.trend a { flex:1; background:var(--amber-dim); border-radius:2px 2px 0 0;
+  min-height:2px; display:block; }
+.trend a:hover { background:var(--brand); }
+.trend a.latest { background:var(--amber); }
+.yearhead { margin:40px 0 4px; color:var(--ink-2); font-size:22px; font-weight:200; }
+.ystrip { display:flex; gap:2px; margin:8px 0 10px; height:40px; align-items:flex-end; }
+.ystrip a, .ystrip span { flex:1; border-radius:1px; display:block; }
+.ystrip span { height:3px; background:#231f1d; align-self:flex-end; }
+.ystrip span { background:#231f1d; }
+.ystrip a:hover { outline:1px solid var(--brand); }
+.wrow { display:grid; grid-template-columns:170px 1fr 70px 90px; gap:12px;
+  align-items:baseline; padding:9px 0; border-bottom:1px solid #2a2523;
+  text-decoration:none; }
+.wrow:hover { background:var(--bg-raise); }
+.wrow .wk2 { color:var(--amber); font-size:14px; white-space:nowrap; }
+.wrow .wk2 em { font-style:normal; color:var(--ink-3); font-size:11.5px;
+  margin-left:8px; }
+.wrow .topic { font-size:14px; color:var(--ink-2); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.wrow .c2,.wrow .w2 { font-size:13px; color:var(--ink-2); text-align:right; }
+/* era split (index hero) */
+.erabar { display:flex; gap:2px; height:26px; margin-top:10px; }
+.erabar span { background:rgba(251,191,36,var(--i,1)); border-radius:2px;
+  min-width:2px; position:relative; }
+.erabar span:hover { background:var(--brand); }
+.eralabels { display:flex; gap:32px; flex-wrap:wrap; margin-top:14px; }
+.eralabels .era { display:flex; align-items:baseline; gap:8px; }
+.eralabels .ei { width:9px; height:9px; border-radius:2px;
+  background:rgba(251,191,36,var(--i,1)); align-self:center; }
+.eralabels .ev { font-size:15px; color:var(--ink); }
+.eralabels .ep { font-size:12px; color:var(--ink-3); }
+@media (max-width:560px){ h1{font-size:40px;} .stats{gap:24px;}
+  .wrow{grid-template-columns:80px 1fr 60px;} .wrow .w2{display:none;}
+  .eralabels{gap:16px;} }
+
+/* deep dives: year rollups, orgs facet, article detail */
+.months { display:flex; gap:3px; align-items:flex-end; height:150px; margin-top:8px; }
+.mo { flex:1; display:flex; flex-direction:column; justify-content:flex-end; height:100%; }
+.mo .bar { background:var(--amber-dim); border-radius:3px 3px 0 0; min-height:2px; }
+.mo.peak .bar { background:var(--amber); }
+.mo:hover .bar { background:var(--brand); }
+.mo .ml { text-align:center; margin-top:8px; }
+.mo .mv { text-align:center; font-size:11px; color:var(--ink-2); margin-bottom:4px; }
+.mo.peak .mv { color:var(--amber); }
+.orow { display:grid; grid-template-columns:26px 1fr 58px; gap:12px;
+  align-items:baseline; padding:6px 0; border-bottom:1px solid #2a2523; }
+.orow .rk { font-size:11.5px; color:var(--ink-3); text-align:right;
+  font-family:ui-monospace,&quot;SF Mono&quot;,Menlo,monospace; }
+/* min-width:0 or the 1fr track grows to fit a nowrap name instead of
+   ellipsizing it, pushing the count column off a 390px screen. */
+.orow .on { min-width:0; font-size:14.5px; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.orow .on .obar { display:block; height:3px; border-radius:2px;
+  background:var(--amber-dim); margin-top:5px; }
+.orow.lead .on { color:var(--amber); }
+.orow.lead .obar { background:var(--amber); }
+.orow .oc { font-size:12.5px; color:var(--ink-2); text-align:right; }
+.note { margin-top:14px; color:var(--ink-3); font-size:12.5px; line-height:1.6;
+  max-width:640px; }
+.yearnav { display:flex; justify-content:space-between; margin-top:48px;
+  padding-top:16px; border-top:1px solid var(--rule); }
+.yearnav a { text-decoration:none; color:var(--ink-2); font-size:14px; }
+.yearnav a:hover { color:var(--brand); }
+.yearnav .home { color:var(--ink-3); font-family:ui-monospace,&quot;SF Mono&quot;,Menlo,monospace;
+  font-size:11px; letter-spacing:.14em; text-transform:uppercase; }
+.wklist { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.wklist a { display:inline-block; padding:5px 9px; background:var(--bg-raise);
+  border-radius:3px; font-size:12.5px; text-decoration:none; color:var(--ink-2);
+  font-family:ui-monospace,&quot;SF Mono&quot;,Menlo,monospace; }
+.wklist a:hover { color:var(--brand); }
+.wklist a .c { color:var(--amber); }
+.yearheads { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.yearheads a { font-size:15px; color:var(--ink-2); text-decoration:none;
+  padding:4px 8px; background:var(--bg-raise); border-radius:3px; }
+.yearheads a:hover { color:var(--brand); }
+.yearhead a { color:inherit; text-decoration:none; }
+.yearhead a:hover { color:var(--brand); }
+/* article detail */
+.search { width:100%; max-width:640px; margin-top:8px; padding:11px 13px;
+  background:var(--bg-raise); border:1px solid var(--rule); border-radius:4px;
+  color:var(--ink); font-size:15px; font-family:inherit; }
+.search:focus { outline:none; border-color:var(--amber); }
+.hits { margin-top:12px; }
+.arow { display:grid; grid-template-columns:78px 1fr 62px; gap:12px;
+  align-items:baseline; padding:7px 0; border-bottom:1px solid #2a2523;
+  cursor:pointer; width:100%; text-align:left; background:none; border-left:0;
+  border-right:0; border-top:0; color:inherit; font:inherit; }
+.arow:hover, .arow:focus { background:var(--bg-raise); outline:none; }
+.arow .ad { font-size:11.5px; color:var(--ink-3);
+  font-family:ui-monospace,&quot;SF Mono&quot;,Menlo,monospace; }
+.arow .at { min-width:0; font-size:14.5px; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.arow .at .asrc { color:var(--ink-3); font-size:12px; margin-left:8px; }
+.arow .aw { font-size:12.5px; color:var(--ink-2); text-align:right;
+  font-variant-numeric:tabular-nums; }
+.detail { margin-top:24px; padding:20px; background:var(--bg-raise);
+  border-left:2px solid var(--brand); }
+.detail h2 { font-size:21px; font-weight:300; line-height:1.35; }
+.detail h2 a { color:var(--amber); text-decoration:none; }
+.detail h2 a:hover { color:var(--brand); }
+.detail dl { display:grid; grid-template-columns:auto 1fr; gap:6px 18px;
+  margin-top:14px; font-size:13.5px; }
+.detail dt { font-family:ui-monospace,&quot;SF Mono&quot;,Menlo,monospace; font-size:11px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3); }
+.detail dd { color:var(--ink-2); overflow-wrap:anywhere; }
+@media (max-width:560px){
+  .orow { grid-template-columns:22px 1fr 46px; }
+  .arow { grid-template-columns:66px 1fr; } .arow .aw { display:none; }
+  .months { gap:2px; } .mo .mv { display:none; }
+}
+
+/* trends: year-grain heatmaps + bands */
+.hmwrap { overflow-x:auto; padding:40px 0 10px; margin-top:-30px; }
+.hm { border-collapse:separate; border-spacing:2px; }
+.hm caption { caption-side:top; text-align:left; padding-bottom:10px; }
+.hm th { font-weight:400; }
+.hm th.hmn { width:156px; min-width:156px; max-width:156px; text-align:left;
+  font-size:13px; color:var(--ink-2); overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; padding-right:8px; }
+.hm th.hmy { width:20px; min-width:20px; color:var(--ink-3); font-size:9.5px;
+  letter-spacing:0; text-align:center; padding-bottom:2px; }
+.hm td.hc { width:20px; min-width:20px; height:20px; border-radius:2px;
+  background:rgba(251,191,36,var(--i,0)); position:relative; }
+.hm td.hc.zero { background:#231f1d; }
+.hm td.hc:hover { outline:1px solid var(--brand); }
+/* Low-confidence cells carry a glyph, never a colour difference alone. */
+.hm td.hc.lown::before { content:&quot;·&quot;; position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center; color:var(--ink-2);
+  font-size:14px; line-height:1; }
+.hm tfoot th.hmn { color:var(--ink-3); font-family:ui-monospace,&quot;SF Mono&quot;,Menlo,monospace;
+  font-size:10px; letter-spacing:.1em; text-transform:uppercase; }
+.hm tfoot td.ht { height:22px; vertical-align:bottom; }
+.hm tfoot td.ht span { display:block; background:var(--rule); border-radius:1px;
+  min-height:1px; }
+.hm tbody tr:hover th.hmn { color:var(--amber); }
+/* The base stylesheet suppresses every tooltip under (hover:none), which on a
+   page that is four matrices would leave the cell values encoded by colour
+   alone. Cells carry an aria-label, which is the half that is actually
+   dependable - assistive tech reads it whatever the input device. The :active
+   rule below is a best effort at giving sighted touch users the same numbers;
+   iOS Safari historically does not fire :active on non-interactive elements
+   without a touch handler, and this has not been checked on a real device. */
+@media (hover:none) {
+  .hm td.hc:active::after, .hm th.hmn:active::after { display:block; opacity:1; }
+}
+/* The column header is set tighter than the house label so &quot;Organization&quot;
+   fits the track instead of ellipsizing into &quot;ORGANIZAT...&quot;. */
+.hm thead th.hmn { font-size:10px; letter-spacing:.06em; }
+/* Tooltips must stay inside the scroll box. overflow-x:auto forces overflow-y
+   to auto as well, so anything escaping sideways is CLIPPED, not overflowed -
+   measured on the real build, 433 of 1,101 tips lost an edge, the worst by
+   187px. Two changes keep them in: they wrap to a fixed measure instead of
+   running 600px on one nowrap line, and the cells near either end anchor to
+   their own edge rather than centring on a 20px target. */
+.hm [data-tip]::after { white-space:normal; width:max-content; max-width:230px;
+  text-align:left; line-height:1.45; overflow-wrap:anywhere; }
+.hm td.hc:nth-child(-n+5)::after, .hm th.hmn::after {
+  left:0; right:auto; transform:none; }
+.hm td.hc:nth-last-child(-n+5)::after {
+  left:auto; right:0; transform:none; }
+/* complexity band */
+.band { display:flex; gap:3px; align-items:flex-end; height:130px; margin-top:10px; }
+.band .col { flex:1; display:flex; flex-direction:column; justify-content:flex-end;
+  height:100%; position:relative; }
+.band .col .bar { background:var(--amber-dim); border-radius:2px 2px 0 0;
+  min-height:2px; }
+.band .col.hi .bar { background:var(--amber); }
+.band .col.none .bar { background:#231f1d; }
+/* Thin years are drawn but marked: the glyph, not the shade, carries it. */
+.band .col.thin .bar { background:repeating-linear-gradient(135deg,
+  var(--amber-dim) 0 3px, #2b2622 3px 6px); }
+.band .col.thin .bl::after { content:&quot;·&quot;; color:var(--amber); margin-left:2px; }
+.band .col .bl { text-align:center; margin-top:7px; font-size:9px;
+  color:var(--ink-3); letter-spacing:0; }
+.band .col:hover .bar { background:var(--brand); }
+.axis { display:flex; justify-content:space-between; margin-top:6px;
+  color:var(--ink-3); }
+.legend { display:flex; align-items:center; gap:8px; margin-top:14px;
+  flex-wrap:wrap; }
+.legend .sw { display:flex; gap:2px; }
+.legend .sw i { width:20px; height:11px; border-radius:2px; display:block;
+  background:rgba(251,191,36,var(--i)); }
+@media (max-width:560px){
+  .hm th.hmn { width:112px; min-width:112px; max-width:112px; font-size:12px; }
+  .band { height:96px; } .band .col .bl { display:none; }
+}
+
+/* --- Phase E: the vocabulary pages ---------------------------------- */
+.vlegend{display:flex;align-items:center;gap:5px;margin:22px 0 12px;font-size:11px}
+.vlegend i{width:26px;height:9px;display:inline-block}
+.vlg{opacity:.45;letter-spacing:.06em;text-transform:uppercase;margin:0 5px}
+.vlg-note{opacity:.3;margin-left:10px}
+
+.cascade{margin-top:6px;overflow-x:auto}
+/* 186px of name plus 42px of peak plus gaps leaves 22 columns sharing 48px
+   on a 390px phone - 2.2px each, narrower than the two-digit year labels
+   above them. The page body is overflow-x:clip, so without a scroll
+   container here the far years are CLIPPED rather than reachable. */
+.cascade .crow{min-width:560px}
+.crow{display:grid;grid-template-columns:186px 1fr 42px;align-items:center;gap:12px;padding:1px 0}
+.crow:hover .cn{opacity:1;color:var(--brand)}
+.cn{font-size:12.5px;opacity:.72;text-align:right;overflow:hidden;
+ text-overflow:ellipsis;white-space:nowrap}
+.cgrid{display:grid;grid-template-columns:repeat(var(--yrs),1fr);gap:2px}
+.cc{height:11px;background:transparent;display:block;border-radius:1px}
+.cy{font-size:9.5px;opacity:.38;text-align:center;font-variant-numeric:tabular-nums}
+.cpk{font-size:10.5px;opacity:.4;font-variant-numeric:tabular-nums}
+.chead .cn,.chead .cpk{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;opacity:.4}
+/* AFTER the .crow base rule, not before it: equal specificity means source
+   order decides, and this block previously lost to the rule it overrides. */
+@media (max-width:560px){
+  .crow{grid-template-columns:110px 1fr 34px;gap:8px}
+  .cn{font-size:11px}
+}
+
+
+.funnel{margin-top:20px;max-width:720px}
+.fstage{display:grid;grid-template-columns:104px 1fr;align-items:center;gap:14px;padding:7px 0}
+.fstage b{font-size:22px;font-weight:300;font-variant-numeric:tabular-nums;text-align:right}
+.fstage span{font-size:12px;opacity:.5;grid-column:2}
+.fstage i{grid-column:2;height:8px;background:#a4551c;display:block;margin-top:3px;min-width:3px}
+.fstage.lead i{background:var(--brand)}
+.fstage.lead b{color:var(--brand)}
+.collapse{margin-top:8px}
+.krow{display:grid;grid-template-columns:210px 1fr 62px;align-items:center;gap:14px;
+ padding:5px 0;border-top:1px solid var(--rule)}
+.kn{font-size:12.5px;opacity:.75;text-align:right}
+.kbar{position:relative;height:15px;display:flex;align-items:center}
+.kbar i{height:11px;background:#a4551c;border-radius:0 2px 2px 0;display:block}
+.kbar em{font-style:normal;font-size:10.5px;opacity:.45;margin-left:8px;white-space:nowrap}
+.ka{font-size:12px;opacity:.6;text-align:right}
+
+.mwrap{overflow-x:auto;padding-bottom:6px}
+.mhead,.mrow{display:grid;grid-template-columns:196px 1fr;gap:10px;
+ align-items:center;width:max-content}
+.mcells{display:grid;grid-template-columns:repeat(var(--cols),14px);gap:2px}
+.mc{width:14px;height:14px;display:block;background:transparent;border-radius:1px}
+.mc.self{background:repeating-linear-gradient(45deg,#44403c,#44403c 1px,transparent 1px,transparent 3px)}
+.mn{font-size:11.5px;opacity:.7;text-align:right;overflow:hidden;
+ text-overflow:ellipsis;white-space:nowrap;
+ /* Sticky, or scrolling right to reach column 42 takes every row name
+    with it and leaves an unlabelled grid. The matrix is 876px against a
+    672px content box, so this bites on DESKTOP, not just on a phone. */
+ position:sticky;left:0;z-index:2;background:var(--bg);padding-right:4px}
+.mrow:hover .mn{opacity:1;color:var(--brand)}
+.mhead{height:152px;align-items:end;margin-bottom:4px;overflow:hidden}
+.mh{display:block;width:14px;height:146px;position:relative;overflow:hidden}
+.mh b{position:absolute;bottom:0;left:50%;transform-origin:left bottom;
+ transform:rotate(-90deg) translateX(4px);font-weight:400;font-size:10px;
+ opacity:.5;white-space:nowrap;
+ /* Five of 42 names exceeded the old 120px band and rendered up through
+    the legend above it. Bounded and ellipsised, not trusted to be short. */
+ max-width:142px;overflow:hidden;text-overflow:ellipsis}
+.plist{margin-top:14px;max-width:640px}
+.prow{display:flex;justify-content:space-between;gap:20px;padding:8px 0;
+ border-top:1px solid var(--rule);font-size:13.5px}
+.prow:first-child{border-top:none}
+.pn{opacity:.8}.pn em{font-style:normal;opacity:.35;margin:0 3px}
+.pv{opacity:.65}
+.vtip{position:relative}
+.vtip:hover::after{content:attr(data-tip);position:absolute;left:50%;
+ bottom:calc(100% + 7px);transform:translateX(-50%);background:#0c0a09;
+ color:var(--ink);border:1px solid var(--rule);padding:5px 9px;font-size:11.5px;
+ white-space:nowrap;z-index:30;pointer-events:none;border-radius:2px}
+
+body{overflow:hidden}&lt;/style&gt;&lt;/head&gt;&lt;body&gt;&lt;div class=&quot;page&quot;&gt;
+&lt;div class=&quot;page&quot;&gt;
+  &lt;header&gt;
+    &lt;span class=&quot;label kicker&quot;&gt;reading.adamthede.com&lt;/span&gt;
+    &lt;h1&gt;The Week in Reading&lt;/h1&gt;
+    &lt;div class=&quot;daterange&quot;&gt;Weekly syntheses of one reader&#x27;s article diet, 2005-W04 — 2026-W35, written by a local model from the reading archive.&lt;/div&gt;
+  &lt;/header&gt;
+
+  &lt;div class=&quot;stats&quot;&gt;
+    &lt;div class=&quot;stat&quot;&gt;&lt;div class=&quot;v num&quot;&gt;16,382&lt;/div&gt;&lt;div class=&quot;l label&quot;&gt;Articles&lt;/div&gt;&lt;div class=&quot;delta&quot;&gt;2005–2026&lt;/div&gt;&lt;/div&gt;
+    &lt;div class=&quot;stat&quot;&gt;&lt;div class=&quot;v num&quot;&gt;17.4&lt;em&gt;M&lt;/em&gt;&lt;/div&gt;&lt;div class=&quot;l label&quot;&gt;Words read&lt;/div&gt;&lt;div class=&quot;delta&quot;&gt;17,358,714&lt;/div&gt;&lt;/div&gt;
+    &lt;div class=&quot;stat time&quot;&gt;&lt;div class=&quot;v num&quot;&gt;1,216&lt;em&gt; hrs&lt;/em&gt;&lt;/div&gt;&lt;div class=&quot;l label&quot;&gt;Reading time&lt;/div&gt;&lt;div class=&quot;delta&quot;&gt;at 238 words a minute&lt;/div&gt;&lt;/div&gt;
+    &lt;div class=&quot;stat&quot;&gt;&lt;div class=&quot;v num&quot;&gt;763&lt;/div&gt;&lt;div class=&quot;l label&quot;&gt;Median length · words&lt;/div&gt;&lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;section&gt;
+    &lt;div class=&quot;label viz-title&quot;&gt;Three ways of saving · how the archive was made&lt;/div&gt;
+    &lt;div class=&quot;erabar&quot;&gt;
+      &lt;span style=&quot;width:64.00%;--i:0.3&quot; data-tip=&quot;Legacy files — 10,478 articles, 64.0% of the archive&quot;&gt;&lt;/span&gt;
+      &lt;span style=&quot;width:34.40%;--i:0.533&quot; data-tip=&quot;Instapaper — 5,637 articles, 34.4% of the archive&quot;&gt;&lt;/span&gt;
+      &lt;span style=&quot;width:1.60%;--i:0.767&quot; data-tip=&quot;Matter — 266 articles, 1.6% of the archive&quot;&gt;&lt;/span&gt;
+      &lt;span style=&quot;width:0.00%;--i:1.0&quot; data-tip=&quot;Unattributed — 1 article, 0.0% of the archive&quot;&gt;&lt;/span&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;eralabels&quot;&gt;
+      &lt;div class=&quot;era&quot;&gt;&lt;span class=&quot;ei&quot; style=&quot;--i:0.3&quot;&gt;&lt;/span&gt;&lt;span class=&quot;el label&quot;&gt;Legacy files&lt;/span&gt;&lt;span class=&quot;ev num&quot;&gt;10,478&lt;/span&gt;&lt;span class=&quot;ep num&quot;&gt;64.0%&lt;/span&gt;&lt;/div&gt;
+      &lt;div class=&quot;era&quot;&gt;&lt;span class=&quot;ei&quot; style=&quot;--i:0.533&quot;&gt;&lt;/span&gt;&lt;span class=&quot;el label&quot;&gt;Instapaper&lt;/span&gt;&lt;span class=&quot;ev num&quot;&gt;5,637&lt;/span&gt;&lt;span class=&quot;ep num&quot;&gt;34.4%&lt;/span&gt;&lt;/div&gt;
+      &lt;div class=&quot;era&quot;&gt;&lt;span class=&quot;ei&quot; style=&quot;--i:0.767&quot;&gt;&lt;/span&gt;&lt;span class=&quot;el label&quot;&gt;Matter&lt;/span&gt;&lt;span class=&quot;ev num&quot;&gt;266&lt;/span&gt;&lt;span class=&quot;ep num&quot;&gt;1.6%&lt;/span&gt;&lt;/div&gt;
+      &lt;div class=&quot;era&quot;&gt;&lt;span class=&quot;ei&quot; style=&quot;--i:1.0&quot;&gt;&lt;/span&gt;&lt;span class=&quot;el label&quot;&gt;Unattributed&lt;/span&gt;&lt;span class=&quot;ev num&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;ep num&quot;&gt;0.0%&lt;/span&gt;&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/section&gt;
+  &lt;div class=&quot;provenance label&quot; style=&quot;margin-top:26px&quot;&gt;827 weekly syntheses below cover 16,356 of these 16,382 articles&lt;/div&gt;
+
+  &lt;section&gt;
+    &lt;div class=&quot;label viz-title&quot;&gt;Words per year · 2005-W04 → 2026-W35 · click to jump&lt;/div&gt;
+    &lt;div class=&quot;trend&quot;&gt;
+    &lt;a href=&quot;#y2005&quot; data-tip=&quot;2005 — 580,586 words, 513 articles, 31 weeks&quot; style=&quot;height:48.3%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;05&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2006&quot; data-tip=&quot;2006 — 1,165,594 words, 1,302 articles, 51 weeks&quot; style=&quot;height:68.4%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;06&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2007&quot; data-tip=&quot;2007 — 1,156,799 words, 1,167 articles, 49 weeks&quot; style=&quot;height:68.2%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;07&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2008&quot; data-tip=&quot;2008 — 1,174,334 words, 1,165 articles, 52 weeks&quot; style=&quot;height:68.7%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;08&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2009&quot; data-tip=&quot;2009 — 1,767,399 words, 1,581 articles, 53 weeks&quot; style=&quot;height:84.3%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;09&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2010&quot; data-tip=&quot;2010 — 1,996,741 words, 1,899 articles, 52 weeks&quot; style=&quot;height:89.6%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;10&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2011&quot; data-tip=&quot;2011 — 2,489,518 words, 2,664 articles, 52 weeks&quot; style=&quot;height:100.0%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;11&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2012&quot; data-tip=&quot;2012 — 1,098,361 words, 1,369 articles, 52 weeks&quot; style=&quot;height:66.4%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;12&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2013&quot; data-tip=&quot;2013 — 654,389 words, 887 articles, 52 weeks&quot; style=&quot;height:51.3%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;13&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2014&quot; data-tip=&quot;2014 — 802,775 words, 913 articles, 50 weeks&quot; style=&quot;height:56.8%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;14&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2015&quot; data-tip=&quot;2015 — 532,619 words, 557 articles, 33 weeks&quot; style=&quot;height:46.3%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;15&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2016&quot; data-tip=&quot;2016 — 288,423 words, 275 articles, 38 weeks&quot; style=&quot;height:34.0%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;16&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2017&quot; data-tip=&quot;2017 — 120,999 words, 126 articles, 27 weeks&quot; style=&quot;height:22.0%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;17&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2018&quot; data-tip=&quot;2018 — 226,130 words, 245 articles, 42 weeks&quot; style=&quot;height:30.1%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;18&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2019&quot; data-tip=&quot;2019 — 164,142 words, 197 articles, 38 weeks&quot; style=&quot;height:25.7%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;19&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2020&quot; data-tip=&quot;2020 — 145,872 words, 129 articles, 25 weeks&quot; style=&quot;height:24.2%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;20&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2021&quot; data-tip=&quot;2021 — 5,513 words, 3 articles, 3 weeks&quot; style=&quot;height:4.7%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;21&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2022&quot; data-tip=&quot;2022 — 419,289 words, 218 articles, 19 weeks&quot; style=&quot;height:41.0%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;22&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2023&quot; data-tip=&quot;2023 — 831,873 words, 379 articles, 22 weeks&quot; style=&quot;height:57.8%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;23&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2024&quot; data-tip=&quot;2024 — 426,019 words, 213 articles, 19 weeks&quot; style=&quot;height:41.4%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;24&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2025&quot; data-tip=&quot;2025 — 936,819 words, 435 articles, 40 weeks&quot; style=&quot;height:61.3%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;25&lt;/span&gt;&lt;/a&gt;
+    &lt;a href=&quot;#y2026&quot; data-tip=&quot;2026 — 297,023 words, 119 articles, 27 weeks&quot; class=&quot;latest&quot; style=&quot;height:34.5%&quot;&gt;&lt;span class=&quot;yl num&quot;&gt;26&lt;/span&gt;&lt;/a&gt;
+    &lt;/div&gt;
+  &lt;/section&gt;
+
+
+  &lt;section&gt;
+    &lt;div class=&quot;label viz-title&quot;&gt;Beyond the week&lt;/div&gt;
+    &lt;div class=&quot;yearheads&quot;&gt;&lt;a href=&quot;trends/&quot;&gt;Trends&lt;/a&gt;&lt;a href=&quot;orgs/&quot;&gt;Organizations&lt;/a&gt;&lt;a href=&quot;people/&quot;&gt;People&lt;/a&gt;&lt;a href=&quot;locations/&quot;&gt;Places&lt;/a&gt;&lt;a href=&quot;concepts/&quot;&gt;Concepts&lt;/a&gt;&lt;a href=&quot;together/&quot;&gt;What travels together&lt;/a&gt;&lt;a href=&quot;articles/&quot;&gt;Every article&lt;/a&gt;&lt;/div&gt;
+    &lt;div class=&quot;label viz-title&quot; style=&quot;margin-top:22px&quot;&gt;Year rollups&lt;/div&gt;
+    &lt;div class=&quot;yearheads&quot;&gt;&lt;a href=&quot;years/2005/&quot;&gt;2005&lt;/a&gt;&lt;a href=&quot;years/2006/&quot;&gt;2006&lt;/a&gt;&lt;a href=&quot;years/2007/&quot;&gt;2007&lt;/a&gt;&lt;a href=&quot;years/2008/&quot;&gt;2008&lt;/a&gt;&lt;a href=&quot;years/2009/&quot;&gt;2009&lt;/a&gt;&lt;a href=&quot;years/2010/&quot;&gt;2010&lt;/a&gt;&lt;a href=&quot;years/2011/&quot;&gt;2011&lt;/a&gt;&lt;a href=&quot;years/2012/&quot;&gt;2012&lt;/a&gt;&lt;a href=&quot;years/2013/&quot;&gt;2013&lt;/a&gt;&lt;a href=&quot;years/2014/&quot;&gt;2014&lt;/a&gt;&lt;a href=&quot;years/2015/&quot;&gt;2015&lt;/a&gt;&lt;a href=&quot;years/2016/&quot;&gt;2016&lt;/a&gt;&lt;a href=&quot;years/2017/&quot;&gt;2017&lt;/a&gt;&lt;a href=&quot;years/2018/&quot;&gt;2018&lt;/a&gt;&lt;a href=&quot;years/2019/&quot;&gt;2019&lt;/a&gt;&lt;a href=&quot;years/2020/&quot;&gt;2020&lt;/a&gt;&lt;a href=&quot;years/2021/&quot;&gt;2021&lt;/a&gt;&lt;a href=&quot;years/2022/&quot;&gt;2022&lt;/a&gt;&lt;a href=&quot;years/2023/&quot;&gt;2023&lt;/a&gt;&lt;a href=&quot;years/2024/&quot;&gt;2024&lt;/a&gt;&lt;a href=&quot;years/2025/&quot;&gt;2025&lt;/a&gt;&lt;a href=&quot;years/2026/&quot;&gt;2026&lt;/a&gt;&lt;/div&gt;
+  &lt;/section&gt;
+
+  &lt;div class=&quot;yearhead num&quot; id=&quot;y2026&quot;&gt;&lt;a href=&quot;years/2026/&quot;&gt;2026&lt;/a&gt;&lt;/div&gt;
+  &lt;div class=&quot;ystrip&quot;&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W02/&quot; data-tip=&quot;2026-W02 — 6,914 words&quot; style=&quot;height:31%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W03/&quot; data-tip=&quot;2026-W03 — 5,339 words&quot; style=&quot;height:27%&quot;&gt;&lt;/a&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W05/&quot; data-tip=&quot;2026-W05 — 4,874 words&quot; style=&quot;height:26%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W06/&quot; data-tip=&quot;2026-W06 — 4,388 words&quot; style=&quot;height:25%&quot;&gt;&lt;/a&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W08/&quot; data-tip=&quot;2026-W08 — 7,697 words&quot; style=&quot;height:33%&quot;&gt;&lt;/a&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W10/&quot; data-tip=&quot;2026-W10 — 586 words&quot; style=&quot;height:9%&quot;&gt;&lt;/a&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W12/&quot; data-tip=&quot;2026-W12 — 23,744 words&quot; style=&quot;height:57%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W13/&quot; data-tip=&quot;2026-W13 — 13,340 words&quot; style=&quot;height:43%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W14/&quot; data-tip=&quot;2026-W14 — 3,507 words&quot; style=&quot;height:22%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W15/&quot; data-tip=&quot;2026-W15 — 4,911 words&quot; style=&quot;height:26%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W16/&quot; data-tip=&quot;2026-W16 — 3,114 words&quot; style=&quot;height:21%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W17/&quot; data-tip=&quot;2026-W17 — 6,272 words&quot; style=&quot;height:29%&quot;&gt;&lt;/a&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W19/&quot; data-tip=&quot;2026-W19 — 2,472 words&quot; style=&quot;height:18%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W20/&quot; data-tip=&quot;2026-W20 — 9,766 words&quot; style=&quot;height:37%&quot;&gt;&lt;/a&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W22/&quot; data-tip=&quot;2026-W22 — 10,704 words&quot; style=&quot;height:38%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W23/&quot; data-tip=&quot;2026-W23 — 1,605 words&quot; style=&quot;height:15%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W24/&quot; data-tip=&quot;2026-W24 — 10,256 words&quot; style=&quot;height:38%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W25/&quot; data-tip=&quot;2026-W25 — 5,932 words&quot; style=&quot;height:29%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W26/&quot; data-tip=&quot;2026-W26 — 9,725 words&quot; style=&quot;height:37%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W27/&quot; data-tip=&quot;2026-W27 — 5,841 words&quot; style=&quot;height:28%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W28/&quot; data-tip=&quot;2026-W28 — 7,421 words&quot; style=&quot;height:32%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W29/&quot; data-tip=&quot;2026-W29 — 4,508 words&quot; style=&quot;height:25%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W30/&quot; data-tip=&quot;2026-W30 — 8,664 words&quot; style=&quot;height:35%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W31/&quot; data-tip=&quot;2026-W31 — 13,804 words&quot; style=&quot;height:44%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W32/&quot; data-tip=&quot;2026-W32 — 27,804 words&quot; style=&quot;height:62%&quot;&gt;&lt;/a&gt;
+      &lt;a class=&quot;wb peakw&quot; href=&quot;weeks/2026-W33/&quot; data-tip=&quot;2026-W33 — 72,376 words&quot; style=&quot;height:100%&quot;&gt;&lt;/a&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;a class=&quot;wb&quot; href=&quot;weeks/2026-W35/&quot; data-tip=&quot;2026-W35 — 21,459 words&quot; style=&quot;height:54%&quot;&gt;&lt;/a&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;/span&gt;
+  &lt;/div&gt;
+  &lt;a class=&quot;wrow&quot; href=&quot;weeks/2026-W35/&quot; style=&quot;background:linear-gradient(90deg,rgba(251,191,36,.08) 32.1%,transparent 32.1%)&quot;&gt;&lt;span class=&quot;wk2 num&quot;&gt;W35&lt;em&gt;Aug 24–30&lt;/em&gt;&lt;/span&gt;&lt;span class=&quot;topic&quot;&gt;&lt;/span&gt;&lt;span class=&quot;c2 num&quot;&gt;10 art&lt;/span&gt;&lt;span class=&quot;w2 num&quot;&gt;21,459 w&lt;/span&gt;&lt;/a&gt;
+  &lt;a class=&quot;wrow&quot; href=&quot;weeks/2026-W33/&quot; style=&quot;background:linear-gradient(90deg,rgba(251,191,36,.08) 58.9%,transparent 58.9%)&quot;&gt;&lt;span class=&quot;wk2 num&quot;&gt;W33&lt;em&gt;Aug 10–16&lt;/em&gt;&lt;/span&gt;&lt;span class=&quot;topic&quot;&gt;Artificial Intelligence&lt;/span&gt;&lt;span class=&quot;c2 num&quot;&gt;18 art&lt;/span&gt;&lt;span class=&quot;w2 num&quot;&gt;72,376 w&lt;/span&gt;&lt;/a&gt;
+  &lt;a class=&quot;wrow&quot; href=&quot;weeks/2026-W32/&quot; style=&quot;background:linear-gradient(90deg,rgba(251,191,36,.08) 36.5%,transparent 36.5%)&quot;&gt;&lt;span class=&quot;wk2 num&quot;&gt;W32&lt;em&gt;Aug 3–9&lt;/em&gt;&lt;/span&gt;&lt;span class=&quot;topic&quot;&gt;Societal Trends&lt;/span&gt;&lt;span class=&quot;c2 num&quot;&gt;11 art&lt;/span&gt;&lt;span class=&quot;w2 num&quot;&gt;27,804 w&lt;/span&gt;&lt;/a&gt;
+  &lt;a class=&quot;wrow&quot; href=&quot;weeks/2026-W31/&quot; style=&quot;background:linear-gradient(90deg,rgba(251,191,36,.08) 25.7%,transparent 25.7%)&quot;&gt;&lt;span class=&quot;wk2 num&quot;&gt;W31&lt;em&gt;Jul 27–Aug 2&lt;/em&gt;&lt;/span&gt;&lt;span class=&quot;topic&quot;&gt;&lt;/span&gt;&lt;span class=&quot;c2 num&quot;&gt;4 art&lt;/span&gt;&lt;span class=&quot;w2 num&quot;&gt;13,804 w&lt;/span&gt;&lt;/a&gt;
+  &lt;a class=&quot;wrow&quot; href=&quot;weeks/2026-W30/&quot; style=&quot;background:linear-gradient(90deg,rgba(251,191,36,.08) 20.4%,transparent 20.4%)&quot;&gt;&lt;span class=&quot;wk2 num&quot;&gt;W30&lt;em&gt;Jul 20–26&lt;/em&gt;&lt;/span&gt;&lt;span class=&quot;topic&quot;&gt;&lt;/span&gt;&lt;span class=&quot;c2 num&quot;&gt;3 art&lt;/span&gt;&lt;span class=&quot;w2 num&quot;&gt;8,664 w&lt;/span&gt;&lt;/a&gt;
+  &lt;a class=&quot;wrow&quot; href=&quot;weeks/2026-W29/&quot; style=&quot;background:linear-gradient(90deg,rgba(251,191,36,.08) 14.7%,transparent 14.7%)&quot;&gt;&lt;span class=&quot;wk2 num&quot;&gt;W29&lt;em&gt;Jul 13–19&lt;/em&gt;&lt;/span&gt;&lt;span class=&quot;topic&quot;&gt;&lt;/span&gt;&lt;span class=&quot;c2 num&quot;&gt;3 art&lt;/span&gt;&lt;span class=&quot;w2 num&quot;&gt;4,508 w&lt;/span&gt;&lt;/a&gt;
+  &lt;a class=&quot;wrow&quot; href=&quot;weeks/2026-W28/&quot; style=&quot;background:linear-gradient(90deg,rgba(251,191,36,.08) 18.9%,transparent 18.9%)&quot;&gt;&lt;span class=&quot;wk2 num&quot;&gt;W28&lt;em&gt;Jul 6–12&lt;/em&gt;&lt;/span&gt;&lt;span class=&quot;topic&quot;&gt;&lt;/span&gt;&lt;span class=&quot;c2 num&quot;&gt;3 art&lt;/span&gt;&lt;span class=&quot;w2 num&quot;&gt;7,421 w&lt;/span&gt;&lt;/a&gt;
+  &lt;a class=&quot;wrow&quot; href=&quot;weeks/2026-W27/&quot; style=&quot;background:linear-gradient(90deg,rgba(251,191,36,.08) 16.7%,transparent 16.7%)&quot;&gt;&lt;span class=&quot;wk2 num&quot;&gt;W27&lt;em&gt;Jun 29–Jul 5&lt;/em&gt;&lt;/span&gt;&lt;span class=&quot;topic&quot;&gt;&lt;/span&gt;&lt;span class=&quot;c2 num&quot;&gt;3 art&lt;/span&gt;&lt;span class=&quot;w2 num&quot;&gt;5,841 w&lt;/span&gt;&lt;/a&gt;
+  &lt;a class=&quot;wrow&quot; href=&quot;weeks/2026-W26/&quot; style=&quot;background:linear-gradient(90deg,rgba(251,191,36,.08) 21.6%,transparent 21.6%)&quot;&gt;&lt;span class=&quot;wk2 num&quot;&gt;W26&lt;em&gt;Jun 22–28&lt;/em&gt;&lt;/span&gt;&lt;span class=&quot;topic&quot;&gt;Prompt Engineering&lt;/span&gt;&lt;span class=&quot;c2 num&quot;&gt;5 art&lt;/span&gt;&lt;span class=&quot;w2 num&quot;&gt;9,725 w&lt;/span&gt;&lt;/a&gt;
+&lt;/div&gt;&lt;/body&gt;&lt;/html&gt;"></iframe>
+  </div>
+  <p class="livefoot">Rendered from the current build in _site/index.html and its stylesheet, first
+  screen only. The live page continues with every year back to 2005.</p>
+</div>
+</section>
+
+<section class="decisions">
+<div class="wrap">
+  <h2>Three decisions</h2>
+  <p class="lede">The cover is drawn. What is not settled is where it lives, which number leads
+  each column, and whether the two covers already shipped should move.</p>
+  <ul class="dgrid">
+    <li><span class="tag">Decision 1 &middot; where it lives</span>
+      <div class="q">Cover as the home page with the weeks index below it, or a separate /cover/?</div>
+      <div class="a"><b>Recommend: cover as home, index below, one page.</b> Books and viewing both put the
+      cover at the root, and a reader arriving from either sibling expects the same shape. A separate
+      /cover/ would be a second entrance that neither sibling has, and the sticky bar has nowhere to
+      point at it. <b>The catch is the measure.</b> The cover wants 1,180 pixels and four columns; the
+      current index is a 720-pixel single column, which is why the frame below sits narrower than the
+      cover above it. Stacking them means one page with two measures, or widening the index to match.
+      Widening is the larger change and can wait.</div></li>
+    <li><span class="tag mine">Decision 2 &middot; the hero per column</span>
+      <div class="q">Are these the four numbers, and is Articles the right amber one?</div>
+      <div class="a">Articles carries the amber because 16,382 is the number the whole archive is
+      about, and it is already the first anchor number on the live page. The other three are
+      deliberately not totals: <b>827</b> is the writing, <b>1,164</b> is the reach, and
+      <b>14.8%</b> is the only hero that is a share rather than a count, because the subject column
+      has no honest total. Swapping any of the three is cheap.</div></li>
+    <li><span class="tag open">Decision 3 &middot; the AI hero</span>
+      <div class="q">Is "artificial intelligence, 14.8% since 2018" too on the nose?</div>
+      <div class="a">It is the largest real movement in the vocabulary, up 14.1 points against the
+      pre-2012 era while mobile devices and social media each fell about six. The alternative hero
+      is the vocabulary itself, 248 curated entries over 80.8% of the corpus, which is a fact about
+      the pipeline rather than about the reading. Adam's call.</div></li>
+    <li><span class="tag">Decision 4 &middot; the siblings</span>
+      <div class="q">Do books and viewing need any change once this ships?</div>
+      <div class="a"><b>Recommend: no change to either.</b> This cover was built to their anatomy,
+      not the reverse. One small drift is worth noting: their sticky bars carry a second row of page
+      links because each has four pages, and reading has one page plus its year anchors. That
+      asymmetry is already documented in the reading site's own nav helper and should stay.</div></li>
+  </ul>
+</div>
+</section>
+
+<footer>
+  <span>Mockup built 8 September 2026 from data/archive_index.parquet, 17,326 rows, and 855 week
+  records on the vault. Figures reflect the 16,382 articles that survive the corrupted-content
+  filter and the 2005 epoch: 915 rows are flagged corrupted, 29 fall before 2005.</span>
+</footer>
+
+</body>
+</html>

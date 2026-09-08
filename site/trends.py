@@ -25,6 +25,7 @@ from corpus import (COMPLEXITY_MIN_GRADED, GRADE_MAX, GRADE_MIN,
                     complexity_by_year, complexity_stats, domain_year_matrix,
                     entity_year_matrix, sentiment_by_year, stats,
                     vocabulary_report)
+import htmlkit
 from htmlkit import e, n, page
 
 # The complexity axis does not start at zero. Twenty years of average grade
@@ -422,7 +423,7 @@ def render_trends(corpus, site_title="The Week in Reading", domain=""):
                 if graded else "")
 
     body = f"""  <header>
-    <a class="label kicker" href="../">{e(site_title)}</a>
+    <a class="label kicker" href="{e(htmlkit.weeks_index_href(1))}">{e(site_title)}</a>
     <h1>Trends</h1>
     <div class="daterange">{n(len(rows))} articles across {last - first + 1} years, {first}–{last}, read at year grain.</div>
   </header>
@@ -467,7 +468,7 @@ def render_trends(corpus, site_title="The Week in Reading", domain=""):
     <div class="note"><a href="../locations/">All {n(loc_v["vocabulary"])} places →</a></div>
   </section>
 
-  <div class="yearnav"><span></span><a class="home" href="../">All weeks</a><span></span></div>
+  <div class="yearnav"><span></span><a class="home" href="{e(htmlkit.weeks_index_href(1))}">All weeks</a><span></span></div>
   <footer>
     <span class="label">Computed from the archive index · corrupted rows excluded</span>
     <span class="label num">{e(domain)}</span>

@@ -41,8 +41,13 @@ SUB
   fi
   local out
   find . -name "__pycache__" -type d -not -path "./.git/*" -exec rm -rf {} + 2>/dev/null
-  out=$("$PY" -m pytest $tests -q -p no:cacheprovider 2>&1 | grep -oE '[0-9]+ (failed|passed)[^$]*' | head -1)
-  if echo "$out" | grep -q failed; then
+  # `error` as well as `failed`. A mutation can now make a build ABORT rather
+  # than render something wrong - check_page_row_targets refuses to publish a
+  # page row naming a page that was not built - and pytest reports that as
+  # "1 error". Grepping only for "failed" scored those as ESCAPES, which is the
+  # one direction a mutation audit must never get wrong.
+  out=$("$PY" -m pytest $tests -q -p no:cacheprovider 2>&1 | grep -oE '[0-9]+ (failed|error|passed)[^$]*' | head -1)
+  if echo "$out" | grep -qE 'failed|error'; then
     printf '  CAUGHT   %-62s %s\n' "$label" "$out"; PASS=$((PASS+1))
   else
     printf '  ESCAPED  %-62s %s  <-- UNGUARDED\n' "$label" "$out"; FAIL=$((FAIL+1))
@@ -58,17 +63,17 @@ T=tests/test_site_sibling_nav.py
 echo "=== the bar reaches every page ==="
 run_mutation "page() stops emitting the bar" "$H" \
   '<body>
-{nav(depth)}' '<body>' \
+{nav(depth, here, under)}' '<body>' \
   "$T::test_every_emitted_page_carries_the_sibling_bar"
 
 run_mutation "the bar is emitted only on the root page" "$H" \
-  '{nav(depth)}' '{nav(depth) if depth == 0 else ""}' \
+  '{nav(depth, here, under)}' '{nav(depth, here, under) if depth == 0 else ""}' \
   "$T::test_every_emitted_page_carries_the_sibling_bar"
 
-run_mutation "the bar moves inside the 720px content column" "$H" \
-  '{nav(depth)}
-<div class="page">' '<div class="page">
-{nav(depth)}' \
+run_mutation "the bar moves inside the content column" "$H" \
+  '{nav(depth, here, under)}
+<div class="{cls}">' '<div class="{cls}">
+{nav(depth, here, under)}' \
   "$T::test_the_bar_sits_above_the_page_and_leaves_the_masthead_alone"
 
 echo
@@ -96,7 +101,7 @@ run_mutation "the sibling order stops matching the other two sites" "$H" \
 echo
 echo "=== the wordmark ==="
 run_mutation "the home link is hard-coded and 404s from a nested page" "$H" \
-  '    home = "../" * depth or "./"' '    home = "./"' \
+  '    home = up or "./"' '    home = "./"' \
   "$T::test_the_wordmark_reads_adamthede_reading_and_links_home_from_any_depth"
 
 run_mutation "the wordmark loses its second half" "$H" \
@@ -128,9 +133,9 @@ run_mutation "the wordmark is hand-coloured with a literal" "$G" \
   "$T::test_the_bar_uses_the_shared_skin_variables_rather_than_new_colours"
 
 run_mutation "the bar's tokens are declared in a second :root" "$G" \
-  '  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }' \
+  '  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;' \
   '  }
-:root { --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }' \
+:root { --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;' \
   "$T::test_the_stylesheet_still_declares_one_root"
 
 echo
@@ -155,12 +160,13 @@ run_mutation "--ink-4 is retuned away from the books skin" "$G" \
 echo
 echo "=== the conditional page kinds ==="
 run_mutation "the taxonomy gate closes and /concepts/ stops being built" "$G" \
-  '    if joined and rankable and tax_doc:' '    if False:' \
+  '    return bool(joined and rankable and tax_doc), tax_doc' \
+  '    return False, tax_doc' \
   "$T::test_the_build_under_test_covers_every_page_kind"
 
 run_mutation "a renderer behind the taxonomy gate builds its own shell" \
   "site/vocabulary.py" \
-  '    return page("Concepts", body, depth=1)' \
+  '    return page("Concepts", body, depth=1, here="concepts")' \
   '    return "<!DOCTYPE html><html><body>" + body + "</body></html>"' \
   "$T::test_every_emitted_page_carries_the_sibling_bar"
 
