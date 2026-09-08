@@ -134,6 +134,44 @@ run_mutation "the bar's tokens are declared in a second :root" "$G" \
   "$T::test_the_stylesheet_still_declares_one_root"
 
 echo
+echo "=== the geometry that aligns the three bars ==="
+run_mutation "the inner measure drops to this site's own column width" "$G" \
+  '.snin { max-width:1180px;' '.snin { max-width:980px;' \
+  "$T::test_the_inner_measure_is_the_one_that_aligns_the_three_bars"
+
+run_mutation "the bar loses flex-wrap and overflows at 390px" "$G" \
+  'align-items:baseline; gap:26px; flex-wrap:wrap; }' \
+  'align-items:baseline; gap:26px; }' \
+  "$T::test_the_inner_measure_is_the_one_that_aligns_the_three_bars"
+
+run_mutation "the bar stops centring on its measure" "$G" \
+  '.snin { max-width:1180px; margin:0 auto;' '.snin { max-width:1180px;' \
+  "$T::test_the_inner_measure_is_the_one_that_aligns_the_three_bars"
+
+run_mutation "--ink-4 is retuned away from the books skin" "$G" \
+  '--ink-4:#57504c;' '--ink-4:#8a8078;' \
+  "$T::test_the_shared_palette_values_are_the_books_values"
+
+echo
+echo "=== the conditional page kinds ==="
+run_mutation "the taxonomy gate closes and /concepts/ stops being built" "$G" \
+  '    if joined and rankable and tax_doc:' '    if False:' \
+  "$T::test_the_build_under_test_covers_every_page_kind"
+
+run_mutation "a renderer behind the taxonomy gate builds its own shell" \
+  "site/vocabulary.py" \
+  '    return page("Concepts", body, depth=1)' \
+  '    return "<!DOCTYPE html><html><body>" + body + "</body></html>"' \
+  "$T::test_every_emitted_page_carries_the_sibling_bar"
+
+run_mutation "a new page kind is emitted that PAGE_KINDS does not claim" "$G" \
+  '    (tmp / "people").mkdir()' \
+  '    (tmp / "surprise").mkdir()
+    (tmp / "surprise" / "index.html").write_text("<html></html>", encoding="utf-8")
+    (tmp / "people").mkdir()' \
+  "$T::test_the_page_kinds_named_here_account_for_the_whole_build"
+
+echo
 echo "=== self-contained ==="
 run_mutation "the wordmark pulls a webfont" "$H" \
   '  <div class="snin">' \

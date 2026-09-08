@@ -11,10 +11,19 @@ Every test here names, in its docstring, the mutation it catches.
 
 What these tests deliberately do NOT do: pin the sticky behaviour by driving a
 browser. This suite has no browser and the repo has no CI to run one in, so the
-assertions live at the stylesheet level - `position:sticky` on the bar, and the
-`overflow-x` pair on html and body that decides whether sticky pins at all. The
-real-viewport measurement (390px drag, sticky offset after a scroll) is on the
-pull request as evidence, following the same split the books repo settled.
+assertions live at the stylesheet level - `position:sticky` on the bar, the
+1180px measure that aligns the three, and the `overflow-x` pair on html and body
+that decides whether sticky pins at all. The real-viewport measurement (390px
+drag, sticky offset after a scroll) is on the pull request as evidence,
+following the same split the books repo settled.
+
+The pair that has to stay in step: `test_every_emitted_page_carries_the_sibling_bar`
+walks whatever the build actually wrote, and `PAGE_KINDS` is the inventory that
+says the walk saw one of every kind. Neither is sufficient alone. A review
+proved the gap by making one renderer build its own document shell: a real build
+shipped a bar-less /concepts/ page with the whole suite green, because the
+fixture never cleared the taxonomy gate and so never wrote that page for the
+walk to find.
 """
 import re
 import sys
@@ -68,7 +77,15 @@ def _row(**over):
         "date_saved": "2012-03-01", "date_archived": "2012-03-02",
         "word_count": 1000, "content_corrupted": False, "reading_time_min": 5.0,
         "topics": ["AI"], "people": ["Ada Lovelace"], "orgs": ["Google"],
-        "locations": ["Berlin"], "concepts": [], "sentiment": "Neutral",
+        "locations": ["Berlin"], "concepts": ["Social Media"],
+        # The taxonomy join's output column. /concepts/ and /together/ are the
+        # only page kinds built conditionally - the gate wants this column
+        # present, the top-20 article coverage over the 40% bar, and a readable
+        # taxonomy - so a fixture without it never builds them and every
+        # assertion about those two pages passes over nothing. Names are taken
+        # from the committed data/taxonomy/v1.yaml so the join is real.
+        "canonical_entries": ["Social Media"],
+        "sentiment": "Neutral",
         "emotion": "Analytical", "summary": "s", "file_path": "/x.md",
         "content_snippet": "snip",
     }
@@ -90,11 +107,14 @@ def index_file(tmp_path):
     p = tmp_path / "index.parquet"
     df = pd.DataFrame([
         _row(title="Alpha", orgs=["Google", "Apple"], date_archived="2012-01-10",
-             word_count=1200),
+             word_count=1200,
+             canonical_entries=["Social Media", "Mobile Devices"]),
         _row(title="Beta", orgs=["Google"], date_archived="2012-06-10",
-             word_count=800, url="https://sub.example.org/b"),
+             word_count=800, url="https://sub.example.org/b",
+             canonical_entries=["Social Media", "Innovation"]),
         _row(title="Gamma", orgs=["Apple"], date_archived="2013-02-10",
-             word_count=400),
+             word_count=400,
+             canonical_entries=["Mobile Devices", "Innovation"]),
     ])
     for c in ("date_saved", "date_archived"):
         df[c] = pd.to_datetime(df[c])
@@ -127,19 +147,45 @@ PAGE_KINDS = {
     "locations facet": lambda p: p.startswith("locations/"),
     "trends": lambda p: p.startswith("trends/"),
     "article browser": lambda p: p.startswith("articles/"),
+    # Built conditionally, behind the taxonomy gate, which makes them the two
+    # likeliest to drift out of a fixture unnoticed. An adversarial review
+    # proved the cost: with these absent, a renderer rewritten to build its own
+    # document shell shipped a bar-less /concepts/ page on a real build with
+    # the whole suite green. The fixture now carries a canonical_entries column
+    # so the gate opens and both pages are really inspected.
+    "concepts": lambda p: p.startswith("concepts/"),
+    "together": lambda p: p.startswith("together/"),
 }
 
 
 def test_the_build_under_test_covers_every_page_kind(site):
     """Catches a fixture that stopped exercising a page kind.
 
-    The bar test below iterates page kinds; if the deep-dive leg silently
-    stopped emitting one - a renamed directory, a facet gated off - that test
-    would pass over an empty set and vouch for nothing. Shrink the fixture
-    corpus until /years/ or /orgs/ is not written and this fails first.
+    The bar test below walks whatever the build emitted; if the deep-dive leg
+    silently stopped emitting a kind - a renamed directory, a facet gated off,
+    a taxonomy gate that closed - that test would pass over a set missing the
+    kind and vouch for nothing. This is what makes the walk meaningful: drop
+    the fixture's canonical_entries column, or shrink the corpus until /years/
+    or /orgs/ is not written, and this fails first.
     """
     for kind, match in PAGE_KINDS.items():
         assert any(match(p) for p in site), f"no {kind} page in the build"
+
+
+def test_the_page_kinds_named_here_account_for_the_whole_build(site):
+    """Catches a NEW page kind that no row above claims.
+
+    The pair of tests only holds if the two halves stay in step: the walk
+    inspects every emitted page, and PAGE_KINDS is the inventory that says the
+    walk saw one of each. A kind added to the generator and to nothing else
+    would still be walked, but nothing would notice if a later change stopped
+    emitting it. Add a renderer with a new output directory and this fails
+    until the kind is named.
+    """
+    unclaimed = [p for p in site
+                 if not any(match(p) for match in PAGE_KINDS.values())]
+    assert not unclaimed, (
+        f"these emitted pages match no kind in PAGE_KINDS: {unclaimed[:5]}")
 
 
 def test_every_emitted_page_carries_the_sibling_bar(site):
@@ -241,6 +287,58 @@ def _css(site_dir=None):
     return (gen.STYLE + __import__("deepdives").EXTRA_STYLE
             + __import__("trends").TRENDS_STYLE
             + __import__("vocabulary").VOCAB_STYLE)
+
+
+def test_the_inner_measure_is_the_one_that_aligns_the_three_bars():
+    """Catches the silent break of the whole cross-site alignment claim.
+
+    1180px is not this site's measure - its content column is 720px, and the
+    books surface's is 980px. It is the books BAR's measure, and copying it is
+    the entire reason the wordmark's left edge lands at 134px and the sibling
+    links' right edge at 1266px on all three surfaces at the same viewport
+    width. Those two edges are what a reader moving between the sites actually
+    sees line up.
+
+    An adversarial review found this escaping: changing 1180px to this site's
+    own 980px left the family alignment broken with every test green. The
+    number now has a watcher.
+
+    `flex-wrap: wrap` is asserted with it because it is the other half of the
+    same rule's job: at 390px the bar wraps to two lines rather than
+    overflowing, which is what let this site keep the sibling links visible on
+    a phone where the books bar hides them.
+    """
+    css = re.sub(r"\s+", "", _css())
+    rule = re.search(r"\.snin\{[^}]*\}", css)
+    assert rule, ".snin has no rule at all"
+    assert "max-width:1180px" in rule.group(0), (
+        "the bar's inner measure must stay 1180px, the value the books and "
+        "viewing bars use, or the three bars stop lining up")
+    assert "flex-wrap:wrap" in rule.group(0), (
+        "without flex-wrap the bar overflows at 390px instead of wrapping")
+    assert "margin:0auto" in rule.group(0), \
+        "the measure only centres the bar while the auto margins are there"
+
+
+def test_the_shared_palette_values_are_the_books_values():
+    """Catches a token that is declared but retuned away from the shared skin.
+
+    The existing token test holds the bar's rules to naming `--ink-4` and
+    `--mono` rather than literals, which is the right guard against a hex code
+    pasted into a rule. It does not watch the tokens' own values, and the same
+    review found `--ink-4` could be moved from #57504c to #8a8078 with the
+    suite green - which recolours the wordmark's second half on this site only
+    and breaks the match with the other two bars.
+
+    These two tokens exist solely for the bar and are lifted from the books
+    skin, so they are pinned to the books values. Retuning them is a decision
+    about all three surfaces and should have to be made here, in the open.
+    """
+    css = re.sub(r"\s+", "", _css())
+    assert "--ink-4:#57504c" in css, \
+        "--ink-4 must stay the books skin's value or the wordmarks diverge"
+    assert '--mono:ui-monospace,"SFMono",Menlo,Consolas,monospace' in css, \
+        "the bar is set in the books skin's mono stack"
 
 
 def test_the_bar_is_sticky_at_the_top_of_the_viewport():
