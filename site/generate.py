@@ -867,6 +867,12 @@ def render_years_index(corpus_data, weeks, year_pages):
                       f'<span class="w2 num">{n(st["words"])} w</span></a>\n')
 
     total = corpus_mod.stats(corpus_data.rows)
+    # The footer names the weeks index in its own text, so it resolves through
+    # the same helper the other twenty-two chrome anchors use. It was the last
+    # hardcoded hop on the site, and it broke in exactly the shape the helper
+    # exists for: with no cover, /years/ still ships and /weeks/ does not.
+    index_href = htmlkit.weeks_index_href(1)
+    index_label = "/weeks/" if index_href.endswith("weeks/") else "the home page"
     body = f"""  <header>
     <span class="label kicker">{e(DOMAIN)}</span>
     <h1>Year rollups</h1>
@@ -884,7 +890,7 @@ def render_years_index(corpus_data, weeks, year_pages):
 {body_rows}  </section>
 
   <footer>
-    <span class="label">Newest first · the weekly syntheses are at <a href="../weeks/">/weeks/</a></span>
+    <span class="label">Newest first · the weekly syntheses are at <a href="{e(index_href)}">{e(index_label)}</a></span>
     <span class="label num">Generated {dt.date.today().isoformat()}</span>
   </footer>"""
     return page(f"Year rollups — {SITE_TITLE}", body, depth=1, here="years")

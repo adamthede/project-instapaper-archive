@@ -29,7 +29,7 @@ from collections import Counter
 import pandas as pd
 
 import corpus as C
-from htmlkit import e, n, page
+from htmlkit import e, n, page, weeks_index_href
 
 # Three eras of READING, not three sources: the flood, the fade, the return.
 # The source split (legacy / Instapaper / Matter) is its own column.
@@ -518,7 +518,7 @@ BODY = """  <header class="masthead">
   anywhere in this archive, so nothing here is drawn by hour.</p>
 
   <footer>
-    <span class="label">The weekly syntheses are at <a href="weeks/">/weeks/</a></span>
+    <span class="label">The weekly syntheses are at <a href="{{INDEX_HREF}}">{{INDEX_LABEL}}</a></span>
     <span class="label num">Generated {{GENERATED}}</span>
   </footer>"""
 
@@ -554,6 +554,11 @@ def render_cover(corpus_data, weeks, deep_dives, site_title="The Week in Reading
         "GENERATED": today.isoformat(),
         "LEGACY": n(legacy), "MODERN": n(modern), "PROXY": n(f["proxy"]),
         "SEAM": str(SEAM_YEAR), "AXIS": axis.span,
+        # The cover only renders in the shape where the index is at /weeks/,
+        # but the link resolves through the shared helper anyway: one answer to
+        # "where is the index", so a future shape cannot leave this behind the
+        # way the years footer was left behind.
+        "INDEX_HREF": e(weeks_index_href(0)), "INDEX_LABEL": e("/weeks/"),
     }
     for k, v in tokens.items():
         body = body.replace("{{" + k + "}}", v)

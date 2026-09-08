@@ -472,6 +472,51 @@ def test_the_week_pages_still_live_under_the_index_that_now_sits_above_them(site
         assert f"weeks/{week}/index.html" in site
 
 
+def _thin_index(index_file, tmp_path):
+    """The same index with the taxonomy join removed."""
+    thin = tmp_path / "thin.parquet"
+    pd.read_parquet(index_file).drop(columns=[cover.CANONICAL_COLUMN]).to_parquet(thin)
+    return thin
+
+
+@pytest.mark.parametrize("shape", ["cover", "no-taxonomy", "no-index"])
+def test_no_build_shape_links_to_a_page_it_did_not_write(shape, synth_dir,
+                                                         index_file, tmp_path):
+    """Catches a dead internal link in ANY of the three shapes this can build.
+
+    Every other link test on this branch runs against the shape with a cover,
+    which is the shape a developer builds. The failures keep arriving in the
+    other two, because those are the shapes nobody looks at: the years footer
+    shipped a hardcoded `../weeks/` that resolved fine with a cover and 404'd
+    without one, and neither the text test nor the section walk saw it - one
+    keyed off a class the link did not carry, the other skipped a section's own
+    index.
+
+    So this crawls every `href` and `src` on every page of every shape and
+    demands each one resolve to a file or a directory with an index. It is the
+    class of bug, not the instance. Hardcode any relative hop that the site
+    shape can move and one of these three fails.
+    """
+    index = {"cover": index_file,
+             "no-taxonomy": _thin_index(index_file, tmp_path),
+             "no-index": None}[shape]
+    out = tmp_path / f"_site-{shape}"
+    gen.generate(synth_dir, out, index_path=index)
+
+    broken = []
+    pages = list(out.rglob("*.html"))
+    for page_path in pages:
+        raw = page_path.read_text(encoding="utf-8")
+        for _, val in re.findall(r'(href|src)="([^"]+)"', raw):
+            if val.startswith(("http", "#", "mailto:")):
+                continue
+            target = (page_path.parent / val).resolve()
+            if not (target.is_file() or (target / "index.html").is_file()):
+                broken.append((page_path.relative_to(out).as_posix(), val))
+    assert not broken, f"{shape}: {len(broken)} dead links, e.g. {sorted(set(broken))[:3]}"
+    assert (out / "index.html").exists(), f"{shape} has no root page"
+    assert len(pages) > len(WEEKS), f"{shape} rendered almost nothing"
+
 # ---------------------------------------------------------------------------
 # the page row
 # ---------------------------------------------------------------------------
@@ -708,6 +753,14 @@ def test_a_build_does_not_leak_its_row_into_the_next_one(synth_dir, tmp_path):
     assert htmlkit._page_row == htmlkit.PAGE_ROW
 
 
+# Every way a link on this site says "I go to the weeks index". Matched on the
+# rendered TEXT and on no class at all: the first version of this test keyed off
+# `class="home"` and `class="label kicker"`, and the years footer's `/weeks/`
+# link carried neither, so it stayed hardcoded and broke in the shape where the
+# index does not live at /weeks/.
+NAMES_THE_INDEX = ("All weeks", "The Week in Reading", "/weeks/")
+
+
 def test_every_link_that_names_the_weeks_index_lands_on_the_weeks_index(site, built):
     """Catches a link whose text names one page and whose target is another.
 
@@ -726,17 +779,16 @@ def test_every_link_that_names_the_weeks_index_lands_on_the_weeks_index(site, bu
     index = (built / "weeks" / "index.html").resolve()
     checked = 0
     for name, raw in site.items():
-        for href, text in re.findall(r'<a class="(?:home|label kicker)" href="([^"]+)">([^<]+)</a>',
-                                     raw):
-            assert text in ("All weeks", "The Week in Reading"), \
-                f"{name}: unexpected chrome link text {text!r}"
+        for href, text in re.findall(r'<a [^>]*href="([^"]+)"[^>]*>([^<]+)</a>', raw):
+            if text.strip() not in NAMES_THE_INDEX:
+                continue
             landed = ((built / name).parent / href / "index.html").resolve()
             assert landed == index, (
                 f'{name}: "{text}" points at {href}, which resolves to '
                 f"{landed}, not the weeks index")
             checked += 1
     assert checked >= 2 * (len(WEEKS) + 1), \
-        f"only {checked} chrome links inspected: check the regex"
+        f"only {checked} links inspected: check the regex"
 
 
 def test_every_week_and_year_page_can_reach_its_own_index(site, built):

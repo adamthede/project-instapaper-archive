@@ -338,6 +338,28 @@ run_mutation "the index href helper ignores the degraded shape" "$H" \
         return "../" * depth + "weeks/"' \
   "$T::test_a_weeks_only_build_still_has_a_root_page_and_an_honest_row"
 
+run_mutation "the years footer hardcodes the index hop again" "$G" \
+  '    <span class="label">Newest first · the weekly syntheses are at <a href="{e(index_href)}">{e(index_label)}</a></span>' \
+  '    <span class="label">Newest first · the weekly syntheses are at <a href="../weeks/">/weeks/</a></span>' \
+  "$T::test_no_build_shape_links_to_a_page_it_did_not_write"
+
+# The years footer again, this time pointed at a page that DOES exist. The
+# crawl above cannot see this one - every link resolves - and only the text
+# matcher can, which is what the widened NAMES_THE_INDEX buys. The two
+# mutations together are why both tests are here.
+run_mutation "the years footer names the index and reaches another page" "$G" \
+  '<a href="{e(index_href)}">{e(index_label)}</a></span>' \
+  '<a href="../orgs/">{e(index_label)}</a></span>' \
+  "$T::test_every_link_that_names_the_weeks_index_lands_on_the_weeks_index"
+
+# NOT mutated, deliberately: site/cover.py's footer also resolves through
+# weeks_index_href, but the cover only renders in the shape where the index is
+# at /weeks/, so the helper and a hardcoded "weeks/" are identical in every
+# shape that exists. It is written through the helper for consistency and
+# against a future shape, not because a test can tell the difference today. A
+# mutation there would be scored CAUGHT by something else or ESCAPED honestly;
+# neither would mean anything.
+
 echo
 echo "=== the era annotations the cover note points at ==="
 run_mutation "the era averages are rounded to whole numbers" "$C" \
