@@ -1,10 +1,10 @@
 ---
 title: "The reading cover — a Feltron cover page at the root, the weeks index moved to /weeks/"
-status: "In Progress"
+status: "QA Needed"
 priority: "P2"
 project: "articles"
 created: 2026-09-08
-linked_pr: ""
+linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/24"
 mockup: "/Users/adam_thede/Documents/Code/command-center/docs/mockups/2026-09-08-reading-cover.html"
 depends_on:
   - "PR #22 — the sticky sibling-site bar (merged 2026-09-08)"
@@ -67,3 +67,28 @@ of 358 weeks, the 2012 seam, and the AI share.
   page.
 - The repo has no CI and no review bots, so the Readiness Rule's second leg is
   an adversarial review by an agent that did not write this.
+
+## Status 2026-09-08
+
+PR #24 is open: https://github.com/adamthede/project-instapaper-archive/pull/24
+
+Built and verified. `/verify` READY (819 tests pass, ruff and mypy are not
+installed in this repo and were skipped). The cover mutation audit is 41 caught
+and 0 escaped; the sibling-nav audit's anchors were refreshed against the moved
+code and it is back to 26 caught and 0 escaped. Fidelity screenshots against the
+approved mockup are in `docs/qa/2026-09-08-reading-cover/`, with the 1400 and
+390 viewport measurements on the PR.
+
+Two additions the spec implied rather than named: `/years/` gained a directory
+page, because the requested row names YEARS and the rollups had no door of their
+own; and `concepts_gate()` was split out of `render_deep_dives()` so the row can
+be settled before the first page is written.
+
+One mockup value the data could not reproduce: the "this week" note's ", on
+energy and on AI" was typed from reading the digest. `top_topics` is empty in
+that week record and every recent one, so the clause is derived from that field
+and omitted when it is empty.
+
+**Not merged and not deployed.** The repo has no CI and no review bots, so the
+Readiness Rule's second leg is an adversarial review by an agent that did not
+write this. That is the open item.
