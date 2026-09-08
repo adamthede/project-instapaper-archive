@@ -30,7 +30,9 @@ import frontmatter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import corpus as corpus_mod  # noqa: E402
+import cover  # noqa: E402
 import deepdives  # noqa: E402
+import htmlkit  # noqa: E402
 import trends  # noqa: E402
 import vocabulary  # noqa: E402
 from htmlkit import e, n, page  # noqa: E402,F401
@@ -205,27 +207,30 @@ def fmt_range(meta):
 
 STYLE = """
 :root { --bg:#1c1917; --bg-raise:#292524; --ink:#e7e5e4; --ink-2:#a8a29e;
-  --ink-3:#78716c; --ink-4:#57504c; --rule:#44403c; --amber:#fbbf24;
-  --amber-dim:#92700c; --brand:#FF8F3B;
-  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
+  --ink-3:#78716c; --ink-4:#57504c; --rule:#44403c; --rule-2:#302b28;
+  --amber:#fbbf24; --amber-dim:#92700c; --brand:#FF8F3B;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --serif:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif; }
 * { margin:0; padding:0; box-sizing:border-box; }
 html, body { overflow-x:hidden; overflow-x:clip; }
 body { background:var(--bg); color:var(--ink); line-height:1.5;
   font-family:ui-sans-serif,-apple-system,"Helvetica Neue",sans-serif; }
 a { color:inherit; }
 .page { max-width:720px; margin:0 auto; padding:64px 24px 96px; }
-/* ---- sticky sibling-site bar ----
+/* ---- sticky bar: the page row, then the sibling-site row ----
    Lifted from the books surface's styles.py (the .stickynav/.snin/.wordmark/
-   .sitelinks block) so reading, books and viewing carry the same bar. The
-   1180px inner measure is the books value and is kept deliberately: it is
-   what puts the sibling links at the same x on all three sites at the same
-   viewport width, which is the part a reader moving between them actually
-   sees. It is wider than this site's 720px column, as it is wider than the
-   books site's 980px one.
-   The .pagelinks rules are not lifted - this bar has no page-links row - and
-   neither is the books media rule that hides .sitelinks below 880px, because
-   without that row there is space for the siblings all the way down to 390px,
-   where the bar wraps to two lines instead of disappearing. */
+   .pagelinks/.sitelinks block) so reading, books and viewing carry the same
+   bar. The 1180px inner measure is the books value and is kept deliberately:
+   it is what puts the sibling links at the same x on all three sites at the
+   same viewport width, which is the part a reader moving between them
+   actually sees. It is wider than this site's 720px column, as it is wider
+   than the books site's 980px one.
+   The .pagelinks rules are now lifted too. Until 2026-09-08 this bar had no
+   page-links row and no page to point at; the cover at the root and the weeks
+   index at /weeks/ made six destinations, which is what books and viewing
+   already carry. The books media rule that hides .sitelinks below 880px comes
+   with the row: with both rows present there is no longer space for the
+   siblings on a phone, and the bar behaves as the books bar does. */
 .stickynav { position:sticky; top:0; z-index:20; background:var(--bg);
   border-bottom:1px solid var(--rule); }
 .snin { max-width:1180px; margin:0 auto; padding:11px 24px; display:flex;
@@ -235,6 +240,12 @@ a { color:inherit; }
   white-space:nowrap; }
 .wordmark i { font-style:normal; color:var(--ink-4); }
 .wordmark i::before { content:" / "; }
+.pagelinks { display:flex; gap:22px; flex-wrap:wrap; font-family:var(--mono);
+  font-size:11px; letter-spacing:.13em; text-transform:uppercase; }
+.pagelinks a { color:var(--ink-4); text-decoration:none; }
+.pagelinks a:hover { color:var(--brand); }
+.pagelinks .here { color:var(--ink); border-bottom:1px solid var(--amber);
+  padding-bottom:3px; }
 .sitelinks { margin-left:auto; display:flex; gap:18px; font-family:var(--mono);
   font-size:11px; letter-spacing:.13em; text-transform:uppercase;
   color:var(--ink-4); }
@@ -367,12 +378,20 @@ details.yweeks[open] summary::before { content:"▾ "; }
   background:rgba(251,191,36,var(--i,1)); align-self:center; }
 .eralabels .ev { font-size:15px; color:var(--ink); }
 .eralabels .ep { font-size:12px; color:var(--ink-3); }
+/* The books bar's own breakpoint, adopted with its page row (2026-09-08).
+   Two rows of links plus a wordmark do not fit a phone, and the books surface
+   already settled which half goes: the sibling row hides, the page row
+   tightens, and the wordmark drops its second half. Keeping the siblings here
+   instead - which this site did while it had no page row - would push the
+   page links onto a third line at 390px. */
+@media (max-width:880px){
+  .snin{gap:8px 16px; padding:9px 20px;}
+  .sitelinks{display:none;}
+  .pagelinks{gap:14px; font-size:10px; letter-spacing:.08em;}
+  .wordmark i{display:none;} }
 @media (max-width:560px){ h1{font-size:40px;} .stats{gap:24px;}
   .wrow{grid-template-columns:80px 1fr 60px;} .wrow .w2{display:none;}
-  .eralabels{gap:16px;}
-  /* Same tightening the books bar applies at its own breakpoint. The
-     sibling links stay visible here - see the note by .stickynav. */
-  .snin{gap:8px 16px; padding:9px 20px;} }
+  .eralabels{gap:16px;} }
 """
 
 
@@ -538,7 +557,7 @@ def render_week(meta, prev_wk=None, next_wk=None, prev_meta=None):
     <span class="label">Synthesized by {e(str(meta.get("model") or "local model"))} · on-device</span>
     <span class="label num">Generated {e(str(meta.get("generated") or ""))} · {e(DOMAIN)}</span>
   </footer>"""
-    return page(f"{week} — {SITE_TITLE}", body, depth=2)
+    return page(f"{week} — {SITE_TITLE}", body, depth=2, here="weeks")
 
 
 def render_hero(corpus_data):
@@ -596,7 +615,17 @@ def render_hero(corpus_data):
 
 
 def render_index(weeks, year_pages=(), facets=False, excluded=0,
-                 corpus_data=None, facet_names=()):
+                 corpus_data=None, facet_names=(), depth=0, canonical=""):
+    """The weeks index - the page that was the whole site until 2026-09-08.
+
+    It moved from `/` to `/weeks/` when the cover took the root, and `depth`
+    is the entire difference between the two renderings: every internal href
+    gains one `../`, the stylesheet link gains one, and the page row marks
+    WEEKS from a directory further down. Nothing else about the page changes,
+    which is a claim `test_site_cover.py` holds against a build of the
+    generator as it stood before the move.
+    """
+    root = "../" * depth
     total_articles = sum(int(m["article_count"]) for m in weeks)
     total_words = sum(int(m["total_words"]) for m in weeks)
     total_hours = round(sum(float(m["reading_time_hours"]) for m in weeks), 1)
@@ -651,7 +680,7 @@ def render_index(weeks, year_pages=(), facets=False, excluded=0,
                 hp = max((int(m2["total_words"]) / wpeak) ** 0.5 * 100, 8)
                 peak_cls = " peakw" if int(m2["total_words"]) == wpeak else ""
                 tip = f"{wk} — {n(m2['total_words'])} words"
-                cells += (f'      <a class="wb{peak_cls}" href="weeks/{wk}/" data-tip="{e(tip)}" '
+                cells += (f'      <a class="wb{peak_cls}" href="{root}weeks/{wk}/" data-tip="{e(tip)}" '
                           f'style="height:{hp:.0f}%"></a>\n')
         return f'  <div class="ystrip">\n{cells}  </div>\n'
 
@@ -676,7 +705,7 @@ def render_index(weeks, year_pages=(), facets=False, excluded=0,
                 open_details = False
             # The year head is the doorway to the rollup page - but only when
             # that page exists (no index parquet = weeks-only build).
-            head = (f'<a href="years/{e(year)}/">{e(year)}</a>'
+            head = (f'<a href="{root}years/{e(year)}/">{e(year)}</a>'
                     if year in year_pages else e(year))
             rows += f'  <div class="yearhead num" id="y{e(year)}">{head}</div>\n'
             rows += year_strip(year)
@@ -700,7 +729,7 @@ def render_index(weeks, year_pages=(), facets=False, excluded=0,
         pct = (int(m["total_words"]) / max_words) ** 0.5 * 100
         bg = (f'style="background:linear-gradient(90deg,rgba(251,191,36,.08) '
               f'{pct:.1f}%,transparent {pct:.1f}%)"')
-        rows += (f'  <a class="wrow" href="weeks/{w}/" {bg}>'
+        rows += (f'  <a class="wrow" href="{root}weeks/{w}/" {bg}>'
                  f'<span class="wk2 num">{w.split("-")[1]}<em>{e(span)}</em></span>'
                  f'<span class="topic">{e(str(top))}</span>'
                  f'<span class="c2 num">{n(m["article_count"])} art</span>'
@@ -711,7 +740,7 @@ def render_index(weeks, year_pages=(), facets=False, excluded=0,
     facet_nav = ""
     if facets:
         years_html = "".join(
-            f'<a href="years/{e(y)}/">{e(y)}</a>' for y in sorted(year_pages))
+            f'<a href="{root}years/{e(y)}/">{e(y)}</a>' for y in sorted(year_pages))
         # Built from the facets that ACTUALLY exist rather than hardcoded, so
         # a page can never ship unreachable again. /concepts/ and /together/
         # did exactly that: rendered, deployed, and linked from nowhere on the
@@ -729,7 +758,7 @@ def render_index(weeks, year_pages=(), facets=False, excluded=0,
                         "articles": "Every article"}
         FACET_ORDER = list(FACET_LABELS)
         facet_links = "".join(
-            f'<a href="{e(name)}/">{e(FACET_LABELS.get(name, name.title()))}</a>'
+            f'<a href="{root}{e(name)}/">{e(FACET_LABELS.get(name, name.title()))}</a>'
             for name in sorted(facet_names,
                                key=lambda x: (FACET_ORDER.index(x)
                                               if x in FACET_ORDER else len(FACET_ORDER), x)))
@@ -792,7 +821,68 @@ def render_index(weeks, year_pages=(), facets=False, excluded=0,
     <span class="label">Synthesized on-device · qwen · one page per ISO week{f" · {excluded} pre-{SITE_EPOCH_WEEK[:4]} publication-dated weeks excluded" if excluded else ""}</span>
     <span class="label num">Generated {dt.date.today().isoformat()}</span>
   </footer>"""
-    return page(SITE_TITLE, body, depth=0)
+    return page(SITE_TITLE, body, depth=depth, here="weeks", canonical=canonical)
+
+
+def render_years_index(corpus_data, weeks, year_pages):
+    """A directory of the year rollups, at /years/.
+
+    It exists because the page row Adam specified names YEARS, and until now
+    the year pages had no door of their own - they were reachable only from the
+    year heads on the weeks index. A row item that 404s on every page of the
+    site is worse than one more page, and this is the smallest page that makes
+    it honest: the same rows the weeks index draws, one per year, in the same
+    idiom, with no new stylesheet rules.
+    """
+    weeks_per_year = {}
+    for m in weeks:
+        y = str(m["week"]).split("-")[0]
+        weeks_per_year[y] = weeks_per_year.get(y, 0) + 1
+    years = sorted((str(y) for y in year_pages), reverse=True)
+
+    stats_by_year = {}
+    for y in years:
+        rows = corpus_data.year(int(y))
+        st = corpus_mod.stats(rows)
+        stats_by_year[y] = st
+    peak = max((st["words"] for st in stats_by_year.values()), default=1) or 1
+
+    body_rows = ""
+    for y in years:
+        st = stats_by_year[y]
+        wk = weeks_per_year.get(y, 0)
+        pct = (st["words"] / peak) ** 0.5 * 100
+        bg = (f'style="background:linear-gradient(90deg,rgba(251,191,36,.08) '
+              f'{pct:.1f}%,transparent {pct:.1f}%)"')
+        body_rows += (f'  <a class="wrow" href="{e(y)}/" {bg}>'
+                      f'<span class="wk2 num">{e(y)}</span>'
+                      f'<span class="topic">{wk} '
+                      f'{"week" if wk == 1 else "weeks"} written</span>'
+                      f'<span class="c2 num">{n(st["articles"])} art</span>'
+                      f'<span class="w2 num">{n(st["words"])} w</span></a>\n')
+
+    total = corpus_mod.stats(corpus_data.rows)
+    body = f"""  <header>
+    <span class="label kicker">{e(DOMAIN)}</span>
+    <h1>Year rollups</h1>
+    <div class="daterange">One page per year of the archive: what was read, how long it
+    ran, and which subjects and sources carried it.</div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="v num">{n(len(years))}</div><div class="l label">Years</div></div>
+    <div class="stat"><div class="v num">{n(total["articles"])}</div><div class="l label">Articles</div></div>
+    <div class="stat"><div class="v num">{total["words"]/1e6:,.1f}<em>M</em></div><div class="l label">Words read</div></div>
+  </div>
+
+  <section>
+{body_rows}  </section>
+
+  <footer>
+    <span class="label">Newest first · the weekly syntheses are at <a href="../weeks/">/weeks/</a></span>
+    <span class="label num">Generated {dt.date.today().isoformat()}</span>
+  </footer>"""
+    return page(f"Year rollups — {SITE_TITLE}", body, depth=1, here="years")
 
 
 # ---------------------------------------------------------------------------
@@ -800,6 +890,45 @@ def render_index(weeks, year_pages=(), facets=False, excluded=0,
 # ---------------------------------------------------------------------------
 
 MARKER = ".reading-site"
+
+
+def page_row(built, weeks_at_root=False):
+    """The sticky bar's page row, narrowed to the pages this build wrote.
+
+    `built` is the set of PAGE_ROW keys other than "weeks" that will exist -
+    the weeks index is written on every build, at `/weeks/` when there is a
+    cover to take the root and at `/` when there is not.
+
+    Narrowing rather than hardcoding, for the reason the index's facet nav was
+    rewritten to iterate over disk: on a build where the deep-dive leg failed
+    or the taxonomy gate closed, a fixed row would put a 404 in the chrome of
+    every page on the site. check_page_row_targets() holds this to the disk
+    before the build is allowed to swap.
+    """
+    rows = []
+    for key, label, target in htmlkit.PAGE_ROW:
+        if key == "weeks":
+            rows.append((key, label, "" if weeks_at_root else target))
+        elif key in built:
+            rows.append((key, label, target))
+    return rows
+
+
+def check_page_row_targets(root, rows):
+    """Every row target resolves to a page on disk. Raises if one does not.
+
+    The row is chrome on every page, so a target that was predicted and then
+    not written is not one broken link, it is one broken link per page. This
+    runs before the swap, where a failure costs a build and keeps the last good
+    site, rather than after it, where it would cost the site.
+    """
+    missing = [target or "/" for _, _, target in rows
+               if not (root / target / "index.html").exists()]
+    if missing:
+        raise SystemExit(
+            f"Refusing to publish a broken page row: {', '.join(missing)} "
+            f"{'is' if len(missing) == 1 else 'are'} named in the sticky bar "
+            f"but {'was' if len(missing) == 1 else 'were'} not built.")
 
 
 def load_corpus_or_none(index_path):
@@ -824,11 +953,50 @@ def load_corpus_or_none(index_path):
         return None
 
 
-def render_deep_dives(tmp, weeks, corpus_data):
-    """Year rollups, the orgs facet, and the article payload + shell.
+def concepts_gate(corpus_data):
+    """Whether /concepts/ and /together/ may be built, decided before anything
+    is rendered.
+
+    Split out of render_deep_dives on 2026-09-08 for one reason: the sticky
+    bar's page row names SUBJECTS, and a row item pointing at a page the gate
+    declined to build would be a 404 in the chrome of every page on the site.
+    The row therefore has to be settled before the first page is written, and
+    this is the only question whose answer is not already known by then.
+
+    The verdict is computed here rather than assumed, so the build says why on
+    every run and would start building the page by itself if a normalization
+    pass ever moved the number.
+
+    THREE conditions, not one. `rankable` alone is not enough: on an index with
+    no canonical column the verdict falls back to the raw `concepts` field,
+    which on a small corpus trivially clears the bar - and the render path then
+    dies on KeyError('canonical_entries'), taking every other deep-dive page
+    down with it. The column's presence is the real precondition; the bar is
+    the quality check on top of it.
+
+    Returns (open, tax_doc): whether to build the pair, and the taxonomy the
+    concepts page renders from.
+    """
+    report, rankable, bar = deepdives.concepts_verdict(corpus_data)
+    print(f"concepts: top-{report['head_k']} coverage {report['head_coverage']:.1f}% "
+          f"vs {bar:.0f}% bar, {report['vocabulary']:,} strings, "
+          f"{report['singleton_share']:.1f}% singletons -> "
+          f"{'RANKABLE' if rankable else 'not rankable, no /concepts/ page'}")
+    joined = deepdives.CANONICAL_COLUMN in corpus_data.rows.columns
+    tax_doc = vocabulary.load_taxonomy(TAXONOMY_PATH) if joined else None
+    if not joined:
+        print("  index has no taxonomy join -> /concepts/ and /together/ not built")
+    elif not tax_doc:
+        print("  no taxonomy readable -> /concepts/ and /together/ not built")
+    return bool(joined and rankable and tax_doc), tax_doc
+
+
+def render_deep_dives(tmp, weeks, corpus_data, gate):
+    """Year rollups, the facets, and the article payload + shell.
 
     Returns the set of years that got a page, so the index can link its year
-    heads only where a page exists.
+    heads only where a page exists. `gate` is concepts_gate()'s verdict,
+    decided by the caller before the page row was installed.
     """
     weeks_by_year = {}
     for m in weeks:
@@ -862,28 +1030,12 @@ def render_deep_dives(tmp, weeks, corpus_data):
         deepdives.render_people(corpus_data, site_title=SITE_TITLE, domain=DOMAIN),
         encoding="utf-8")
 
-    # /concepts/ is deliberately absent. The verdict is recomputed here rather
-    # than assumed, so the build says why on every run and would start building
-    # the page by itself if a normalization pass ever moved the number.
-    report, rankable, bar = deepdives.concepts_verdict(corpus_data)
-    print(f"concepts: top-{report['head_k']} coverage {report['head_coverage']:.1f}% "
-          f"vs {bar:.0f}% bar, {report['vocabulary']:,} strings, "
-          f"{report['singleton_share']:.1f}% singletons -> "
-          f"{'RANKABLE' if rankable else 'not rankable, no /concepts/ page'}")
-
-    # /concepts/ and /together/ exist only while the verdict above says they may.
+    # /concepts/ and /together/ exist only while concepts_gate() says they may.
     # The gate is a safety net against a broken join, not a formality: if the
     # taxonomy stops being applied, these pages stop being built rather than
     # rendering an empty vocabulary.
-    # THREE conditions, not one. `rankable` alone is not enough: on an index
-    # with no canonical column the verdict falls back to the raw `concepts`
-    # field, which on a small corpus trivially clears the bar — and the render
-    # path then dies on KeyError('canonical_entries'), taking every other
-    # deep-dive page down with it. The column's presence is the real
-    # precondition; the bar is the quality check on top of it.
-    joined = deepdives.CANONICAL_COLUMN in corpus_data.rows.columns
-    tax_doc = vocabulary.load_taxonomy(TAXONOMY_PATH) if joined else None
-    if joined and rankable and tax_doc:
+    gate_open, tax_doc = gate
+    if gate_open:
         # Tallied ONCE and handed to both pages. Each computing its own cost
         # 0.36s of the 15.8s build for an identical result.
         tallied = vocabulary.tally(corpus_data.rows)
@@ -899,10 +1051,6 @@ def render_deep_dives(tmp, weeks, corpus_data):
             encoding="utf-8")
         print(f"  built /concepts/ and /together/ from taxonomy "
               f"v{tax_doc.get('version')} ({len(tax_doc.get('entries') or [])} entries)")
-    elif not joined:
-        print("  index has no taxonomy join -> /concepts/ and /together/ not built")
-    elif not tax_doc:
-        print("  no taxonomy readable -> /concepts/ and /together/ not built")
 
     (tmp / "trends").mkdir()
     (tmp / "trends" / "index.html").write_text(
@@ -948,16 +1096,30 @@ def generate(synthesis_dir, out_dir, index_path=None):
             f"generated by this script (no {MARKER} marker).")
     if tmp.exists():
         shutil.rmtree(tmp)
+    restore_row = None
     try:
         (tmp / "weeks").mkdir(parents=True)
         (tmp / MARKER).write_text("generated by site/generate.py\n")
         (tmp / "style.css").write_text(
-            STYLE + deepdives.EXTRA_STYLE + trends.TRENDS_STYLE + vocabulary.VOCAB_STYLE, encoding="utf-8")
+            STYLE + cover.COVER_STYLE + deepdives.EXTRA_STYLE
+            + trends.TRENDS_STYLE + vocabulary.VOCAB_STYLE, encoding="utf-8")
         corpus_data = load_corpus_or_none(index_path)
         year_pages = set()
         if corpus_data is not None and len(corpus_data):
             try:
-                year_pages = render_deep_dives(tmp, weeks, corpus_data)
+                # The gate first, then the row, then the pages. The row is
+                # chrome on EVERY page, so what it names has to be settled
+                # before the first page is written - and /concepts/ is the one
+                # destination whose existence is not already known here.
+                gate = concepts_gate(corpus_data)
+                built = {"years", "orgs", "articles"}
+                if gate[0]:
+                    built.add("concepts")
+                if cover.can_render(corpus_data):
+                    built.add("cover")
+                restore_row = htmlkit.set_page_row(
+                    page_row(built, weeks_at_root="cover" not in built))
+                year_pages = render_deep_dives(tmp, weeks, corpus_data, gate)
             except SystemExit:
                 raise  # the payload cap is a deliberate abort, not drift
             except Exception as err:
@@ -978,23 +1140,51 @@ def generate(synthesis_dir, out_dir, index_path=None):
                         shutil.rmtree(p, ignore_errors=True)
                     elif p.exists():
                         p.unlink()
-        (tmp / "index.html").write_text(
-            render_index(weeks, year_pages=year_pages, facets=bool(year_pages),
-                         excluded=len(pre_epoch),
-                         # The names of the facet dirs actually on disk. The
-                         # `facets` flag above only says the leg ran; the nav
-                         # has to know WHICH pages exist or it links to 404s
-                         # (or, as /concepts/ did, silently omits a page that
-                         # shipped with no entrance anywhere on the site).
-                         facet_names=[d.name for d in sorted(tmp.iterdir())
-                                      if d.is_dir()
-                                      and (d / "index.html").exists()],
-                         # Only when the deep-dive leg SUCCEEDED: a corpus that
-                         # blew up mid-render must not still be feeding the
-                         # hero, or the index would advertise an archive whose
-                         # pages are not on disk.
-                         corpus_data=corpus_data if year_pages else None),
-            encoding="utf-8")
+
+        # A cover only when the deep-dive leg SUCCEEDED. It is drawn entirely
+        # from the index, so a corpus that blew up mid-render must not still be
+        # feeding it - and with no cover there is no root page for the weeks
+        # index to move out of, so the site falls back to exactly the shape it
+        # had before 2026-09-08: the index at `/`, its weeks below it.
+        # Three shapes, not two. With a cover, it takes the root and the weeks
+        # index moves to /weeks/. Without one but with the deep-dive pages, the
+        # site keeps the shape it had before 2026-09-08 and the row still names
+        # the facets that were built. With neither, the row is the weeks index
+        # alone. The row predicted before the leg ran already covers the first
+        # two shapes; only a FAILED leg needs a new one, and by then nothing
+        # the old row named is on disk.
+        covered = bool(year_pages) and cover.can_render(corpus_data)
+        if not year_pages:
+            previous = htmlkit.set_page_row(page_row(set(), weeks_at_root=True))
+            restore_row = previous if restore_row is None else restore_row
+        # The names of the facet dirs actually on disk. `year_pages` only says
+        # the leg ran; the nav has to know WHICH pages exist or it links to
+        # 404s (or, as /concepts/ did, silently omits a page that shipped with
+        # no entrance anywhere on the site).
+        facet_names = [d.name for d in sorted(tmp.iterdir())
+                       if d.is_dir() and (d / "index.html").exists()]
+        index_html = render_index(
+            weeks, year_pages=year_pages, facets=bool(year_pages),
+            excluded=len(pre_epoch), facet_names=facet_names,
+            corpus_data=corpus_data if year_pages else None,
+            depth=1 if covered else 0,
+            canonical=f"https://{DOMAIN}/weeks/" if covered else "")
+        if year_pages:
+            (tmp / "years" / "index.html").write_text(
+                render_years_index(corpus_data, weeks, year_pages),
+                encoding="utf-8")
+        if covered:
+            (tmp / "weeks" / "index.html").write_text(index_html, encoding="utf-8")
+            (tmp / "index.html").write_text(
+                cover.render_cover(
+                    corpus_data, weeks,
+                    deep_dives={"years": len(year_pages),
+                                "facets": len(facet_names),
+                                "total": len(year_pages) + len(facet_names)},
+                    site_title=SITE_TITLE, domain=DOMAIN),
+                encoding="utf-8")
+        else:
+            (tmp / "index.html").write_text(index_html, encoding="utf-8")
         for i, m in enumerate(weeks):
             w = str(m["week"])
             prev_wk = str(weeks[i - 1]["week"]) if i > 0 else None
@@ -1004,6 +1194,8 @@ def generate(synthesis_dir, out_dir, index_path=None):
             prev_meta = weeks[i - 1] if i > 0 else None
             (d / "index.html").write_text(
                 render_week(m, prev_wk, next_wk, prev_meta), encoding="utf-8")
+
+        check_page_row_targets(tmp, htmlkit._page_row)
 
         # Retire the old site by RENAME, not rmtree-then-replace. A kill
         # during an rmtree leaves _site half-deleted, and a half-deleted site
@@ -1023,6 +1215,11 @@ def generate(synthesis_dir, out_dir, index_path=None):
         # A failed swap must not strand a full rendered site on disk.
         if tmp.exists():
             shutil.rmtree(tmp, ignore_errors=True)
+        # The page row is module state on htmlkit, installed for the duration
+        # of one build. Restoring it here means a build cannot leak its row
+        # into the next one, or into a renderer called on its own.
+        if restore_row is not None:
+            htmlkit.set_page_row(restore_row)
     return len(weeks)
 
 

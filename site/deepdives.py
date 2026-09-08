@@ -325,7 +325,7 @@ def render_year(corpus, year, weeks_in_year=(), prev_year=None, next_year=None,
     <span class="label">Computed from the archive index · corrupted rows excluded</span>
     <span class="label num">{e(domain)}</span>
   </footer>"""
-    return page(f"{year} — {site_title}", body, depth=2)
+    return page(f"{year} — {site_title}", body, depth=2, here="years")
 
 
 # ---------------------------------------------------------------------------
@@ -376,7 +376,7 @@ def render_orgs(corpus, limit=100, site_title="The Week in Reading", domain=""):
     <span class="label">Computed from the archive index · corrupted rows excluded</span>
     <span class="label num">{e(domain)}</span>
   </footer>"""
-    return page(f"Organizations — {site_title}", body, depth=1)
+    return page(f"Organizations — {site_title}", body, depth=1, here="orgs")
 
 
 # ---------------------------------------------------------------------------
@@ -782,6 +782,7 @@ def render_articles_page(corpus_data, site_title="The Week in Reading", domain="
     <span class="label num">{e(domain)}</span>
   </footer>"""
     return page(f"Every article — {site_title}", body, depth=1,
+                here="articles",
                 body_extra=f"<script>{ARTICLES_JS}</script>\n")
 
 

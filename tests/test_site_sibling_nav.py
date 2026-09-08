@@ -7,6 +7,10 @@ lifted from the books surface (`reading-life/site/htmlkit.py` and `styles.py`
 in Project - QS - Books) rather than retyped, which is what makes "the three
 bars look identical" checkable rather than a matter of opinion.
 
+This file covers the SIBLING row. The page row that joined it on 2026-09-08 -
+COVER, WEEKS, YEARS, SOURCES, SUBJECTS, ARTICLES - is covered in
+test_site_cover.py, alongside the cover that gave it something to point at.
+
 Every test here names, in its docstring, the mutation it catches.
 
 What these tests deliberately do NOT do: pin the sticky behaviour by driving a
@@ -139,9 +143,11 @@ def site(synth_dir, index_file, tmp_path):
 # would make its row vacuous, so each is asserted to have produced at least one
 # page as well - see test_the_build_under_test_covers_every_page_kind.
 PAGE_KINDS = {
-    "index": lambda p: p == "index.html",
-    "week": lambda p: p.startswith("weeks/"),
-    "year": lambda p: p.startswith("years/"),
+    "cover": lambda p: p == "index.html",
+    "weeks index": lambda p: p == "weeks/index.html",
+    "week": lambda p: p.startswith("weeks/") and p != "weeks/index.html",
+    "years index": lambda p: p == "years/index.html",
+    "year": lambda p: p.startswith("years/") and p != "years/index.html",
     "orgs facet": lambda p: p.startswith("orgs/"),
     "people facet": lambda p: p.startswith("people/"),
     "locations facet": lambda p: p.startswith("locations/"),
@@ -234,28 +240,40 @@ def test_the_wordmark_reads_adamthede_reading_and_links_home_from_any_depth(site
             in site["weeks/2012-W02/index.html"])
     assert ('<a class="wordmark" href="../">adamthede<i>reading</i></a>'
             in site["orgs/index.html"])
+    assert ('<a class="wordmark" href="../">adamthede<i>reading</i></a>'
+            in site["weeks/index.html"])
 
 
 def test_the_bar_sits_above_the_page_and_leaves_the_masthead_alone(site):
     """Catches a bar dropped inside the content column, or one that displaced
     the existing masthead.
 
-    The bar has to be a sibling of `.page`, not a child: `.page` is a 720px
-    centred column, and a sticky element inside it would be inset and would
-    scroll with the column's padding. And the reading site's own eyebrow and
-    title must survive underneath it untouched - the bar is added chrome, not a
-    replacement header. Move the nav call inside the `.page` div, or edit the
-    masthead, and this fails.
+    The bar has to be a sibling of `.page`, not a child: `.page` is a centred
+    column - 720px on the reading pages, 1180px on the cover - and a sticky
+    element inside it would be inset and would scroll with the column's
+    padding. And each page's own eyebrow and title must survive underneath it
+    untouched - the bar is added chrome, not a replacement header. Move the nav
+    call inside the `.page` div, or edit either masthead, and this fails.
+
+    Two pages are checked because the root changed hands on 2026-09-08: the
+    cover took `/` and the weeks index moved to `/weeks/`, and the index's
+    masthead has to arrive at its new address intact.
     """
-    home = site["index.html"]
-    assert home.index('<div class="stickynav">') < home.index('<div class="page">'), \
+    cover = site["index.html"]
+    assert cover.index('<div class="stickynav">') < cover.index('<div class="page wide">'), \
+        "the bar must be outside and above the cover's column"
+    assert "<h1>A Reading Life</h1>" in cover
+    assert cover.index('<div class="stickynav">') < cover.index("<h1>A Reading Life</h1>")
+
+    weeks = site["weeks/index.html"]
+    assert weeks.index('<div class="stickynav">') < weeks.index('<div class="page">'), \
         "the bar must be outside and above the .page column"
     # The eyebrow is written lowercase and uppercased by `.label`; asserting
     # the source string rather than the rendered one keeps this about the
     # markup surviving, not about the stylesheet.
-    assert '<span class="label kicker">reading.adamthede.com</span>' in home
-    assert "<h1>The Week in Reading</h1>" in home
-    assert home.index('<div class="stickynav">') < home.index("<h1>The Week in Reading</h1>")
+    assert '<span class="label kicker">reading.adamthede.com</span>' in weeks
+    assert "<h1>The Week in Reading</h1>" in weeks
+    assert weeks.index('<div class="stickynav">') < weeks.index("<h1>The Week in Reading</h1>")
 
 
 def test_the_bar_brings_no_external_resource(site):
@@ -304,9 +322,12 @@ def test_the_inner_measure_is_the_one_that_aligns_the_three_bars():
     number now has a watcher.
 
     `flex-wrap: wrap` is asserted with it because it is the other half of the
-    same rule's job: at 390px the bar wraps to two lines rather than
-    overflowing, which is what let this site keep the sibling links visible on
-    a phone where the books bar hides them.
+    same rule's job: at 390px the bar wraps rather than overflowing. Until
+    2026-09-08 that wrapping was also what let this site keep the sibling links
+    on a phone where the books bar hides them; with the page row added there is
+    no longer room for both, and this bar now hides the siblings below 880px
+    exactly as the books bar does - see
+    test_the_bar_hides_the_siblings_on_a_phone_the_way_the_books_bar_does.
     """
     css = re.sub(r"\s+", "", _css())
     rule = re.search(r"\.snin\{[^}]*\}", css)

@@ -424,7 +424,7 @@ def render_concepts(corpus_data, taxonomy_doc, derivation=None, tallied=None,
   <div class="yearnav"><span></span><a class="home" href="../">All weeks</a>
     <a href="../together/">What travels together &rarr;</a></div>
 """
-    return page("Concepts", body, depth=1)
+    return page("Concepts", body, depth=1, here="concepts")
 
 
 def render_together(corpus_data, tallied=None,
@@ -460,4 +460,4 @@ def render_together(corpus_data, tallied=None,
   <div class="yearnav"><a href="../concepts/">&larr; Concepts</a>
     <a class="home" href="../">All weeks</a><span></span></div>
 """
-    return page("What travels together", body, depth=1)
+    return page("What travels together", body, depth=1, here="concepts")
