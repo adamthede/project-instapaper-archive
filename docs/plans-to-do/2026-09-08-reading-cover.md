@@ -125,4 +125,27 @@ skip when it is missing.
 
 Non-blocking items N1 through N4 were all folded into the same commit.
 
-**Not merged and not deployed.** Round 2 of review is the open item.
+## Review round 2 — 2026-09-08
+
+APPROVED, with two follow-ups, both fixed in commit cda0b68.
+
+**N6.** `/years/`'s footer named the weeks index in its own text and reached it
+with a hardcoded `../weeks/` — fine in the shape with a cover, a 404 in the
+shape without one, where `/years/` still ships and `/weeks/` does not. Routed
+through `weeks_index_href`. The coverage gap mattered more than the link: the
+text test keyed off two classes this anchor does not carry, and the section
+walk skipped a section's own index. Both widened, plus a third test that crawls
+every link on every page of all three build shapes. Measured on the real
+archive after the fix: cover 859 pages / 12,836 links, no-taxonomy 856 /
+11,093, no-index 828 / 7,443, zero broken in each.
+
+**N7.** The PR description was stale on three passages — the fixture location,
+the test counts, and the retracted `top_topics` claim — and it is what Adam
+reads at the merge gate. Rewritten in place.
+
+Counts at tip cda0b68, both measured on a fresh clone rather than the authoring
+worktree: 826 passed / 5 skipped with no vault and no local index, 829 passed /
+2 skipped with both present. Audits: cover 51 caught 0 escaped, sibling-nav 26
+caught 0 escaped, base 25 caught 0 escaped.
+
+**Not merged and not deployed.** Ready for Adam's merge gate.
