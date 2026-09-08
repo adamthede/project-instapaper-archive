@@ -205,14 +205,42 @@ def fmt_range(meta):
 
 STYLE = """
 :root { --bg:#1c1917; --bg-raise:#292524; --ink:#e7e5e4; --ink-2:#a8a29e;
-  --ink-3:#78716c; --rule:#44403c; --amber:#fbbf24; --amber-dim:#92700c;
-  --brand:#FF8F3B; }
+  --ink-3:#78716c; --ink-4:#57504c; --rule:#44403c; --amber:#fbbf24;
+  --amber-dim:#92700c; --brand:#FF8F3B;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
 * { margin:0; padding:0; box-sizing:border-box; }
 html, body { overflow-x:hidden; overflow-x:clip; }
 body { background:var(--bg); color:var(--ink); line-height:1.5;
   font-family:ui-sans-serif,-apple-system,"Helvetica Neue",sans-serif; }
 a { color:inherit; }
 .page { max-width:720px; margin:0 auto; padding:64px 24px 96px; }
+/* ---- sticky sibling-site bar ----
+   Lifted from the books surface's styles.py (the .stickynav/.snin/.wordmark/
+   .sitelinks block) so reading, books and viewing carry the same bar. The
+   1180px inner measure is the books value and is kept deliberately: it is
+   what puts the sibling links at the same x on all three sites at the same
+   viewport width, which is the part a reader moving between them actually
+   sees. It is wider than this site's 720px column, as it is wider than the
+   books site's 980px one.
+   The .pagelinks rules are not lifted - this bar has no page-links row - and
+   neither is the books media rule that hides .sitelinks below 880px, because
+   without that row there is space for the siblings all the way down to 390px,
+   where the bar wraps to two lines instead of disappearing. */
+.stickynav { position:sticky; top:0; z-index:20; background:var(--bg);
+  border-bottom:1px solid var(--rule); }
+.snin { max-width:1180px; margin:0 auto; padding:11px 24px; display:flex;
+  align-items:baseline; gap:26px; flex-wrap:wrap; }
+.wordmark { font-family:var(--mono); font-size:11px; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--brand); text-decoration:none;
+  white-space:nowrap; }
+.wordmark i { font-style:normal; color:var(--ink-4); }
+.wordmark i::before { content:" / "; }
+.sitelinks { margin-left:auto; display:flex; gap:18px; font-family:var(--mono);
+  font-size:11px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-4); }
+.sitelinks a { color:var(--ink-3); text-decoration:none; }
+.sitelinks a:hover { color:var(--brand); }
+.sitelinks .on { color:var(--ink-2); }
 .label { font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:11px;
   letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3); }
 .num { font-variant-numeric:tabular-nums; }
@@ -341,7 +369,10 @@ details.yweeks[open] summary::before { content:"▾ "; }
 .eralabels .ep { font-size:12px; color:var(--ink-3); }
 @media (max-width:560px){ h1{font-size:40px;} .stats{gap:24px;}
   .wrow{grid-template-columns:80px 1fr 60px;} .wrow .w2{display:none;}
-  .eralabels{gap:16px;} }
+  .eralabels{gap:16px;}
+  /* Same tightening the books bar applies at its own breakpoint. The
+     sibling links stay visible here - see the note by .stickynav. */
+  .snin{gap:8px 16px; padding:9px 20px;} }
 """
 
 
