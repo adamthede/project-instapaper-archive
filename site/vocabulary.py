@@ -38,6 +38,7 @@ import pathlib
 import sys
 
 from corpus import as_list, vocabulary_report  # noqa: F401
+import htmlkit
 from htmlkit import page
 
 e = html.escape
@@ -401,7 +402,7 @@ def render_concepts(corpus_data, taxonomy_doc, derivation=None, tallied=None,
     d = derivation or taxonomy_doc.get("derivation") or {}
 
     body = f"""  <header>
-    <a class="label kicker" href="../">{e(site_title)}</a>
+    <a class="label kicker" href="{e(htmlkit.weeks_index_href(1))}">{e(site_title)}</a>
     <h1>Concepts</h1>
     <div class="daterange">What the reading was about, in one controlled vocabulary
       of {n(len(entries))} defined entries across {len(years)} years.</div>
@@ -421,7 +422,7 @@ def render_concepts(corpus_data, taxonomy_doc, derivation=None, tallied=None,
                  d.get("clusters", 0),
                  taxonomy_doc.get("gate_reviewed", len(entries)))}
 
-  <div class="yearnav"><span></span><a class="home" href="../">All weeks</a>
+  <div class="yearnav"><span></span><a class="home" href="{e(htmlkit.weeks_index_href(1))}">All weeks</a>
     <a href="../together/">What travels together &rarr;</a></div>
 """
     return page("Concepts", body, depth=1, here="concepts")
@@ -438,7 +439,7 @@ def render_together(corpus_data, tallied=None,
         for k, v in co.most_common(10))
 
     body = f"""  <header>
-    <a class="label kicker" href="../">{e(site_title)}</a>
+    <a class="label kicker" href="{e(htmlkit.weeks_index_href(1))}">{e(site_title)}</a>
     <h1>What travels together</h1>
     <div class="daterange">{n(len(co))} pairs of the {n(len(totals))} entries share
       an article. Not what the reading was about — what it was about at the same time.</div>
@@ -458,6 +459,6 @@ def render_together(corpus_data, tallied=None,
   </section>
 
   <div class="yearnav"><a href="../concepts/">&larr; Concepts</a>
-    <a class="home" href="../">All weeks</a><span></span></div>
+    <a class="home" href="{e(htmlkit.weeks_index_href(1))}">All weeks</a><span></span></div>
 """
-    return page("What travels together", body, depth=1, here="concepts")
+    return page("What travels together", body, depth=1, under="concepts")

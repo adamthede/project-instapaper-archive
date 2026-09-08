@@ -47,7 +47,18 @@ import cover  # noqa: E402
 import generate as gen  # noqa: E402
 import htmlkit  # noqa: E402
 
-MOCKUP = REPO / "docs" / "mockups" / "2026-09-08-reading-cover.html"
+# The approved design, committed as a test fixture rather than left in
+# docs/mockups/, which .gitignore covers: those are RENDERED output of the
+# tracked mockup generators, and 732KB of it. This one is not output any more,
+# it is the contract test_every_class_the_approved_cover_uses_is_emitted checks
+# against, so it belongs where the tests can rely on it existing. It was in the
+# ignored directory on the first push and the suite was red on a clean
+# checkout while green in the authoring worktree - exactly the kind of
+# unreproducible evidence the Readiness Rule exists to prevent.
+#
+# Deliberately NOT skip-if-missing. A fidelity gate whose contract has gone
+# missing has to fail, or it stops being a gate on the day it matters.
+MOCKUP = REPO / "tests" / "fixtures" / "2026-09-08-reading-cover.html"
 
 # The tip of `main` this branch forked from. Pinned to a SHA rather than to
 # `origin/main`, which moves: once this work merges, a floating ref would
@@ -483,32 +494,60 @@ def test_every_emitted_page_carries_the_page_row(site):
         assert '<nav class="pagelinks"' in raw, f"{name} has no page row"
 
 
+# The pages that ARE a row entry mark it with a span - you are there, there is
+# nowhere to go. The pages UNDER one mark it with an anchor - the row still
+# says where you are and the section index is one click away.
+MARKED_SELF = {
+    "index.html": "Cover",
+    "weeks/index.html": "Weeks",
+    "years/index.html": "Years",
+    "orgs/index.html": "Sources",
+    "concepts/index.html": "Subjects",
+    "articles/index.html": "Articles",
+}
+MARKED_UNDER = {
+    "weeks/2012-W02/index.html": "Weeks",
+    "years/2011/index.html": "Years",
+    "together/index.html": "Subjects",
+}
+
+
 def test_every_page_in_the_row_marks_itself(site):
     """Catches a page that links to itself instead of marking where you are.
 
     The marker is the whole job of the row: it says which of the six you are
-    looking at. Drop the `here=` argument from any renderer's `page()` call and
-    that page renders six links and no current page. The three kinds that are
-    deliberately outside the row are named above and asserted to mark nothing,
+    looking at. Drop the `here=` or `under=` argument from any renderer's
+    `page()` call and that page renders six plain links and no current page.
+    The three kinds deliberately outside the row are asserted to mark nothing,
     so adding one to the row without marking it fails here too.
     """
-    expected = {
-        "index.html": "Cover",
-        "weeks/index.html": "Weeks",
-        "weeks/2012-W02/index.html": "Weeks",
-        "years/index.html": "Years",
-        "years/2011/index.html": "Years",
-        "orgs/index.html": "Sources",
-        "concepts/index.html": "Subjects",
-        "together/index.html": "Subjects",
-        "articles/index.html": "Articles",
-    }
-    for name, label in expected.items():
+    for name, label in MARKED_SELF.items():
         assert f'<span class="here">{label}</span>' in site[name], \
-            f"{name} does not mark {label}"
+            f"{name} does not mark {label} as its own page"
+    for name, label in MARKED_UNDER.items():
+        assert re.search(f'<a class="here" href="[^"]+">{label}</a>', site[name]), \
+            f"{name} does not mark {label} as the section it sits under"
     for name, raw in site.items():
         if any(name.startswith(u) for u in UNMARKED):
             assert 'class="here"' not in raw, f"{name} marks a row item it is not"
+
+
+def test_a_child_page_can_still_reach_the_section_it_is_marked_under(site, built):
+    """Catches a marked section rendered as a dead span on a child page.
+
+    This is half of the failure an adversarial review found on the first push:
+    a week page marked WEEKS with a span, so the row named the section and gave
+    no way to it, and 827 week pages plus 22 year pages had no route to their
+    own index at all. Marking a CHILD page's section renders an anchor, and
+    that anchor has to resolve. Change `under=` back to `here=` in any
+    renderer of a child page and this fails.
+    """
+    for name, label in MARKED_UNDER.items():
+        row = re.search(r'<nav class="pagelinks".*?</nav>', site[name], re.S).group(0)
+        mark = re.search(f'<a class="here" href="([^"]+)">{label}</a>', row)
+        assert mark, f"{name} has no live link to {label}"
+        target = ((built / name).parent / mark.group(1) / "index.html").resolve()
+        assert target.exists(), f"{name}'s {label} link goes nowhere"
 
 
 def test_the_row_names_the_six_pages_in_the_order_adam_gave(site):
@@ -668,6 +707,123 @@ def test_a_build_does_not_leak_its_row_into_the_next_one(synth_dir, tmp_path):
     assert htmlkit._page_row == before
     assert htmlkit._page_row == htmlkit.PAGE_ROW
 
+
+def test_every_link_that_names_the_weeks_index_lands_on_the_weeks_index(site, built):
+    """Catches a link whose text names one page and whose target is another.
+
+    This is the other half of the failure an adversarial review found: when the
+    cover took the root, every week page kept a kicker reading "The Week in
+    Reading" and a nav link reading "All weeks", both still pointing at
+    `../../` - which had been the index and had become the cover. 1,712 links
+    across 856 pages, no 404 anywhere, and a green suite, because the page they
+    landed on does exist.
+
+    So the assertion is on the TEXT, not on the status: a link that says it
+    goes to the weeks index has to arrive at `weeks/index.html`, from whatever
+    depth it is written at. Point either anchor back at the root and this
+    fails on every page that carries it.
+    """
+    index = (built / "weeks" / "index.html").resolve()
+    checked = 0
+    for name, raw in site.items():
+        for href, text in re.findall(r'<a class="(?:home|label kicker)" href="([^"]+)">([^<]+)</a>',
+                                     raw):
+            assert text in ("All weeks", "The Week in Reading"), \
+                f"{name}: unexpected chrome link text {text!r}"
+            landed = ((built / name).parent / href / "index.html").resolve()
+            assert landed == index, (
+                f'{name}: "{text}" points at {href}, which resolves to '
+                f"{landed}, not the weeks index")
+            checked += 1
+    assert checked >= 2 * (len(WEEKS) + 1), \
+        f"only {checked} chrome links inspected: check the regex"
+
+
+def test_every_week_and_year_page_can_reach_its_own_index(site, built):
+    """Catches a section index that no page in the section links to.
+
+    Belt to the previous test's braces, and stated the way the failure was
+    stated: walk every emitted page, and for each one under `/weeks/` or
+    `/years/` assert SOME anchor on it resolves to that section's index. It
+    does not care which anchor - the kicker, the "All weeks" link, or the
+    marked row item - only that a reader who lands on a week page in a search
+    result can get to the index without editing the URL bar.
+    """
+    wanted = {"weeks": (built / "weeks" / "index.html").resolve(),
+              "years": (built / "years" / "index.html").resolve()}
+    for name, raw in site.items():
+        section = name.split("/")[0]
+        if section not in wanted or name.endswith(f"{section}/index.html"):
+            continue
+        here = (built / name).parent
+        landings = set()
+        for href in re.findall(r'href="([^"]+)"', raw):
+            if href.startswith(("http", "#")):
+                continue
+            landings.add((here / href / "index.html").resolve())
+        assert wanted[section] in landings, \
+            f"{name} cannot reach /{section}/ from anywhere on the page"
+
+
+def test_the_era_averages_are_annotated_to_one_decimal(site, index_file, synth_dir):
+    """Catches the amber annotations losing their precision, or their bands.
+
+    The cover's own era note points at these numbers - "the amber lines are the
+    average of each era, annotated with their value" - and an adversarial
+    review rounded `Axis.era_averages` from one decimal to zero and watched all
+    28 tests stay green while all twelve annotations changed. They have a
+    watcher now.
+
+    Two assertions, because they fail to different mutations. Every annotation
+    carries exactly one decimal place, which is what the rounding controls; and
+    the Articles strip's three values equal a mean computed here, over the same
+    era bands, from the fixture's own rows, which is what the banding controls.
+    """
+    import corpus as C
+    page_html = site["index.html"]
+    values = re.findall(r'class="favg">([-\d.]+)</text>', page_html)
+    assert len(values) == 3 * 4, f"expected twelve annotations, got {len(values)}"
+    for v in values:
+        assert re.fullmatch(r"-?\d+\.\d", v), \
+            f"{v} is not annotated to one decimal place"
+
+    # The bands are written out here rather than read from cover.ERA_BANDS.
+    # Recomputing with the same constant the page used would agree with any
+    # value it held: widen the first band to swallow the second and both sides
+    # move together. These are the three eras of reading the cover names -
+    # the flood, the fade, the return - and they are a design decision, so
+    # they are pinned where a change has to be made deliberately.
+    bands = [("2005-2011", 2005, 2011), ("2012-2020", 2012, 2020),
+             ("2021-2026", 2021, 2026)]
+    assert cover.ERA_BANDS == bands, "the era bands moved"
+
+    c = C.load_corpus(index_file)
+    axis = cover.axis_for(c.rows, gen.load_weeks(synth_dir))
+    for (label, lo, hi), shown in zip(bands, values[:3]):
+        quarters = [q for q in axis.quarters if lo <= q.year <= hi]
+        read = sum(1 for r in ROWS if lo <= int(r[0][:4]) <= hi)
+        assert float(shown) == round(read / len(quarters), 1), \
+            f"{label}: page says {shown}, {read} articles over {len(quarters)} quarters"
+
+
+def test_era_averages_keep_a_decimal_the_data_needs(index_file, synth_dir):
+    """Catches the rounding directly, on a value where it is visible.
+
+    The integration test above runs on a fixture whose averages are all small.
+    This one hands `era_averages` a series built so the first band's mean is
+    367.5 - the value the live archive actually shows - and pins the string. At
+    zero decimals it reads 368, which is a different number presented with more
+    confidence than the data supports.
+    """
+    import corpus as C
+    axis = cover.axis_for(C.load_corpus(index_file).rows, gen.load_weeks(synth_dir))
+    first = [i for i, q in enumerate(axis.quarters) if q.year <= 2011]
+    series = [0] * axis.count
+    # An odd total over an even count of quarters: the mean lands on a half.
+    for i in first:
+        series[i] = 367
+    series[first[0]] = 367 + len(first) // 2
+    assert axis.era_averages(series)[0] == 367.5
 
 # ---------------------------------------------------------------------------
 # the cover matches the design it was approved from
@@ -908,3 +1064,15 @@ def test_a_weeks_only_build_still_has_a_root_page_and_an_honest_row(
     assert not (out / "weeks" / "index.html").exists()
     row = re.search(r'<nav class="pagelinks".*?</nav>', root, re.S).group(0)
     assert re.findall(r'>([A-Z][a-z]+)</(?:a|span)>', row) == ["Weeks"]
+
+    # And the week pages have to follow the index to wherever it went. In this
+    # shape it stayed at the root, so "All weeks" and the kicker resolve there
+    # rather than to a /weeks/ that was never written. Hardcode the helper to
+    # "weeks/" and every week page in a degraded build points at a 404.
+    index = (out / "index.html").resolve()
+    week = out / "weeks" / "2012-W02" / "index.html"
+    raw = week.read_text(encoding="utf-8")
+    links = re.findall(r'<a class="(?:home|label kicker)" href="([^"]+)">', raw)
+    assert links, "the week page carries no chrome links at all"
+    for href in links:
+        assert (week.parent / href / "index.html").resolve() == index, href

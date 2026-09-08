@@ -22,6 +22,7 @@ import json
 from corpus import (RANKABLE_HEAD_COVERAGE, complexity_stats, entity_coverage,
                     head_coverage, month_series, payload_rows, stats,
                     top_entities, topic_vocabulary, vocabulary_report)
+import htmlkit
 from htmlkit import e, n, page, safe_url
 
 # The payload ships on every load of /articles/. The measured raw size at
@@ -287,7 +288,7 @@ def render_year(corpus, year, weeks_in_year=(), prev_year=None, next_year=None,
                                if st["url_bearing"] < st["articles"] else ""))
 
     body = f"""  <header>
-    <a class="label kicker" href="../../">{e(site_title)}</a>
+    <a class="label kicker" href="{e(htmlkit.weeks_index_href(2))}">{e(site_title)}</a>
     <h1>{e(str(year))}</h1>
     <div class="daterange num">{n(st['articles'])} articles · {n(st['words'])} words</div>{_provenance(st)}
   </header>
@@ -320,12 +321,12 @@ def render_year(corpus, year, weeks_in_year=(), prev_year=None, next_year=None,
 {week_html}    </div>
   </section>
 
-  <div class="yearnav">{left}<a class="home" href="../../">All weeks</a>{right}</div>
+  <div class="yearnav">{left}<a class="home" href="{e(htmlkit.weeks_index_href(2))}">All weeks</a>{right}</div>
   <footer>
     <span class="label">Computed from the archive index · corrupted rows excluded</span>
     <span class="label num">{e(domain)}</span>
   </footer>"""
-    return page(f"{year} — {site_title}", body, depth=2, here="years")
+    return page(f"{year} — {site_title}", body, depth=2, under="years")
 
 
 # ---------------------------------------------------------------------------
@@ -352,7 +353,7 @@ def render_orgs(corpus, limit=100, site_title="The Week in Reading", domain=""):
     )
 
     body = f"""  <header>
-    <a class="label kicker" href="../">{e(site_title)}</a>
+    <a class="label kicker" href="{e(htmlkit.weeks_index_href(1))}">{e(site_title)}</a>
     <h1>Organizations</h1>
     <div class="daterange">Who the reading was about, across {n(len(rows))} articles.</div>
   </header>
@@ -371,7 +372,7 @@ def render_orgs(corpus, limit=100, site_title="The Week in Reading", domain=""):
     <div class="note">{e(footnote)}</div>
   </section>
 
-  <div class="yearnav"><span></span><a class="home" href="../">All weeks</a><span></span></div>
+  <div class="yearnav"><span></span><a class="home" href="{e(htmlkit.weeks_index_href(1))}">All weeks</a><span></span></div>
   <footer>
     <span class="label">Computed from the archive index · corrupted rows excluded</span>
     <span class="label num">{e(domain)}</span>
@@ -414,7 +415,7 @@ def render_locations(corpus, limit=100, site_title="The Week in Reading", domain
     )
 
     body = f"""  <header>
-    <a class="label kicker" href="../">{e(site_title)}</a>
+    <a class="label kicker" href="{e(htmlkit.weeks_index_href(1))}">{e(site_title)}</a>
     <h1>Places</h1>
     <div class="daterange">Where the reading was set, across {n(len(rows))} articles.</div>
   </header>
@@ -434,7 +435,7 @@ def render_locations(corpus, limit=100, site_title="The Week in Reading", domain
     <div class="note"><a href="../trends/">Places by year, as a heatmap →</a></div>
   </section>
 
-  <div class="yearnav"><span></span><a class="home" href="../">All weeks</a><span></span></div>
+  <div class="yearnav"><span></span><a class="home" href="{e(htmlkit.weeks_index_href(1))}">All weeks</a><span></span></div>
   <footer>
     <span class="label">Computed from the archive index · corrupted rows excluded</span>
     <span class="label num">{e(domain)}</span>
@@ -539,7 +540,7 @@ def render_people(corpus, limit=100, site_title="The Week in Reading", domain=""
     )
 
     body = f"""  <header>
-    <a class="label kicker" href="../">{e(site_title)}</a>
+    <a class="label kicker" href="{e(htmlkit.weeks_index_href(1))}">{e(site_title)}</a>
     <h1>People</h1>
     <div class="daterange">Who the reading was about, across {n(len(rows))} articles.</div>
   </header>
@@ -566,7 +567,7 @@ def render_people(corpus, limit=100, site_title="The Week in Reading", domain=""
     <div class="note"><a href="../orgs/">Organizations</a> · <a href="../locations/">Places</a> · <a href="../trends/">Both by year, as heatmaps →</a></div>
   </section>
 
-  <div class="yearnav"><span></span><a class="home" href="../">All weeks</a><span></span></div>
+  <div class="yearnav"><span></span><a class="home" href="{e(htmlkit.weeks_index_href(1))}">All weeks</a><span></span></div>
   <footer>
     <span class="label">Computed from the archive index · corrupted rows excluded</span>
     <span class="label num">{e(domain)}</span>
@@ -760,7 +761,7 @@ def render_articles_page(corpus_data, site_title="The Week in Reading", domain="
         reconciliation = ""
 
     body = f"""  <header>
-    <a class="label kicker" href="../">{e(site_title)}</a>
+    <a class="label kicker" href="{e(htmlkit.weeks_index_href(1))}">{e(site_title)}</a>
     <h1>Every article</h1>
     <div class="daterange">{n(total)} articles, searchable by title, author, or source.</div>{reconciliation}
   </header>
@@ -776,7 +777,7 @@ def render_articles_page(corpus_data, site_title="The Week in Reading", domain="
       text. Bodies live in the vault, not in this index.</div>
   </section>
 
-  <div class="yearnav"><span></span><a class="home" href="../">All weeks</a><span></span></div>
+  <div class="yearnav"><span></span><a class="home" href="{e(htmlkit.weeks_index_href(1))}">All weeks</a><span></span></div>
   <footer>
     <span class="label">Computed from the archive index · corrupted rows excluded</span>
     <span class="label num">{e(domain)}</span>

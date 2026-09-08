@@ -73,7 +73,29 @@ def safe_url(url):
     return e(u) if u.lower().startswith(SAFE_SCHEMES) else ""
 
 
-def nav(depth=0, here=None):
+def weeks_index_href(depth):
+    """Where the weeks index lives, from a page `depth` directories down.
+
+    Read off the installed page row rather than hardcoded, because the index
+    has two addresses: `/weeks/` when there is a cover to take the root, and
+    `/` when there is not. Every "All weeks" link and every kicker carrying the
+    site title has to land on the index in BOTH shapes.
+
+    This exists because they did not. When the cover took the root on
+    2026-09-08, 827 week pages and 22 year pages kept a kicker reading "The
+    Week in Reading" and a nav link reading "All weeks", both still pointing at
+    `../../` - which had been the index and had become the cover. An
+    adversarial review found 1,712 links whose text named one page and whose
+    target was another, with a green suite and no 404 anywhere, because the
+    page they landed on does exist. One helper, so the answer is computed once.
+    """
+    for key, _, target in _page_row:
+        if key == "weeks":
+            return ("../" * depth + target) or "./"
+    return "../" * depth or "./"
+
+
+def nav(depth=0, here=None, under=None):
     """The sticky bar that sits above every page's own header.
 
     Two rows, answering two different questions. The sibling row says which of
@@ -89,10 +111,23 @@ def nav(depth=0, here=None):
     nothing to point at; a cover at the root and an index at /weeks/ is six
     destinations, which is what the books and viewing bars already carry.
 
-    `here` is the key of the row entry the current page belongs to, or None for
-    a page that is not in the row - /people/, /locations/, /trends/. Those are
-    reachable from the weeks index's "Beyond the week" nav; the row is the six
-    Adam named, not an index of everything.
+    `here` is the key of the row entry whose OWN page this is. It renders as a
+    span: you are already there, so there is nowhere to go.
+
+    `under` is the key of the row entry this page sits BENEATH - a week page is
+    under Weeks, a year rollup under Years, /together/ under Subjects. It
+    renders as a marked ANCHOR: the row still says where you are, and the
+    section's index is still one click away.
+
+    That distinction is not decoration. Marking a child page's section with a
+    span left 827 week pages and 22 year pages with no route to their own index
+    at all, which is how the row's first version shipped past a green suite.
+    Adam asked for the current page marked on every page kind; a marked link
+    satisfies that and stays navigable.
+
+    A page that is in neither position passes neither - /people/, /locations/
+    and /trends/ are reachable from the weeks index's "Beyond the week" nav,
+    and the row is the six Adam named, not an index of everything.
 
     `depth` rewrites the wordmark's home link and every row target for a page
     that many directories below the root, exactly as page() already does for
@@ -107,10 +142,13 @@ def nav(depth=0, here=None):
             links.append(f'<a href="{safe_url(href)}">{e(label)}</a>')
     pages = []
     for key, label, target in _page_row:
+        href = e(up + target) or "./"
         if key == here:
             pages.append(f'<span class="here">{e(label)}</span>')
+        elif key == under:
+            pages.append(f'<a class="here" href="{href}">{e(label)}</a>')
         else:
-            pages.append(f'<a href="{e(up + target) or "./"}">{e(label)}</a>')
+            pages.append(f'<a href="{href}">{e(label)}</a>')
     home = up or "./"
     return f"""<div class="stickynav">
   <div class="snin">
@@ -121,8 +159,8 @@ def nav(depth=0, here=None):
 </div>"""
 
 
-def page(title, body, depth=0, body_extra="", here=None, canonical="",
-         wide=False):
+def page(title, body, depth=0, body_extra="", here=None, under=None,
+         canonical="", wide=False):
     """A complete document.
 
     `canonical` is the absolute URL the page is reachable at. It is set on the
@@ -147,7 +185,7 @@ def page(title, body, depth=0, body_extra="", here=None, canonical="",
 <link rel="stylesheet" href="{css}">
 </head>
 <body>
-{nav(depth, here)}
+{nav(depth, here, under)}
 <div class="{cls}">
 {body}
 </div>

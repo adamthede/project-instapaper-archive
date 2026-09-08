@@ -505,11 +505,16 @@ def render_week(meta, prev_wk=None, next_wk=None, prev_meta=None):
     else:
         provenance = ""
 
+    # The index this page belongs to, not the root. `../../` was the weeks
+    # index until the cover took the root on 2026-09-08; both links here name
+    # the index in their own text and have to land on it.
+    index_href = htmlkit.weeks_index_href(2)
     nav = ('  <div class="weeknav">' + left
-           + '<a class="home" href="../../">All weeks</a>' + right + '</div>\n')
+           + f'<a class="home" href="{e(index_href)}">All weeks</a>'
+           + right + '</div>\n')
 
     body = f"""  <header>
-    <a class="label kicker" href="../../">{e(SITE_TITLE)}</a>
+    <a class="label kicker" href="{e(index_href)}">{e(SITE_TITLE)}</a>
     <h1>{e(year)} <span class="wk">· {e(wnum)}</span></h1>
     <div class="daterange num">{e(fmt_range(meta))}</div>{provenance}
   </header>
@@ -557,7 +562,7 @@ def render_week(meta, prev_wk=None, next_wk=None, prev_meta=None):
     <span class="label">Synthesized by {e(str(meta.get("model") or "local model"))} · on-device</span>
     <span class="label num">Generated {e(str(meta.get("generated") or ""))} · {e(DOMAIN)}</span>
   </footer>"""
-    return page(f"{week} — {SITE_TITLE}", body, depth=2, here="weeks")
+    return page(f"{week} — {SITE_TITLE}", body, depth=2, under="weeks")
 
 
 def render_hero(corpus_data):

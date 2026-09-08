@@ -49,8 +49,13 @@ SUB
   local out
   # Belt as well as braces: purge any bytecode an earlier run may have left.
   find . -name "__pycache__" -type d -not -path "./.git/*" -exec rm -rf {} + 2>/dev/null
-  out=$("$PY" -m pytest $tests -q -p no:cacheprovider 2>&1 | grep -oE '[0-9]+ (failed|passed)[^$]*' | head -1)
-  if echo "$out" | grep -q failed; then
+  # `error` as well as `failed`. A mutation can make a test blow up in its
+  # fixture rather than assert its way to a failure, and pytest reports that as
+  # "1 error"; grepping only for "failed" scores it as an ESCAPE, which is the
+  # one direction a mutation audit must never get wrong. The two site audits
+  # carry the same fix.
+  out=$("$PY" -m pytest $tests -q -p no:cacheprovider 2>&1 | grep -oE '[0-9]+ (failed|error|passed)[^$]*' | head -1)
+  if echo "$out" | grep -qE 'failed|error'; then
     printf '  CAUGHT   %-64s %s\n' "$label" "$out"; PASS=$((PASS+1))
   else
     printf '  ESCAPED  %-64s %s  <-- UNGUARDED\n' "$label" "$out"; FAIL=$((FAIL+1))

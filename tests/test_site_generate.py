@@ -263,9 +263,18 @@ def test_stat_deltas_render_against_previous_week(two_year_dir):
 
 
 def test_week_page_links_home(synth_dir):
+    """"All weeks" and the kicker go to the weeks index, not to the root.
+
+    This test used to assert `href="../../"`, which was the weeks index until
+    the cover took the root on 2026-09-08 and became the cover on that day.
+    The assertion went on passing and vouched for 827 week pages whose two
+    links named one page and reached another. It now asserts the destination
+    the link text promises, at the depth a week page sits at.
+    """
     m = gen.load_weeks(synth_dir)[0]
     html_out = gen.render_week(m)
-    assert '<a class="home" href="../../">All weeks</a>' in html_out
+    assert '<a class="home" href="../../weeks/">All weeks</a>' in html_out
+    assert '<a class="label kicker" href="../../weeks/">' in html_out
 
 
 def test_year_strip_marks_absent_weeks_as_stubs(two_year_dir):

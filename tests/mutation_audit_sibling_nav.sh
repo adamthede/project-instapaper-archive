@@ -63,17 +63,17 @@ T=tests/test_site_sibling_nav.py
 echo "=== the bar reaches every page ==="
 run_mutation "page() stops emitting the bar" "$H" \
   '<body>
-{nav(depth, here)}' '<body>' \
+{nav(depth, here, under)}' '<body>' \
   "$T::test_every_emitted_page_carries_the_sibling_bar"
 
 run_mutation "the bar is emitted only on the root page" "$H" \
-  '{nav(depth, here)}' '{nav(depth, here) if depth == 0 else ""}' \
+  '{nav(depth, here, under)}' '{nav(depth, here, under) if depth == 0 else ""}' \
   "$T::test_every_emitted_page_carries_the_sibling_bar"
 
 run_mutation "the bar moves inside the content column" "$H" \
-  '{nav(depth, here)}
+  '{nav(depth, here, under)}
 <div class="{cls}">' '<div class="{cls}">
-{nav(depth, here)}' \
+{nav(depth, here, under)}' \
   "$T::test_the_bar_sits_above_the_page_and_leaves_the_masthead_alone"
 
 echo

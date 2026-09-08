@@ -381,9 +381,19 @@ def column(axis, title, strip_svg, step_label, step_svg, step_end,
 def week_topics(meta):
     """"on energy and on AI" - the latest week's subjects, from its own record.
 
-    The mockup typed this phrase. It is read off `top_topics` here, which is
-    the same field the weeks index reads for its topic column, so the cover
-    cannot go on describing last month's reading.
+    The mockup typed that phrase by hand from reading the digest. It is read
+    off `top_topics` here instead, the same field the weeks index reads for its
+    own topic column, so the cover cannot go on describing last month's
+    reading.
+
+    The consequence, stated rather than discovered later: THIS CLAUSE IS
+    INTERMITTENT. The weekly synthesis populates `top_topics` on some weeks and
+    not others - 511 of the 827 week records carry it, and 4 of the last 12 -
+    so the clause will appear and disappear from the cover between nightly
+    rebuilds depending on what the newest week's synthesis extracted. That is
+    the honest behaviour. The alternative, ranking the week's canonical entries
+    from the index, was measured on 2026-W35 and returns six subjects tied at
+    one article each, which is a coin flip printed as a fact.
     """
     names = []
     for t in (meta.get("top_topics") or [])[:2]:

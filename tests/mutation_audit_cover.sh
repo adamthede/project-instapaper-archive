@@ -171,7 +171,7 @@ run_mutation "a facet outside the row starts marking one" "site/trends.py" \
   "$T::test_every_page_in_the_row_marks_itself"
 
 run_mutation "the year pages stop marking YEARS" "site/deepdives.py" \
-  '    return page(f"{year} — {site_title}", body, depth=2, here="years")' \
+  '    return page(f"{year} — {site_title}", body, depth=2, under="years")' \
   '    return page(f"{year} — {site_title}", body, depth=2)' \
   "$T::test_every_page_in_the_row_marks_itself"
 
@@ -188,8 +188,8 @@ run_mutation "the row is reordered" "$H" \
   "$T::test_the_row_names_the_six_pages_in_the_order_adam_gave"
 
 run_mutation "the row targets stop being rewritten for depth" "$H" \
-  '            pages.append(f'"'"'<a href="{e(up + target) or "./"}">{e(label)}</a>'"'"')' \
-  '            pages.append(f'"'"'<a href="{e(target) or "./"}">{e(label)}</a>'"'"')' \
+  '        href = e(up + target) or "./"' \
+  '        href = e(target) or "./"' \
   "$T::test_every_row_target_is_a_page_that_exists"
 
 run_mutation "the row is hardcoded instead of narrowed to what was built" "$G" \
@@ -307,6 +307,55 @@ echo "=== the live archive ==="
 run_mutation "the streak allows a one-week gap" "$C" \
   '        if (b - a).days == 7:' '        if (b - a).days <= 14:' \
   "$T::test_the_live_archive_reproduces_the_figures_adam_approved"
+
+echo
+echo "=== the pages that point AT the moved index ==="
+run_mutation "the week page kicker goes back to the root" "$G" \
+  '    <a class="label kicker" href="{e(index_href)}">{e(SITE_TITLE)}</a>' \
+  '    <a class="label kicker" href="../../">{e(SITE_TITLE)}</a>' \
+  "$T::test_every_link_that_names_the_weeks_index_lands_on_the_weeks_index"
+
+run_mutation "\"All weeks\" on a facet page goes back to the root" "site/trends.py" \
+  '<a class="home" href="{e(htmlkit.weeks_index_href(1))}">All weeks</a>' \
+  '<a class="home" href="../">All weeks</a>' \
+  "$T::test_every_link_that_names_the_weeks_index_lands_on_the_weeks_index"
+
+run_mutation "the year page loses every route to /years/" "site/deepdives.py" \
+  '    return page(f"{year} — {site_title}", body, depth=2, under="years")' \
+  '    return page(f"{year} — {site_title}", body, depth=2, here="years")' \
+  "$T::test_every_week_and_year_page_can_reach_its_own_index"
+
+run_mutation "a child page marks its section with a dead span" "$H" \
+  '            pages.append(f'"'"'<a class="here" href="{href}">{e(label)}</a>'"'"')' \
+  '            pages.append(f'"'"'<span class="here">{e(label)}</span>'"'"')' \
+  "$T::test_a_child_page_can_still_reach_the_section_it_is_marked_under"
+
+run_mutation "the index href helper ignores the degraded shape" "$H" \
+  '    for key, _, target in _page_row:
+        if key == "weeks":
+            return ("../" * depth + target) or "./"' \
+  '    if True:
+        return "../" * depth + "weeks/"' \
+  "$T::test_a_weeks_only_build_still_has_a_root_page_and_an_honest_row"
+
+echo
+echo "=== the era annotations the cover note points at ==="
+run_mutation "the era averages are rounded to whole numbers" "$C" \
+  '        return [round(sum(values[a:b + 1]) / (b - a + 1), 1)' \
+  '        return [round(sum(values[a:b + 1]) / (b - a + 1))' \
+  "$T::test_era_averages_keep_a_decimal_the_data_needs $T::test_the_era_averages_are_annotated_to_one_decimal"
+
+run_mutation "an era band swallows the one beside it" "$C" \
+  'ERA_BANDS = [("2005-2011", 2005, 2011), ("2012-2020", 2012, 2020),' \
+  'ERA_BANDS = [("2005-2011", 2005, 2013), ("2012-2020", 2012, 2020),' \
+  "$T::test_the_era_averages_are_annotated_to_one_decimal"
+
+echo
+echo "=== the fidelity contract is a tracked file ==="
+run_mutation "the mockup fixture is read from the gitignored directory" "$T" \
+  'MOCKUP = REPO / "tests" / "fixtures" / "2026-09-08-reading-cover.html"' \
+  'MOCKUP = REPO / "docs" / "mockups" / "2026-09-08-reading-cover.html"' \
+  "$T::test_every_class_the_approved_cover_uses_is_emitted"
 
 echo
 echo "=== summary ==="
