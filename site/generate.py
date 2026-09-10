@@ -1234,7 +1234,10 @@ def generate(synthesis_dir, out_dir, index_path=None):
     return len(weeks)
 
 
-def main():
+def main(argv=None):
+    # `argv` so the entry point itself is testable. The nightly leg runs this
+    # script rather than calling generate(), so which build shape the flags
+    # dispatch to is a claim only a test that goes through here can make.
     ap = argparse.ArgumentParser()
     default_dir = None
     vault = os.environ.get("INSTAPAPER_VAULT_PATH")
@@ -1247,9 +1250,25 @@ def main():
                     help="Parquet archive index for the year/orgs/article pages")
     ap.add_argument("--no-index", action="store_true",
                     help="Skip the deep-dive pages; render weeks only")
-    args = ap.parse_args()
+    # The second build shape, added 2026-09-09. It shares this generator's data
+    # loading and the cover's arithmetic and nothing else: the public record is
+    # the cover alone, redacted at the data layer, self-contained, and it never
+    # touches the private site's output path. See site/public_shape.py.
+    ap.add_argument("--public", action="store_true",
+                    help="Build the public record for data.adamthede.com/reading/ "
+                         "instead of the private site")
+    ap.add_argument("--no-thumbnail", action="store_true",
+                    help="With --public: skip the Playwright capture")
+    args = ap.parse_args(argv)
     if not args.synthesis_dir:
         sys.exit("Set INSTAPAPER_VAULT_PATH or pass --synthesis-dir.")
+    if args.public:
+        if args.no_index:
+            sys.exit("--public needs the index: the cover IS the record.")
+        import public_shape
+        public_shape.build(args.synthesis_dir, args.out, index_path=args.index,
+                           thumbnail=not args.no_thumbnail)
+        return
     count = generate(args.synthesis_dir, args.out,
                      index_path=None if args.no_index else args.index)
     out = Path(args.out)

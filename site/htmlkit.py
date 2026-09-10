@@ -44,6 +44,33 @@ PAGE_ROW = [
 # or by anything that is not a full build - get the full row.
 _page_row = list(PAGE_ROW)
 
+# The sibling row and the wordmark's destination, installed the same way and
+# for the same reason. On the private site the siblings are the other two
+# quantified-self hosts and the wordmark is the way back to this site's own
+# root. On the public shape of this site - one record under the coverage-map
+# index at data.adamthede.com - the siblings are the other two records and the
+# wordmark is that index. Module state rather than an argument, exactly as the
+# page row is, and restored by whoever installed it.
+_sibling_sites = list(SIBLING_SITES)
+_wordmark_home = None
+
+
+def set_sibling_sites(rows):
+    """Install this build's sibling row and return the previous one."""
+    global _sibling_sites
+    previous = _sibling_sites
+    _sibling_sites = list(rows)
+    return previous
+
+
+def set_wordmark_home(href):
+    """Install an absolute destination for the wordmark, or None for the
+    depth-relative root. Returns the previous value."""
+    global _wordmark_home
+    previous = _wordmark_home
+    _wordmark_home = href
+    return previous
+
 
 def set_page_row(rows):
     """Install this build's row and return the previous one, for restoring.
@@ -135,7 +162,7 @@ def nav(depth=0, here=None, under=None):
     """
     up = "../" * depth
     links = []
-    for label, href in SIBLING_SITES:
+    for label, href in _sibling_sites:
         if href is None:
             links.append(f'<span class="on">{e(label)}</span>')
         else:
@@ -149,7 +176,7 @@ def nav(depth=0, here=None, under=None):
             pages.append(f'<a class="here" href="{href}">{e(label)}</a>')
         else:
             pages.append(f'<a href="{href}">{e(label)}</a>')
-    home = up or "./"
+    home = _wordmark_home or up or "./"
     return f"""<div class="stickynav">
   <div class="snin">
     <a class="wordmark" href="{home}">adamthede<i>reading</i></a>
