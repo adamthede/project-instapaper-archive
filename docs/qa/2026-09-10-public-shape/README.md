@@ -1,6 +1,6 @@
 # QA: the public shape of the reading cover
 
-9 September 2026. Branch `feat/public-shape`. Built from the live archive:
+10 September 2026. Branch `feat/public-shape`. Built from the live archive:
 16,382 articles, 827 weekly syntheses, `data/archive_index.parquet` of
 2026-09-06 and the vault's `synthesis/` staged on local disk.
 
@@ -21,9 +21,9 @@ it rather than take this file's word.
 Three files, and no fourth.
 
 ```
-index.html      56,768 bytes
-thumb.jpg       89,535 bytes   1200x750
-PROVENANCE.md    4,404 bytes
+index.html      56,769 bytes
+thumb.jpg       89,574 bytes   1200x750
+PROVENANCE.md    4,403 bytes
 ```
 
 The record's own provenance note as built is copied here as
@@ -86,7 +86,7 @@ Access-walled sibling hosts. The chrome as the browser reads it back:
 ```
 page row  : ["SPAN:Cover"]
 sibling   : ["SPAN:Reading", "A:Books:.../books/", "A:Viewing:.../viewing/"]
-footer    : The full record is kept for the family. Generated 2026-09-09
+footer    : The full record is kept for the family. Generated 2026-09-10
 ```
 
 ## No feed, no titles
@@ -146,7 +146,7 @@ listed only where the two actually differ.
 | width | comparison | differing pixels | share | bands (y) |
 |---|---|---|---|---|
 | 1400 | whole page | 1,549 | 0.065% | 14-21, 118-126, 1591-1600 |
-| 390 | whole page | 110,840 | 6.156% | most of the page |
+| 390 | whole page | 110,885 | 6.158% | most of the page |
 | 1400 | body, sticky bar removed from both | 1,095 | 0.047% | 74-82, 1548-1557 |
 | 390 | body, sticky bar removed from both | 1,095 | 0.061% | 74-82, 4445-4454 |
 

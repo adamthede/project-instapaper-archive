@@ -11,9 +11,9 @@ it on the same index and the same day reproduces this file byte for byte.
 | | |
 |---|---|
 | source | the private cover at `reading.adamthede.com/`, same generator |
-| generator commit | `77cdfd964bb588c716817db71175e9376433f407` |
-| built | 2026-09-09 |
-| index.html sha256 | `c28775f4c50d70e36188d68b6edeb4d9c661fc9e5c24ba34a1e054b3a76a76d2` |
+| generator commit | `c1d979c9f4836754c56de5cfe0737e067c3a6260` |
+| built | 2026-09-10 |
+| index.html sha256 | `76a5876dffa9c03d7fa5ad477f7f2e5d18760e0d11470c603c8a981ed34070c0` |
 | articles behind it | 16,382 |
 | weeks behind it | 827 |
 
@@ -37,7 +37,7 @@ refuses to publish on a single finding. On this build that is 16,919 titles and 
 
 The public page is the private cover with six differences and no others,
 asserted as an equality in
-`tests/test_public_shape.py::test_the_public_cover_is_the_private_cover_but_for_the_five_deviations`.
+`tests/test_public_shape.py::test_the_public_cover_is_the_private_cover_but_for_the_six_deviations`.
 
 | # | where | what changed | why |
 |---|---|---|---|
@@ -70,8 +70,8 @@ on this Mac).
 | | |
 |---|---|
 | captured from | `records/reading/index.html` |
-| captured-from sha256 | `c28775f4c50d70e36188d68b6edeb4d9c661fc9e5c24ba34a1e054b3a76a76d2` |
-| thumb.jpg sha256 | `836b8adec1040a85bf3ed85c1ff4b37979d2a3f9dbec86175241f2972630b596` |
+| captured-from sha256 | `76a5876dffa9c03d7fa5ad477f7f2e5d18760e0d11470c603c8a981ed34070c0` |
+| thumb.jpg sha256 | `6d0874b8b055c0edb754b81b6f8d8b66a140b30f4eb60ea630f7224b29a73290` |
 
 The capture-source hash is what closes the hole the leak scan cannot see: that
 scan reads text, and a thumbnail regenerated from the private cover would carry
