@@ -180,9 +180,14 @@ run_mutation "the wordmark stays pointed at the record itself" "$P" \
   '        self._home = htmlkit.set_wordmark_home(None)' \
   "$T::test_the_wordmark_points_at_the_public_index"
 
+# Dropping the argument entirely is an EQUIVALENT mutant since the byline
+# changed: cover.render_cover falls back to https://<domain>/, the domain is
+# now data.adamthede.com/reading, and that is the record URL character for
+# character. So the mutation names the private host instead, which is the
+# thing the test is actually there to catch.
 run_mutation "the private canonical ships on the public page" "$P" \
   '            canonical=RECORD_URL, footer_note=FOOTER_NOTE)' \
-  '            footer_note=FOOTER_NOTE)' \
+  '            canonical="https://reading.adamthede.com/", footer_note=FOOTER_NOTE)' \
   "$T::test_the_canonical_is_the_record_url"
 
 run_mutation "the footer goes on offering the weekly syntheses" "$P" \

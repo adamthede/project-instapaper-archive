@@ -114,12 +114,12 @@ shape `records/office/PROVENANCE.md` uses at the index repo.
 Built and verified against the live archive: 16,382 articles, 827 weekly
 syntheses, `data/archive_index.parquet` of 2026-09-06.
 
-- **Suite.** 35 tests in `tests/test_public_shape.py`. Whole repo: 864 passed
+- **Suite.** 36 tests in `tests/test_public_shape.py`. Whole repo: 865 passed
   and 5 skipped with the vault mounted, 861 passed and 8 skipped on a fresh
   clone with neither the vault nor the gitignored index present. `ruff` and
   `mypy` are not installed in this repo and were skipped, as they were for the
   cover.
-- **Mutation audit.** `tests/mutation_audit_public_shape.sh`, 40 caught and 0
+- **Mutation audit.** `tests/mutation_audit_public_shape.sh`, 41 caught and 0
   escaped. The first pass was 27 and 10; eight of those escapes were real
   holes, all of them in code a working build never reaches, and two were bad
   mutations. Both are written down in the commit rather than quietly dropped.
@@ -131,14 +131,34 @@ syntheses, `data/archive_index.parquet` of 2026-09-06.
 - **Browser evidence.** `docs/qa/2026-09-10-public-shape/`. One request and
   zero console errors with the network blocked after the document.
   `body.scrollWidth == window.innerWidth` at 390 and 1400. With the sticky bar
-  removed from both pages, the public and private covers differ in exactly one
-  band of 557 pixels at both widths - the footer line. The bar is the second
-  and last visible difference.
+  removed from both pages, the public and private covers differ in two bands
+  totalling 1,095 pixels at both widths - the kicker line and the footer line.
+  The bar is the third and last visible difference.
 
 Two things the spec implied rather than named, both stated on the PR:
 `generate.main` now takes `argv` so the entry point's dispatch is testable, and
 the record's document title is asserted against a literal because the index
 repo's manifest row carries it.
+
+## Status 2026-09-09, second pass
+
+Team-lead's call on the kicker, applied: the masthead now bylines
+`data.adamthede.com/reading` rather than the Access-walled private host. That
+is deviation 6, and it moved the fidelity equality test, the module and
+provenance notes, the mutation audit and every capture in `docs/qa/` with it.
+The record was rebuilt and the thumbnail re-captured, since the kicker sits in
+the top-of-page frame: index.html sha256
+`c28775f4c50d70e36188d68b6edeb4d9c661fc9e5c24ba34a1e054b3a76a76d2`, thumb.jpg
+`836b8adec1040a85bf3ed85c1ff4b37979d2a3f9dbec86175241f2972630b596`, generator
+commit `77cdfd9`, still byte-identical across two consecutive builds.
+
+One mutation had to be rewritten rather than kept. Dropping `canonical` from
+the render call is now an equivalent mutant: the cover falls back to
+`https://<domain>/`, and with the new byline that string is the record URL
+exactly. The mutation names the private host instead, which is what the test
+is there to catch. The audit says so in a comment rather than quietly.
+
+The deep-dives secondary stays as the computed count, per the same call.
 
 **Not merged and not deployed.** `READING_DEPLOY` was never set. Ready for an
 adversarial review by an agent that did not write this, then Adam's merge gate.
