@@ -114,12 +114,12 @@ shape `records/office/PROVENANCE.md` uses at the index repo.
 Built and verified against the live archive: 16,382 articles, 827 weekly
 syntheses, `data/archive_index.parquet` of 2026-09-06.
 
-- **Suite.** 36 tests in `tests/test_public_shape.py`. Whole repo: 865 passed
+- **Suite.** 39 tests in `tests/test_public_shape.py`. Whole repo: 868 passed
   and 5 skipped with the vault mounted, 861 passed and 8 skipped on a fresh
   clone with neither the vault nor the gitignored index present. `ruff` and
   `mypy` are not installed in this repo and were skipped, as they were for the
   cover.
-- **Mutation audit.** `tests/mutation_audit_public_shape.sh`, 41 caught and 0
+- **Mutation audit.** `tests/mutation_audit_public_shape.sh`, 44 caught and 0
   escaped. The first pass was 27 and 10; eight of those escapes were real
   holes, all of them in code a working build never reaches, and two were bad
   mutations. Both are written down in the commit rather than quietly dropped.
@@ -159,6 +159,23 @@ exactly. The mutation names the private host instead, which is what the test
 is there to catch. The audit says so in a comment rather than quietly.
 
 The deep-dives secondary stays as the computed count, per the same call.
+
+## Status 2026-09-10, review items
+
+Reviewed and approved, five non-blocking items taken. Tests now stand behind
+the unescaped half of the leak scan and behind the neutralizer's allowlist,
+both with mutations. `generator_commit` marks a dirty worktree, so the note
+cannot promise a hash that will not rebuild the page. The provenance template
+cited the fidelity test by its pre-kicker name. The QA note quoted a week
+figure nothing had measured: the page and the vault both say 10 articles and
+21,459 words in 2026-W35.
+
+The clock rolled past midnight mid-round, so both covers were rebuilt today and
+every capture retaken rather than leaving a 09-09 pair a re-run would not
+reproduce. index.html sha256
+`76a5876dffa9c03d7fa5ad477f7f2e5d18760e0d11470c603c8a981ed34070c0`, thumb.jpg
+`6d0874b8b055c0edb754b81b6f8d8b66a140b30f4eb60ea630f7224b29a73290`, generator
+commit `c1d979c` over a clean tree.
 
 **Not merged and not deployed.** `READING_DEPLOY` was never set. Ready for an
 adversarial review by an agent that did not write this, then Adam's merge gate.
