@@ -518,18 +518,33 @@ BODY = """  <header class="masthead">
   anywhere in this archive, so nothing here is drawn by hour.</p>
 
   <footer>
-    <span class="label">The weekly syntheses are at <a href="{{INDEX_HREF}}">{{INDEX_LABEL}}</a></span>
+    {{FOOTER_NOTE}}
     <span class="label num">Generated {{GENERATED}}</span>
   </footer>"""
 
+# The footer's first span, on the site this cover belongs to. The public shape
+# of this page replaces it wholesale (it has no /weeks/ to offer), which is why
+# it is a token rather than prose in BODY.
+FOOTER_NOTE = ('<span class="label">The weekly syntheses are at '
+               '<a href="{{INDEX_HREF}}">{{INDEX_LABEL}}</a></span>')
+
 
 def render_cover(corpus_data, weeks, deep_dives, site_title="The Week in Reading",
-                 domain="reading.adamthede.com", today=None):
+                 domain="reading.adamthede.com", today=None,
+                 canonical=None, footer_note=None):
     """The cover, as a complete document.
 
     `deep_dives` is {"years": int, "facets": int, "total": int} - what the build
     actually wrote, so the "deep dives" secondary counts pages rather than
     repeating a number someone typed into a mockup.
+
+    `canonical` and `footer_note` are the two hooks the public shape of this
+    page needs (site/public_shape.py). Left alone they are the private site's
+    own values, so the nightly build is unchanged; the public record is served
+    at data.adamthede.com/reading/ and has no weeks index to send anyone to.
+    Everything else about the two renderings is identical by construction
+    rather than by a second template, which is what makes the fidelity claim in
+    that module's provenance note checkable.
     """
     rows = corpus_data.rows
     axis = axis_for(rows, weeks)
@@ -546,6 +561,8 @@ def render_cover(corpus_data, weeks, deep_dives, site_title="The Week in Reading
                  if x["label"] != "Legacy files" and x["share"] >= 0.1)
 
     body = BODY.replace("{{COLUMNS}}", columns(axis, S, f, deep_dives))
+    body = body.replace("{{FOOTER_NOTE}}",
+                        FOOTER_NOTE if footer_note is None else footer_note)
     tokens = {
         "TITLE": e(COVER_TITLE), "DOMAIN": e(domain),
         "ARTICLES": n(f["articles"]),
@@ -564,7 +581,7 @@ def render_cover(corpus_data, weeks, deep_dives, site_title="The Week in Reading
         body = body.replace("{{" + k + "}}", v)
     assert "{{" not in body, "an unreplaced token survived into the cover"
     return page(f"{COVER_TITLE} — {site_title}", body, depth=0, here="cover",
-                canonical=f"https://{domain}/", wide=True)
+                canonical=canonical or f"https://{domain}/", wide=True)
 
 
 # ---------------------------------------------------------------------------

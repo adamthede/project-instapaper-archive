@@ -23,6 +23,7 @@ import datetime as dt
 import hashlib
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -739,9 +740,34 @@ def test_the_thumbnail_is_a_capture_of_the_page_beside_it(public_out):
 # the live archive
 # ---------------------------------------------------------------------------
 
-@pytest.mark.skipif(not LIVE_VAULT or not LIVE_INDEX.exists(),
-                    reason="needs the mounted vault and the parquet index")
-def test_the_live_archive_public_build_leaks_nothing(tmp_path):
+@pytest.fixture(scope="module")
+def live_synthesis(tmp_path_factory):
+    """The vault's synthesis directory, staged on local disk.
+
+    The vault is an SMB mount and 855 small reads over it cost about two
+    minutes. Both live tests need the same files, so they are copied once. The
+    copy is read-only as far as these tests are concerned; nothing is written
+    back to the vault, ever.
+    """
+    if not LIVE_VAULT or not LIVE_INDEX.exists():
+        pytest.skip("needs the mounted vault and the parquet index")
+    src = Path(LIVE_VAULT) / "synthesis"
+    if not src.exists():
+        pytest.skip(f"no synthesis directory at {src}")
+    dest = tmp_path_factory.mktemp("live") / "synthesis"
+    shutil.copytree(src, dest)
+    return dest
+
+
+@pytest.fixture(scope="module")
+def live_corpus():
+    if not LIVE_INDEX.exists():
+        pytest.skip("needs the parquet index")
+    import corpus as corpus_mod
+    return corpus_mod.load_corpus(LIVE_INDEX)
+
+
+def test_the_live_archive_public_build_leaks_nothing(tmp_path, live_synthesis):
     """Catches a leak that only a real corpus can show.
 
     Every title in the real index, longest first, and every URL path, against
@@ -751,26 +777,23 @@ def test_the_live_archive_public_build_leaks_nothing(tmp_path):
     happens to equal a host, would show up.
     """
     out = tmp_path / "public"
-    public_shape.build(Path(LIVE_VAULT) / "synthesis", out,
-                       index_path=LIVE_INDEX, today=TODAY, thumbnail=False)
+    public_shape.build(live_synthesis, out, index_path=LIVE_INDEX, today=TODAY,
+                       thumbnail=False)
     titles, paths = public_shape.private_strings(LIVE_INDEX)
     assert len(titles) > 10000, f"only {len(titles)} titles scanned"
     assert public_shape.leak_scan(out, titles, paths) == []
 
 
-@pytest.mark.skipif(not LIVE_VAULT or not LIVE_INDEX.exists(),
-                    reason="needs the mounted vault and the parquet index")
 def test_the_live_public_cover_prints_the_figures_the_private_one_prints(
-        tmp_path):
+        live_synthesis, live_corpus):
     """Catches the reduction changing a number on the real archive.
 
     Lossless is checked on the fixture above; this is the same claim on the
     corpus that actually ships, where a column's dtype or a null-heavy field
     could make the reduced frame compute differently.
     """
-    import corpus as corpus_mod
-    full = corpus_mod.load_corpus(LIVE_INDEX)
-    weeks = [m for m in gen.load_weeks(Path(LIVE_VAULT) / "synthesis")
+    full = live_corpus
+    weeks = [m for m in gen.load_weeks(live_synthesis)
              if str(m["week"]) >= gen.SITE_EPOCH_WEEK]
     dd = public_shape.deep_dive_counts(full)
     assert (cover.render_cover(full, weeks, deep_dives=dd, today=TODAY)
