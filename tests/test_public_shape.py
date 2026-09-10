@@ -442,7 +442,7 @@ def test_the_scan_takes_the_longest_strings_first(index_file):
 
 
 # ---------------------------------------------------------------------------
-# the five deviations
+# the six deviations
 # ---------------------------------------------------------------------------
 
 def test_the_page_row_is_reduced_to_the_single_current_entry(public_html):
@@ -537,12 +537,28 @@ def test_the_footer_says_the_full_record_is_private(public_html):
     assert "<a " not in footer
 
 
-def test_the_public_cover_is_the_private_cover_but_for_the_five_deviations(
+def test_the_masthead_kicker_names_the_public_record_not_the_private_host(
+        public_html):
+    """Catches the private byline shipping on the public page.
+
+    The private cover bylines itself `reading.adamthede.com`, which is behind
+    Cloudflare Access. On a page anyone can open, that names a host the reader
+    cannot reach. The record bylines itself with where the record is. Drop the
+    `PUBLIC_DOMAIN` default in `render_public_cover` and this fails.
+    """
+    kicker = re.search(r'<span class="label kicker">(.*?)</span>',
+                       public_html, re.S)
+    assert kicker, "the masthead kicker is gone"
+    assert kicker.group(1) == "data.adamthede.com/reading", kicker.group(1)
+    assert "reading.adamthede.com<" not in public_html
+
+
+def test_the_public_cover_is_the_private_cover_but_for_the_six_deviations(
         synth_dir, index_file):
-    """Catches a sixth difference of any kind between the two covers.
+    """Catches a seventh difference of any kind between the two covers.
 
     This is the fidelity contract stated as an equality rather than as a list of
-    spot checks: the private cover, with the five transformations applied by
+    spot checks: the private cover, with the six transformations applied by
     hand here, has to be the public cover character for character. Change a
     figure, a class, a heading or a note on the public path only, and this
     fails naming the diff. It is also why the deviations in the provenance note
@@ -573,6 +589,10 @@ def test_the_public_cover_is_the_private_cover_but_for_the_five_deviations(
     expected = expected.replace(
         '<link rel="canonical" href="https://reading.adamthede.com/">',
         '<link rel="canonical" href="https://data.adamthede.com/reading/">')
+    # (6) the masthead kicker
+    expected = expected.replace(
+        '<span class="label kicker">reading.adamthede.com</span>',
+        '<span class="label kicker">data.adamthede.com/reading</span>')
     # (5) the footer, which is also (2): the only private anchor on the page
     expected = expected.replace(
         '<span class="label">The weekly syntheses are at '

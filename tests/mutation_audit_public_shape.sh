@@ -1,5 +1,5 @@
 #!/bin/bash
-# Mutation audit for the public shape: the redaction, the leak scan, the five
+# Mutation audit for the public shape: the redaction, the leak scan, the six
 # deviations, and the promise that the private build does not move.
 #
 # Same method and the same harness as tests/mutation_audit.sh,
@@ -145,7 +145,7 @@ run_mutation "the scan takes hosts where it should take paths" "$P" \
   "$T::test_no_source_url_path_appears_in_the_public_build"
 
 echo
-echo "=== the five deviations ==="
+echo "=== the six deviations ==="
 run_mutation "the private six-item row ships on the record" "$P" \
   'PUBLIC_PAGE_ROW = [("cover", "Cover", "")]' \
   'PUBLIC_PAGE_ROW = list(htmlkit.PAGE_ROW)' \
@@ -190,13 +190,18 @@ run_mutation "the footer goes on offering the weekly syntheses" "$P" \
   '            canonical=RECORD_URL)' \
   "$T::test_the_footer_says_the_full_record_is_private"
 
-# A sixth difference that no other test in the file is looking for: the
+run_mutation "the masthead bylines the Access-walled host" "$P" \
+  '            domain=domain or PUBLIC_DOMAIN,' \
+  '            domain=domain or gen.DOMAIN,' \
+  "$T::test_the_masthead_kicker_names_the_public_record_not_the_private_host"
+
+# A seventh difference that no other test in the file is looking for: the
 # document title. Only the equality test can see it, which is why that test is
 # written as an equality and not as a list of spot checks.
-run_mutation "a sixth difference is introduced on the public path only" "$P" \
-  '            site_title=site_title or gen.SITE_TITLE, domain=domain or gen.DOMAIN,' \
-  '            site_title="A Reading Life", domain=domain or gen.DOMAIN,' \
-  "$T::test_the_public_cover_is_the_private_cover_but_for_the_five_deviations"
+run_mutation "a seventh difference is introduced on the public path only" "$P" \
+  '            site_title=site_title or gen.SITE_TITLE,' \
+  '            site_title="A Reading Life",' \
+  "$T::test_the_public_cover_is_the_private_cover_but_for_the_six_deviations"
 
 echo
 echo "=== self-contained ==="

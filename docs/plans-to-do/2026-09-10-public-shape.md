@@ -26,9 +26,9 @@ only in this wave. No Highlights, no weeks feed, no per-article listing, no
 people page. The record keeps its own design - the index is the only shared
 surface, and a record is never restyled to match another.
 
-## The five deviations from the private cover
+## The six deviations from the private cover
 
-The public cover's DOM is the private root's DOM, with five differences and no
+The public cover's DOM is the private root's DOM, with six differences and no
 others:
 
 1. **The page row is reduced to its single current entry, COVER.** Not removed.
@@ -55,9 +55,11 @@ others:
    family." replaces "The weekly syntheses are at /weeks/", in the same
    `<span class="label">` the footer already used.
 
-The masthead kicker still reads `reading.adamthede.com`. It is the record's own
-byline and the plan of record lists exactly one redaction for Reading, "drop
-the weekly article feed"; the hostname is not one.
+6. **The masthead kicker reads `data.adamthede.com/reading`.** The private
+   cover bylines itself with the host it is served from, and that host is
+   behind Cloudflare Access; on a page anyone can open, that names something
+   the reader cannot reach. Changed on team-lead's call 2026-09-09, matching
+   what Books did with its footer domain.
 
 ## Redaction at the data layer
 

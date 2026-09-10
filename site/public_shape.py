@@ -31,10 +31,10 @@ finding raises; nothing is published.
 time. That is the press's first clause and it is the reason there is no
 `style.css` beside the page.
 
-## The five deviations from the private cover
+## The six deviations from the private cover
 
 Everything else about the two documents is identical, which
-`test_the_public_cover_is_the_private_cover_but_for_the_five_deviations`
+`test_the_public_cover_is_the_private_cover_but_for_the_six_deviations`
 asserts as an equality rather than as spot checks.
 
 1. The page row is reduced to its single current entry, COVER, which already
@@ -53,9 +53,9 @@ asserts as an equality rather than as spot checks.
 4. Canonical is the record's public URL.
 5. The footer says the full record is private, in the same span, with no link.
 
-The masthead kicker still reads `reading.adamthede.com`. It is the record's own
-byline, and the plan of record lists exactly one redaction for Reading - "drop
-the weekly article feed" - of which the hostname is not part.
+6. The masthead kicker reads `data.adamthede.com/reading`. The private byline
+   names the host the page is served from, and that host is behind Cloudflare
+   Access, so on a public page it points at a login wall.
 """
 import argparse
 import datetime as dt
@@ -87,6 +87,12 @@ PUBLIC_SIBLINGS = [
 ]
 
 PUBLIC_PAGE_ROW = [("cover", "Cover", "")]
+
+# The masthead kicker. The private cover bylines itself with the host it is
+# served from, and that host sits behind Cloudflare Access: naming it on a
+# public page points readers at a login wall. The record bylines itself with
+# where the record is.
+PUBLIC_DOMAIN = "data.adamthede.com/reading"
 
 FOOTER_NOTE = ('<span class="label">The full record is kept for the '
                'family.</span>')
@@ -272,7 +278,8 @@ def render_public_cover(corpus_data, weeks, deep_dives, today=None,
         html = cover.render_cover(
             reduce_corpus(corpus_data), reduce_weeks(weeks),
             deep_dives=deep_dives, today=today,
-            site_title=site_title or gen.SITE_TITLE, domain=domain or gen.DOMAIN,
+            site_title=site_title or gen.SITE_TITLE,
+            domain=domain or PUBLIC_DOMAIN,
             canonical=RECORD_URL, footer_note=FOOTER_NOTE)
     return inline_stylesheet(neutralize_links(html))
 
@@ -445,7 +452,7 @@ refuses to publish on a single finding. {scanned}
 
 ## The deviations
 
-The public page is the private cover with five differences and no others,
+The public page is the private cover with six differences and no others,
 asserted as an equality in
 `tests/test_public_shape.py::test_the_public_cover_is_the_private_cover_but_for_the_five_deviations`.
 
@@ -456,11 +463,7 @@ asserted as an equality in
 | 3 | the sibling bar and the wordmark | BOOKS and VIEWING resolve to `{base}books/` and `{base}viewing/`, the wordmark to `{base}` | the private hosts are behind Cloudflare Access, so from a public page those links are a login wall. READING stays the marked span it is privately: the record is `/reading/` |
 | 4 | canonical | `{record}` | the private canonical would tell every crawler this page duplicates one it cannot reach |
 | 5 | the footer's first span | "The full record is kept for the family." | it offered the weekly syntheses at `/weeks/`, which the public tier does not publish |
-
-Not a deviation, and deliberately: the masthead kicker still reads
-`reading.adamthede.com`. It is the record's own byline, and the plan of record
-lists one redaction for Reading - drop the weekly article feed - of which the
-hostname is not part.
+| 6 | the masthead kicker | `{domain}` | the private byline names the Access-walled host the page is served from; the record bylines itself with where the record is |
 
 Also not a deviation: the "deep dives" secondary still counts the private
 site's year rollups and facet pages. It is a number, not a link, and the footer
@@ -511,6 +514,7 @@ def provenance(out, page_hash, articles, weeks, scanned, thumb_path=None,
         commit=generator_commit(), built=today.isoformat(),
         page_hash=page_hash, articles=f"{articles:,}", weeks=f"{weeks:,}",
         scanned=scanned, base=PUBLIC_BASE, record=RECORD_URL,
+        domain=PUBLIC_DOMAIN,
         filecount=len(list(Path(out).iterdir())) + 1, thumb=thumb)
 
 
