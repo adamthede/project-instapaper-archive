@@ -242,6 +242,12 @@ def test_the_public_page_is_the_cover_and_no_part_of_the_weeks_index(public_html
     """
     assert public_html.count('class="fcol"') == 4
     assert 'class="fhero accent"' in public_html
+    # The title is a contract, not a copy: the manifest row at the index repo
+    # carries it, and the coverage-map row is rendered from that. A cover
+    # renamed on the private site has to be a deliberate change here too.
+    assert "<title>A Reading Life &mdash; The Week in Reading</title>" in public_html \
+        or "<title>A Reading Life — The Week in Reading</title>" in public_html
+    assert "<h1>A Reading Life</h1>" in public_html
     for forbidden in ('class="wrow"', 'class="row"', 'class="trend"',
                       'class="ystrip"', 'class="roster"', 'class="atitle"'):
         assert forbidden not in public_html, forbidden
@@ -665,6 +671,11 @@ def test_the_private_build_shape_is_still_what_the_nightly_asks_for(
     assert '<a href="https://books.adamthede.com/">Books</a>' in root
     assert root.count('class="pagelinks"') == 1
     assert "Cover</span>" in root and ">Weeks</a>" in root
+    # The private footer still offers the weekly syntheses, as a link. The
+    # public shape turned that span into a token in cover.BODY; a token that
+    # resolves to nothing would empty the private cover's footer too.
+    assert ('<span class="label">The weekly syntheses are at '
+            '<a href="weeks/">/weeks/</a></span>') in root
 
 
 def test_the_deep_dive_count_matches_what_the_private_build_writes(
@@ -800,3 +811,163 @@ def test_the_live_public_cover_prints_the_figures_the_private_one_prints(
             == cover.render_cover(public_shape.reduce_corpus(full),
                                   public_shape.reduce_weeks(weeks),
                                   deep_dives=dd, today=TODAY))
+
+
+# ---------------------------------------------------------------------------
+# the guards the happy path never reaches
+#
+# Everything above measures a build that works. These five are the cases a
+# mutation audit found unguarded: code that only does anything when something
+# has already gone wrong, and which a green build therefore never exercises.
+# ---------------------------------------------------------------------------
+
+def test_a_private_anchor_added_to_the_cover_is_neutralized_on_the_page(
+        synth_dir, index_file, monkeypatch):
+    """Catches the neutralizer being written and then never called.
+
+    On the cover as it stands the pass is a no-op: its only private anchor is
+    the footer's, and the footer is replaced outright. So the pipeline can drop
+    the call and every other test stays green - which is exactly the day the
+    guard is needed, because what it guards against is a future column growing
+    a link. A link is planted in the cover's own template here and has to come
+    back as a span.
+    """
+    import corpus as corpus_mod
+    monkeypatch.setattr(cover, "BODY", cover.BODY.replace(
+        "{{COLUMNS}}", '{{COLUMNS}}<a class="planted" href="weeks/">All weeks</a>'))
+    full = corpus_mod.load_corpus(index_file)
+    html = public_shape.render_public_cover(
+        full, gen.load_weeks(synth_dir),
+        deep_dives={"years": 1, "facets": 1, "total": 2}, today=TODAY)
+    assert '<span class="planted">All weeks</span>' in html
+    assert 'href="weeks/"' not in html
+
+
+def test_the_inliner_refuses_a_page_with_no_stylesheet_to_inline(public_html):
+    """Catches an inliner that shrugs when the link is not there.
+
+    Its check only fires on a page that has already gone wrong, so a build that
+    works cannot exercise it. A public page that silently lost its styles would
+    pass every text assertion in this file and look like the record in none of
+    them.
+    """
+    with pytest.raises(SystemExit):
+        public_shape.inline_stylesheet("<html><body>no link here</body></html>")
+    # ...and it does not run twice on a page it already inlined.
+    with pytest.raises(SystemExit):
+        public_shape.inline_stylesheet(public_html)
+
+
+def test_the_build_refuses_an_out_directory_it_did_not_write(
+        synth_dir, index_file, tmp_path):
+    """Catches a public build clearing somebody else's directory.
+
+    `--out` is a path a person types. The record is three known names, so a
+    directory holding anything else is not a previous record and emptying it
+    would be the destructive kind of surprise. The guard only ever fires on the
+    day someone mistypes, which is why no ordinary test reaches it.
+    """
+    out = tmp_path / "someones-work"
+    out.mkdir()
+    (out / "notes.md").write_text("do not delete me", encoding="utf-8")
+    with pytest.raises(SystemExit) as err:
+        public_shape.build(synth_dir, out, index_path=index_file, today=TODAY,
+                           thumbnail=False)
+    assert "notes.md" in str(err.value)
+    assert (out / "notes.md").read_text(encoding="utf-8") == "do not delete me"
+    # A directory holding a previous record IS replaced, which is the other
+    # half of the rule and the reason the guard is a name check rather than a
+    # refusal to overwrite anything.
+    for name in public_shape.RECORD_FILES:
+        (out / name).write_text("stale", encoding="utf-8")
+    (out / "notes.md").unlink()
+    public_shape.build(synth_dir, out, index_path=index_file, today=TODAY,
+                       thumbnail=False)
+    assert "A Reading Life" in (out / "index.html").read_text(encoding="utf-8")
+
+
+def test_the_provenance_note_records_the_thumbnail_it_was_built_with(
+        synth_dir, index_file, tmp_path, monkeypatch):
+    """Catches a note that describes a thumbnail it was not handed.
+
+    The capture needs node and Playwright, which this suite does not have, so
+    the thumbnail branch of the note is never taken by any other test here and
+    the two hashes it carries could be anything. A stub capture is enough to
+    hold the bookkeeping: the note has to name the file beside it and the page
+    that file was taken from.
+    """
+    monkeypatch.setattr(public_shape, "capture_thumbnail",
+                        lambda page, dest, **kw: Path(dest).write_bytes(b"jpegish"))
+    out = tmp_path / "with-thumb"
+    public_shape.build(synth_dir, out, index_path=index_file, today=TODAY,
+                       thumbnail=True)
+    note = (out / "PROVENANCE.md").read_text(encoding="utf-8")
+    page_hash = hashlib.sha256((out / "index.html").read_bytes()).hexdigest()
+    thumb_hash = hashlib.sha256((out / "thumb.jpg").read_bytes()).hexdigest()
+    assert f"captured-from sha256 | `{page_hash}`" in note
+    assert f"thumb.jpg sha256 | `{thumb_hash}`" in note
+    assert page_hash != thumb_hash
+
+
+def test_the_command_line_builds_the_private_site_unless_public_is_asked_for(
+        synth_dir, index_file, tmp_path):
+    """Catches `--public` becoming the only shape the entry point can build.
+
+    Every other test in this file calls `generate.generate` or
+    `public_shape.build` directly. The nightly leg calls neither: it runs the
+    script. A dispatch that routed both ways to the record would take the site
+    down and no test above would notice.
+    """
+    private = tmp_path / "site"
+    gen.main(["--synthesis-dir", str(synth_dir), "--index", str(index_file),
+              "--out", str(private)])
+    assert (private / "weeks" / "index.html").exists()
+    assert (private / "style.css").exists()
+
+    record = tmp_path / "record"
+    gen.main(["--synthesis-dir", str(synth_dir), "--index", str(index_file),
+              "--out", str(record), "--public", "--no-thumbnail"])
+    assert files_under(record) == ["PROVENANCE.md", "index.html"]
+
+
+def test_the_deep_dive_count_is_right_where_the_taxonomy_gate_is_closed(
+        synth_dir, index_file, tmp_path):
+    """Catches the two gated facet pages being counted unconditionally.
+
+    On any index with a taxonomy join the gate is open and /concepts/ and
+    /together/ are written, so adding them without asking is indistinguishable
+    from asking. An index with no join is the case that separates them - and it
+    is also the case where the private site has no cover at all.
+    """
+    import corpus as corpus_mod
+    df = pd.read_parquet(index_file).drop(columns=["canonical_entries"])
+    ungated = tmp_path / "ungated.parquet"
+    df.to_parquet(ungated)
+
+    out = tmp_path / "_site"
+    gen.generate(synth_dir, out, index_path=ungated)
+    rollups = len(list((out / "years").glob("*/index.html")))
+    facets = len([d for d in out.iterdir()
+                  if d.is_dir() and d.name not in ("years", "weeks")
+                  and (d / "index.html").exists()])
+    assert not (out / "concepts").exists(), "the gate was open after all"
+
+    counts = public_shape.deep_dive_counts(corpus_mod.load_corpus(ungated))
+    assert counts == {"years": rollups, "facets": facets,
+                      "total": rollups + facets}
+
+
+def test_the_reduced_view_keeps_the_years_the_page_counts_rollups_from(
+        index_file):
+    """Catches `years` being dropped on the way through the reduction.
+
+    Nothing the cover DRAWS reads it - the quarter axis is measured off
+    `date_read` - so a reduction that lost it would render an identical page
+    and report zero year rollups in the "deep dives" secondary.
+    """
+    import corpus as corpus_mod
+    full = corpus_mod.load_corpus(index_file)
+    reduced = public_shape.reduce_corpus(full)
+    assert reduced.years == full.years
+    assert public_shape.deep_dive_counts(reduced) == \
+        public_shape.deep_dive_counts(full)

@@ -1234,7 +1234,10 @@ def generate(synthesis_dir, out_dir, index_path=None):
     return len(weeks)
 
 
-def main():
+def main(argv=None):
+    # `argv` so the entry point itself is testable. The nightly leg runs this
+    # script rather than calling generate(), so which build shape the flags
+    # dispatch to is a claim only a test that goes through here can make.
     ap = argparse.ArgumentParser()
     default_dir = None
     vault = os.environ.get("INSTAPAPER_VAULT_PATH")
@@ -1256,7 +1259,7 @@ def main():
                          "instead of the private site")
     ap.add_argument("--no-thumbnail", action="store_true",
                     help="With --public: skip the Playwright capture")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
     if not args.synthesis_dir:
         sys.exit("Set INSTAPAPER_VAULT_PATH or pass --synthesis-dir.")
     if args.public:
