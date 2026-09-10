@@ -5,7 +5,7 @@ priority: "P1"
 project: "articles"
 created: 2026-09-09
 completed:
-linked_pr: "PR_URL_PLACEHOLDER"
+linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/25"
 depends_on:
   - "the reading cover (PR #24, merged 2026-09-08)"
   - "plan of record: command-center docs/planning/2026-09-09-data-adamthede-com.md"
