@@ -21,9 +21,9 @@ it rather than take this file's word.
 Three files, and no fourth.
 
 ```
-index.html      56,763 bytes
-thumb.jpg       89,048 bytes   1200x750
-PROVENANCE.md    4,467 bytes
+index.html      56,768 bytes
+thumb.jpg       89,535 bytes   1200x750
+PROVENANCE.md    4,404 bytes
 ```
 
 The record's own provenance note as built is copied here as
@@ -140,18 +140,18 @@ listed only where the two actually differ.
 
 | width | comparison | differing pixels | share | bands (y) |
 |---|---|---|---|---|
-| 1400 | whole page | 1,011 | 0.042% | 14-21, 1591-1600 |
-| 390 | whole page | 110,773 | 6.152% | most of the page |
-| 1400 | body, sticky bar removed from both | 557 | 0.024% | 1548-1557 |
-| 390 | body, sticky bar removed from both | 557 | 0.031% | 4445-4454 |
+| 1400 | whole page | 1,549 | 0.065% | 14-21, 118-126, 1591-1600 |
+| 390 | whole page | 110,840 | 6.156% | most of the page |
+| 1400 | body, sticky bar removed from both | 1,095 | 0.047% | 74-82, 1548-1557 |
+| 390 | body, sticky bar removed from both | 1,095 | 0.061% | 74-82, 4445-4454 |
 
 Diffs: `2026-09-10-cover-diff-1400.png`, `2026-09-10-cover-diff-390.png`,
 `2026-09-10-body-diff-1400.png`, `2026-09-10-body-diff-390.png`.
 
 ### Every visible difference
 
-There are two, and the table above is how they were found rather than a list
-someone wrote down.
+There are three, and the table above is how they were found rather than a
+list someone wrote down.
 
 **1. The sticky bar's page row.** Public: `COVER`, marked. Private: `COVER ·
 WEEKS · YEARS · SOURCES · SUBJECTS · ARTICLES`, with `COVER` marked. At 1400 the
@@ -174,11 +174,18 @@ where they sit and the difference collapses to the footer. (Re-comparing at a
 positioning, not content - it is in the script and is the weaker measurement of
 the two, so the removal is what is reported.)
 
-**2. The footer's first line.** Public: "The full record is kept for the
+**2. The masthead kicker.** Public: `data.adamthede.com/reading`. Private:
+`reading.adamthede.com`. One line of small-caps label above the title, `y
+118-126` at 1400 and `y 74-82` in both bar-removed bodies. The private byline
+names the host the page is served from, and that host is behind Cloudflare
+Access, so on a page anyone can open it points at a login wall.
+
+**3. The footer's first line.** Public: "The full record is kept for the
 family." Private: "The weekly syntheses are at /weeks/", a link. One line, in
 the same span, in the same small-caps label idiom. `y 1548-1557` at 1400 and
-`y 4445-4454` at 390 - the same 557 pixels at both widths, which is what says
-it is one line of text and nothing else.
+`y 4445-4454` at 390. With the kicker, the two lines come to the same 1,095
+pixels at both widths, which is what says they are two lines of text and
+nothing else.
 
 **Everything else on the page is pixel-identical at both widths.** The four
 columns, all 87 quarters of every strip, every era annotation, every hero, every
