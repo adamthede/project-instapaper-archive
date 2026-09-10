@@ -1,10 +1,10 @@
 ---
 title: "The public shape of reading.adamthede.com - the cover alone, redacted at the data layer, for data.adamthede.com/reading/"
-status: "QA Needed"
+status: "Done"
 priority: "P1"
 project: "articles"
 created: 2026-09-09
-completed:
+completed: 2026-09-10
 linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/25"
 depends_on:
   - "the reading cover (PR #24, merged 2026-09-08)"

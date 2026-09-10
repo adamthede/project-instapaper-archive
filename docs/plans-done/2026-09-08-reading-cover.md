@@ -1,6 +1,7 @@
 ---
 title: "The reading cover — a Feltron cover page at the root, the weeks index moved to /weeks/"
-status: "QA Needed"
+status: "Done"
+completed: 2026-09-08
 priority: "P2"
 project: "articles"
 created: 2026-09-08
