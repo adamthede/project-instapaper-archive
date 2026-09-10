@@ -144,6 +144,11 @@ run_mutation "the scan takes hosts where it should take paths" "$P" \
   '        path = urlparse(str(u)).netloc.rstrip("/")' \
   "$T::test_no_source_url_path_appears_in_the_public_build"
 
+run_mutation "the scan reads only the raw bytes of the page" "$P" \
+  '        haystack = (text + "\n" + html_mod.unescape(text)).casefold()' \
+  '        haystack = text.casefold()' \
+  "$T::test_the_leak_scan_finds_a_title_the_renderer_escaped"
+
 echo
 echo "=== the six deviations ==="
 run_mutation "the private six-item row ships on the record" "$P" \
@@ -174,6 +179,11 @@ run_mutation "the sibling bar keeps the Access-walled hosts" "$P" \
 ]' \
   'PUBLIC_SIBLINGS = list(htmlkit.SIBLING_SITES)' \
   "$T::test_the_sibling_bar_points_at_the_public_tier"
+
+run_mutation "the neutralizer keeps anything absolute" "$P" \
+  '        if href and href.group(1).startswith(PUBLIC_BASE):' \
+  '        if href and href.group(1).startswith("http"):' \
+  "$T::test_an_absolute_link_to_a_private_host_is_neutralized_too"
 
 run_mutation "the wordmark stays pointed at the record itself" "$P" \
   '        self._home = htmlkit.set_wordmark_home(PUBLIC_BASE)' \
@@ -286,6 +296,11 @@ run_mutation "the out guard refuses a previous record too" "$P" \
   '    strays = [p.name for p in out.iterdir() if p.name not in RECORD_FILES]' \
   '    strays = [p.name for p in out.iterdir()]' \
   "$T::test_the_build_refuses_an_out_directory_it_did_not_write"
+
+run_mutation "a dirty worktree is reported as a clean commit" "$P" \
+  '    return commit + "-dirty" if dirty else commit' \
+  '    return commit' \
+  "$T::test_the_generator_commit_says_so_when_the_tree_is_dirty"
 
 run_mutation "the note is written before the thumbnail it describes" "$P" \
   '                       scanned, thumb_path if thumbnail else None, today),' \

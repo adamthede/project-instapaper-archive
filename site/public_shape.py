@@ -406,13 +406,31 @@ def sha256(path):
 
 
 def generator_commit():
+    """The commit this record was built from, marked when it is not the whole
+    truth.
+
+    A bare hash on a dirty worktree is a lie of the most useful kind: it says
+    "check out this commit and you get this page", and if the build ran over
+    uncommitted edits you do not. The record is published to be checkable, so
+    a dirty tree gets `-dirty` appended and whoever reads the note knows the
+    hash alone will not reproduce the page.
+    """
+    here = str(Path(__file__).resolve().parent)
     try:
-        return subprocess.run(
-            ["git", "-C", str(Path(__file__).resolve().parent),
-             "rev-parse", "HEAD"],
+        commit = subprocess.run(
+            ["git", "-C", here, "rev-parse", "HEAD"],
             capture_output=True, text=True, check=True).stdout.strip()
     except Exception:
         return "unknown"
+    try:
+        dirty = subprocess.run(
+            ["git", "-C", here, "status", "--porcelain"],
+            capture_output=True, text=True, check=True).stdout.strip()
+    except Exception:
+        # The hash came back and the status did not, so whether it is the
+        # whole truth is unknown - which is what the note has to say.
+        return commit + "-unknown"
+    return commit + "-dirty" if dirty else commit
 
 
 PROVENANCE = """# records/reading
@@ -454,7 +472,7 @@ refuses to publish on a single finding. {scanned}
 
 The public page is the private cover with six differences and no others,
 asserted as an equality in
-`tests/test_public_shape.py::test_the_public_cover_is_the_private_cover_but_for_the_five_deviations`.
+`tests/test_public_shape.py::test_the_public_cover_is_the_private_cover_but_for_the_six_deviations`.
 
 | # | where | what changed | why |
 |---|---|---|---|

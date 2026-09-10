@@ -377,6 +377,30 @@ def test_the_leak_scan_is_red_when_a_title_is_injected(public_out, index_file):
     assert found[0]["file"] == "index.html"
 
 
+def test_the_leak_scan_finds_a_title_the_renderer_escaped(public_out):
+    """Catches a scan that reads only the raw bytes of the page.
+
+    A title carrying an ampersand reaches the page as `&amp;`, so the needle
+    the scan is holding - the title as it sits in the index - does not appear
+    in the file at all. Escaping is not a redaction: the browser prints
+    "Arts & Letters", the reader reads it, and the archive has leaked. The scan
+    searches the unescaped text as well as the raw text for exactly this. Drop
+    the `html_mod.unescape(text)` half and this fails while every other leak
+    test stays green.
+    """
+    victim = "Arts & Letters Daily, the long goodbye"
+    page_path = public_out / "index.html"
+    page_path.write_text(
+        page_path.read_text(encoding="utf-8").replace(
+            "</footer>", "<!-- Arts &amp; Letters Daily, the long goodbye --></footer>"),
+        encoding="utf-8")
+
+    assert victim not in page_path.read_text(encoding="utf-8"), \
+        "the fixture is meant to be escaped in the file, not literal"
+    found = public_shape.leak_scan(public_out, [victim], [])
+    assert [f["needle"] for f in found] == [victim], found
+
+
 def test_the_leak_scan_reads_every_file_the_build_wrote(public_out, index_file):
     """Catches a scan that only ever looks at index.html.
 
@@ -482,6 +506,25 @@ def test_a_private_anchor_becomes_a_span_with_the_same_classes():
         '<p><a class="mk hot" href="../weeks/">All weeks</a> and '
         '<a href="https://data.adamthede.com/books/">Books</a></p>')
     assert out == ('<p><span class="mk hot">All weeks</span> and '
+                   '<a href="https://data.adamthede.com/books/">Books</a></p>')
+
+
+def test_an_absolute_link_to_a_private_host_is_neutralized_too():
+    """Catches an allowlist widened from "the public tier" to "anything
+    absolute".
+
+    The rule is not "relative links are dangerous". A fully-qualified link to
+    `reading.adamthede.com` is the worse case of the two: it resolves, and it
+    resolves onto a Cloudflare Access login wall. Only URLs under PUBLIC_BASE
+    survive. Relax the check to `href.startswith("http")` and this fails while
+    the relative-link test above stays green.
+    """
+    out = public_shape.neutralize_links(
+        '<p><a class="mk" href="https://reading.adamthede.com/weeks/">All weeks</a>'
+        '<a href="http://data.adamthede.com/books/">Books</a>'
+        '<a href="https://data.adamthede.com/books/">Books</a></p>')
+    assert out == ('<p><span class="mk">All weeks</span>'
+                   '<span>Books</span>'
                    '<a href="https://data.adamthede.com/books/">Books</a></p>')
 
 
@@ -737,6 +780,38 @@ def test_the_provenance_note_records_the_hash_of_the_page_beside_it(public_out):
     assert digest in note
     assert "## index.html" in note
     assert "## The deviations" in note
+
+
+def test_the_generator_commit_says_so_when_the_tree_is_dirty(monkeypatch):
+    """Catches a provenance note promising a hash that will not rebuild the page.
+
+    "Generator commit abc123" is a claim a reader can act on: check that
+    commit out, run the build, get this file. Built over uncommitted edits, the
+    bare hash makes that claim falsely. A dirty tree is marked. If git can
+    answer for the commit but not for the status, that is marked too, because
+    "clean" is not the safe assumption to make silently.
+    """
+    class Result:
+        def __init__(self, out):
+            self.stdout = out
+
+    def fake(argv, **kw):
+        if "rev-parse" in argv:
+            return Result("abc123\n")
+        if status == "boom":
+            raise RuntimeError("no status for you")
+        return Result(status)
+
+    monkeypatch.setattr(public_shape.subprocess, "run", fake)
+
+    status = ""
+    assert public_shape.generator_commit() == "abc123"
+
+    status = " M site/public_shape.py\n?? draft.html\n"
+    assert public_shape.generator_commit() == "abc123-dirty"
+
+    status = "boom"
+    assert public_shape.generator_commit() == "abc123-unknown"
 
 
 def test_the_provenance_note_lists_every_deviation(public_out):
