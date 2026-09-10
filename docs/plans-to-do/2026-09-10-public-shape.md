@@ -1,11 +1,11 @@
 ---
 title: "The public shape of reading.adamthede.com - the cover alone, redacted at the data layer, for data.adamthede.com/reading/"
-status: "In Progress"
+status: "QA Needed"
 priority: "P1"
 project: "articles"
 created: 2026-09-09
 completed:
-linked_pr: ""
+linked_pr: "PR_URL_PLACEHOLDER"
 depends_on:
   - "the reading cover (PR #24, merged 2026-09-08)"
   - "plan of record: command-center docs/planning/2026-09-09-data-adamthede-com.md"
@@ -106,3 +106,37 @@ shape `records/office/PROVENANCE.md` uses at the index repo.
   `index.html` is hashed before and after the public build lands.
 - No CI and no review bots in this repo, so the Readiness Rule's second leg is
   an adversarial review by an agent that did not write this.
+
+## Status 2026-09-09
+
+Built and verified against the live archive: 16,382 articles, 827 weekly
+syntheses, `data/archive_index.parquet` of 2026-09-06.
+
+- **Suite.** 35 tests in `tests/test_public_shape.py`. Whole repo: 864 passed
+  and 5 skipped with the vault mounted, 861 passed and 8 skipped on a fresh
+  clone with neither the vault nor the gitignored index present. `ruff` and
+  `mypy` are not installed in this repo and were skipped, as they were for the
+  cover.
+- **Mutation audit.** `tests/mutation_audit_public_shape.sh`, 40 caught and 0
+  escaped. The first pass was 27 and 10; eight of those escapes were real
+  holes, all of them in code a working build never reaches, and two were bad
+  mutations. Both are written down in the commit rather than quietly dropped.
+- **The leak scan on the real corpus.** Clean over 16,919 titles and 6,666 URL
+  paths. No collision between an article title and a controlled-vocabulary
+  entry, which was the case worth measuring rather than assuming.
+- **The private site does not move.** The nightly path was run on the live
+  archive either side of a public build: 859 files, identical tree digest.
+- **Browser evidence.** `docs/qa/2026-09-10-public-shape/`. One request and
+  zero console errors with the network blocked after the document.
+  `body.scrollWidth == window.innerWidth` at 390 and 1400. With the sticky bar
+  removed from both pages, the public and private covers differ in exactly one
+  band of 557 pixels at both widths - the footer line. The bar is the second
+  and last visible difference.
+
+Two things the spec implied rather than named, both stated on the PR:
+`generate.main` now takes `argv` so the entry point's dispatch is testable, and
+the record's document title is asserted against a literal because the index
+repo's manifest row carries it.
+
+**Not merged and not deployed.** `READING_DEPLOY` was never set. Ready for an
+adversarial review by an agent that did not write this, then Adam's merge gate.
