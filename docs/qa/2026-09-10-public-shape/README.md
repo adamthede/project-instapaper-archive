@@ -101,9 +101,14 @@ footer    : The full record is kept for the family. Generated 2026-09-09
 | `class="atitle"` (a linked article title) | 0 |
 
 The one week identifier is `2026-W35` in the Weeks column's "this week"
-secondary - "58 articles in 2026-W35, 84,441 words". It names the newest week,
-it is on the private cover in the same place, and it is a date, not a feed:
-there is no second week identifier anywhere in the file.
+secondary, which reads "10 articles in 2026-W35, 21,459 words". Both figures
+were read off the emitted `index.html` and then checked against the vault's own
+`synthesis/2026-W35.md`, whose frontmatter carries `article_count: 10` and
+`total_words: 21459`. (An earlier draft of this file quoted 58 and 84,441,
+which is not what the build wrote and not what the vault holds; the numbers
+here are the measured ones.) It names the newest week, it is on the private
+cover in the same place, and it is a date, not a feed: there is no second week
+identifier anywhere in the file.
 
 The leak scan is not only a grep here. It runs inside the build, over every
 emitted file, on both the raw text and its HTML-unescaped form, case
