@@ -178,27 +178,43 @@ MAX_PAGE_SIZE = 100
 
 # ---- fetch ------------------------------------------------------------------
 
-def _iter_status_pages(client, status: str, *, page_size: int = MAX_PAGE_SIZE):
+def _iter_status_pages(client, status: str, *, page_size: int = MAX_PAGE_SIZE, max_pages: int = 10_000):
     """GET /items for one status, paginating by hand via client.get().
 
     Deliberately does not use MatterClient.iter_items()/_paginate(): see the
     module docstring for why silent truncation there is fine for the
     incremental read sync and not fine here. Raises MatterAPIError on:
+      * a missing or null `results` field (PR #27 review, residual R1 --
+        `payload.get("results") or []` used to collapse three shapes into
+        one: `{}`, `{"results": null}`, and a legitimately empty queue all
+        produced `count=0` with no raise. Only the last is a real shape
+        Matter can send; a legitimately empty queue still has `"results": []`,
+        a real (empty) list, which is NOT None and is still accepted below),
       * a non-list `results` field,
       * `has_more: true` with no `next_cursor` (an incomplete page Matter
         cannot resume, per _paginate's own comment -- upgraded here from
         "stop quietly" to "fail loudly", since there is no next run that
         self-heals a snapshot the way there is for a delta sync),
-      * a repeated cursor (the same infinite-loop guard _paginate uses).
+      * a repeated cursor, or more than `max_pages` pages (the same two
+        infinite-loop guards _paginate uses -- PR #27 review, residual R2:
+        the first fix here kept the cursor-repeat guard but dropped
+        _paginate's page ceiling, so a pathological API that always hands
+        back a FRESH cursor with `has_more: true` would have looped this
+        nightly job forever; launchd will not start the next run while this
+        one is still going).
     """
     params: dict = {"limit": min(page_size, MAX_PAGE_SIZE), "order": "updated", "status": status}
     seen_cursors: set[str] = set()
+    pages = 0
     while True:
         payload = client.get("/items", params)
-        results = payload.get("results") or []
+        if "results" not in payload or payload["results"] is None:
+            raise MatterAPIError(f"GET /items returned no 'results' field for status={status!r}")
+        results = payload["results"]
         if not isinstance(results, list):
             raise MatterAPIError(f"GET /items returned a non-list 'results' field for status={status!r}")
         yield from results
+        pages += 1
 
         if not payload.get("has_more"):
             return
@@ -212,12 +228,17 @@ def _iter_status_pages(client, status: str, *, page_size: int = MAX_PAGE_SIZE):
             )
         if cursor in seen_cursors:
             raise MatterAPIError(f"GET /items repeated pagination cursor {cursor!r} for status={status!r}")
+        if pages >= max_pages:
+            raise MatterAPIError(
+                f"GET /items exceeded {max_pages} pages for status={status!r}; stopping "
+                f"rather than looping the nightly job forever."
+            )
         seen_cursors.add(cursor)
         params["cursor"] = cursor
 
 
 def fetch_queue_items(client, extra_statuses=EXTRA_UNREAD_STATUSES, *,
-                       page_size: int = MAX_PAGE_SIZE) -> list[dict]:
+                       page_size: int = MAX_PAGE_SIZE, max_pages: int = 10_000) -> list[dict]:
     """The full current queue, plus any extra unread-like statuses.
 
     A full listing every run, not an incremental delta -- unlike the read
@@ -228,7 +249,7 @@ def fetch_queue_items(client, extra_statuses=EXTRA_UNREAD_STATUSES, *,
     """
     seen: dict[str, dict] = {}
     for status in (QUEUE_STATUS, *extra_statuses):
-        for item in _iter_status_pages(client, status, page_size=page_size):
+        for item in _iter_status_pages(client, status, page_size=page_size, max_pages=max_pages):
             item_id = item.get("id")
             if item_id and item_id not in seen:
                 seen[item_id] = item

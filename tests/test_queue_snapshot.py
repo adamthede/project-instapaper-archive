@@ -140,6 +140,66 @@ def test_incomplete_pagination_raises_instead_of_writing_a_truncated_snapshot(tm
     assert not csv_path.exists()
 
 
+def test_missing_or_null_results_field_raises_but_empty_list_does_not():
+    """Mutation: `payload.get("results") or []` collapses three response
+    shapes into one -- a missing `results` key, `{"results": null}`, and a
+    legitimately empty queue (`{"results": []}`) all produced `count=0` with
+    no raise. Only the third is a real shape Matter can send; the other two
+    must raise instead of silently reporting a fabricated maximal outflow
+    the next time this snapshot is diffed (PR #27 review, residual R1).
+    """
+    class MalformedClient:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def get(self, path, params=None):
+            return self._payload
+
+    with pytest.raises(qs.MatterAPIError):
+        qs.fetch_queue_items(MalformedClient({"object": "list", "has_more": False}))  # no results key
+
+    with pytest.raises(qs.MatterAPIError):
+        qs.fetch_queue_items(MalformedClient(
+            {"object": "list", "results": None, "has_more": False}))
+
+    # A legitimately empty queue must NOT raise.
+    items = qs.fetch_queue_items(MalformedClient(
+        {"object": "list", "results": [], "has_more": False, "next_cursor": None}))
+    assert items == []
+
+
+def test_pagination_stops_at_a_page_ceiling_instead_of_looping_forever():
+    """Mutation: dropping the page-count ceiling (keeping only the
+    repeat-cursor guard) would let a pathological API that always returns a
+    FRESH cursor with has_more=true loop this nightly job forever -- launchd
+    will not start the next run while this one is still going, so the
+    fleet's only symptom would be a job that silently stopped producing
+    snapshots (PR #27 review, residual R2).
+
+    The fake client is bounded at a call count well past `max_pages`
+    (finite, not truly infinite) on purpose: if the ceiling under test ever
+    regresses, this test must fail cleanly -- no exception raised -- rather
+    than hang the suite by chasing an unboundedly patient fake.
+    """
+    class LongButFiniteClient:
+        def __init__(self, real_end=500):
+            self.calls = 0
+            self._real_end = real_end  # far past max_pages below
+
+        def get(self, path, params=None):
+            self.calls += 1
+            has_more = self.calls < self._real_end
+            return {"object": "list", "results": [], "has_more": has_more,
+                     "next_cursor": f"cursor-{self.calls}" if has_more else None}
+
+    client = LongButFiniteClient()
+    with pytest.raises(qs.MatterAPIError):
+        qs.fetch_queue_items(client, page_size=1, max_pages=5)
+
+    # The ceiling actually bit well before the fake's own natural end.
+    assert client.calls <= 6
+
+
 def test_heartbeat_reports_fail_when_run_snapshot_raises(tmp_path):
     """Mutation: hardcoding outcome='ok' regardless of whether run_snapshot
     raised would make this job's only fleet-visible failure signal silently
