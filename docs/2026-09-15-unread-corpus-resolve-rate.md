@@ -44,9 +44,32 @@ pagination; the starred folder does hit that cap, unread does not.
 | Photographic Preservation | 8 |
 | Steve Jobs | 32 |
 
-97 of those 105 have read progress 0.0. A folder item is neither unread nor
-archived in Instapaper's model, so none of them appear in the unread listing,
-and the CSV export cannot see them either (see the column note below).
+### Are the folder items read or unread?
+
+The API carries **no archived flag**. A bookmark's state is which listing
+returns it, and all 105 folder items are absent from the unread listing and from
+the first 500 of the archive listing.
+
+| Measure | Count |
+|---|---|
+| Folder items with `progress` exactly 0.0 | 97 of 105 |
+| Folder items with partial progress | 8 |
+| Folder items ever read to the end (`progress` 1.0) | 1 |
+| Folder items with `starred` = 1 | 20 |
+| Starred among the 8 partially-read | 1 |
+
+`starred` is independent of read progress. The eight partial readings are
+0.02, 0.04, 0.07, 0.10, 0.18, 0.18, 0.66 and 1.0.
+
+**The trap:** `progress_timestamp` is populated even where progress is 0. 73 of
+the 105 share the single value 1375386433, which is 1 August 2013, and that same
+timestamp appears 283 times in the CSV export's read-progress column. It is a
+platform-side backfill, not a reading act. Never infer "opened" from the
+presence of a progress timestamp; read progress is the only signal.
+
+The evidence supports treating the folder items as unread articles that were
+organized rather than read. The CSV export cannot see them at all (see the
+column note below).
 
 ### By year saved
 
@@ -186,10 +209,15 @@ Measured on the 79 bodies Instapaper actually returned.
 | Median | 5,997 |
 | 75th percentile | 15,244 |
 | 90th percentile | 24,821 |
+| 95th percentile | 30,242 |
 | Maximum | 66,476 |
 | Mean | 10,279 |
-| Mean after the prompt's 10,000-character cap | 6,112 |
-| Bodies exceeding that cap | 28 of 79 |
 
 At roughly 4 characters per token plus 420 tokens of prompt boilerplate, that is
-about 1,948 input tokens and 180 output tokens per article.
+about 2,990 input tokens at the mean, 7,980 at the 95th percentile, and 180
+output tokens per article.
+
+Adam removed the prompt's 10,000-character body cap on 2026-09-15, so these are
+full-length figures. For reference, 28 of the 79 bodies exceed 10,000 characters
+and the capped mean would have been 6,112. Across 492 articles the cap was worth
+five cents: $0.13 capped against $0.18 uncapped.

@@ -79,9 +79,18 @@ It is a different snapshot of a moving queue.
 | Photographic Preservation | 8 | |
 | Total | 105 | 97 |
 
-A folder item is neither unread nor archived in Instapaper's model, so these
-never appear in the unread listing and they were invisible to the CSV export as
-well. The export's header declares a `Folder` column that the data rows do not
+**These are unread items that were organized, not read items.** The API carries
+no archived flag at all: a bookmark's state is which listing returns it, and all
+105 folder items are absent from both the unread listing and the first 500 of
+the archive listing. Within the folders, 97 of 105 have `progress` exactly 0.0
+and the remaining 8 carry partial progress, of which exactly one reached 1.0.
+`starred` is an independent field, set on 20 of the 105, and it does not track
+progress: only one of the eight partially-read items is starred. One trap:
+`progress_timestamp` is populated even where progress is 0, and 73 of the 105
+share the single value 1375386433 (1 August 2013), the same bulk timestamp that
+appears 283 times in the CSV export. It is a platform-side backfill, not a
+reading act, so never infer "opened" from the presence of a progress timestamp.
+Read progress is the only signal; the timestamp is noise. The export's header declares a `Folder` column that the data rows do not
 carry: the header is 18 columns wide and every one of the 8,778 rows is 17. The
 column that is missing is `Folder`. Anything filed into a folder is
 unattributable from the export alone, and only the API can see it.
@@ -332,6 +341,7 @@ An `unread` template adds, on top of the base:
 | `read_progress` | API | 0.0 to 1.0. Above zero means opened and abandoned |
 | `abandonment` | derived, not inferred | One of `never_opened`, `started`, `nearly_finished`. Thresholds are arithmetic on `read_progress`, not a model judgement |
 | `why_saved` | model | One sentence, from the article plus the saved date. The prompt must say that the answer may be "cannot tell", and the field must be allowed to be empty |
+| `why_saved_confidence` | model | High, medium or low. Low-confidence rows are excluded from every aggregate, and the field is what lets the inference be shown without being trusted |
 | `aged_out` | model, constrained | Whether the piece was time bound and its moment has passed. A 2016 election preview is aged out; an essay on attention is not |
 | `topic_drift` | computed, not model | Per-item distance between its topics and the read corpus's topic distribution for the same saved year. Computed after enrichment, in the analysis step, not asked of the model |
 | `resolve_path` | pipeline | Which of the four paths produced the text. Needed to read every other field honestly |
@@ -342,9 +352,14 @@ arithmetic and `topic_drift` is a corpus computation; asking a model to do
 either would produce a plausible number that nothing can check. `why_saved` and
 `aged_out` are genuinely inferential and are the two the model is for.
 
-`why_saved` is the field most likely to produce confident fiction. It must be
-permitted to return nothing, and the analysis must treat an empty `why_saved`
-as a result rather than a failure.
+`why_saved` stays in (Adam, 2026-09-15): there is no harm in seeing the
+inference, as long as it is never mistaken for a record. It is still the field
+most likely to produce confident fiction, so three rules hold. It must be
+permitted to return nothing, and the analysis must treat an empty `why_saved` as
+a result rather than a failure. It carries a companion `why_saved_confidence`
+that the model sets, and low-confidence rows are excluded from any aggregate.
+And every surface that shows it, private or public, labels it as inference in
+the surface itself rather than in a footnote.
 
 ### Model and cost
 
@@ -353,33 +368,42 @@ Gemini 2.5 Flash-Lite, the same model the read corpus was enriched on, through
 Gemini Flash-class model through the plumbing that already exists, not a new
 provider.
 
+**The 10,000-character body cap is removed** (Adam, 2026-09-15). The existing
+prompt truncates at `content[:10000]`; the unread run sends whole articles. The
+model handles them and the cost stays trivial, so the only thing the cap was
+buying was strict comparability with the read corpus, which is not worth a third
+of the corpus being summarised from its opening only.
+
 The cost estimate is computed from the 79 bodies actually fetched in the sample,
-not from an assumption:
+on their full untruncated length:
 
 | Measure | Value |
 |---|---|
 | Median body, characters | 5,997 |
 | Mean body, characters | 10,279 |
-| Bodies exceeding the prompt's 10,000-character cap | 28 of 79 |
-| Mean body after the cap, characters | 6,112 |
-| Estimated input tokens per article | 1,948 |
-| Estimated output tokens per article | 180 |
+| 95th percentile body, characters | 30,242 |
+| Longest body, characters | 66,476 |
+| Mean input tokens per article | 2,990 |
+| 95th percentile input tokens per article | 7,980 |
+| Output tokens per article | 180 |
 
-At 492 articles that is about 0.96M input tokens and 0.09M output tokens. Paid
+At 492 articles that is 1.47M input tokens and 0.09M output tokens. Paid
 Flash-Lite is $0.10 per million input and $0.40 per million output.
 
 | Line | Cost |
 |---|---|
-| Input | $0.10 |
+| Input | $0.15 |
 | Output | $0.04 |
-| **Total, one pass** | **$0.14** |
-| With a re-run and a spare pass for prompt iteration | under $0.50 |
+| **Total, one pass, full bodies** | **$0.18** |
+| The same run under the old 10,000-character cap | $0.13 |
+| With a re-run and a spare pass for prompt iteration | under $0.60 |
 
-The cost is not a consideration at this size. The reason to care about the token
-figures is the 10,000-character cap: 28 of 79 bodies exceed it, so more than a
-third of the corpus is being summarised from its first 10,000 characters only.
-That is the same behaviour the read corpus got and it is the right default for
-comparability, but it should be written down rather than discovered later.
+Removing the cap costs five cents across the whole corpus. Two consequences to
+carry rather than discover: the longest article in the sample is 66,476
+characters, well inside Flash-Lite's context but worth a guard against a
+pathological outlier, and the unread summaries are now built on more of the
+article than the read corpus's were, so any topic comparison between the two
+corpora must say so.
 
 ## The analysis
 
@@ -445,6 +469,10 @@ document. The rules:
   an unexecuted intention and the set of them reads like a diary. Publish
   counts, years, topic distributions, domain counts and the aging curve. Nothing
   item level.
+- **Domains are publishable** (Adam, 2026-09-15). The source distribution is the
+  most interesting cut the record has and it ships: counts per domain, the long
+  tail, the concentration. 78 of 395 from one newspaper is a finding, not a
+  disclosure.
 - **Topics and concepts are publishable; people, orgs and locations are not**,
   unless they clear the same allowlist the Highlights pages will use. An
   entity extracted from an article nobody read still says what he was looking
@@ -456,6 +484,17 @@ document. The rules:
   worktree, and Adam refreshes `PRIVATE_STRINGS_B64` by hand.
 - Standard public copy rules: "my partner" and never a name, nothing about the
   children, people counted and not named, home venues described and not named.
+
+**A "still worth your time" shortlist.** The model's ranked pick of the unread
+pieces that hold up today, each with a one-line reason. This is the output that
+turns a record into something usable, and it is the one with the sharpest
+failure mode, so it ships private first: on reading.adamthede.com, where titles
+are allowed and Adam can judge whether the ranking is any good. The public
+record gets a count and nothing else, and only if that count survives the leak
+rules below. Rank on the enrichment, not on a fresh model pass: `aged_out` false,
+plus topic overlap with what Adam reads now, plus the abandonment band. A piece
+he got 66% through and abandoned is a different recommendation from one he never
+opened.
 
 **A comparison against the read corpus.** Private, on reading.adamthede.com,
 where titles are allowed. This is where the item-level answers live, and it is
@@ -518,25 +557,27 @@ through the existing Gemini script.
 Steps 1 through 5 are the project. Steps 6 through 8 are publication and each
 has its own gate. Step 7 does not start before Adam has approved a mockup.
 
-## Open questions
+## Decisions taken
 
-1. **Are the 97 never-opened folder items in scope?** They are intentions filed
-   rather than queued, which is arguably a stronger signal than leaving
-   something in the inbox. Including them takes the pool from 395 to 492. The
-   plan assumes yes.
-2. **Does the public record show domains?** The domain distribution is the most
-   interesting publishable cut and it is also the most identifying thing left
-   once titles are gone. 78 nytimes.com items say something specific about a
-   person.
-3. **Is `why_saved` worth the fiction risk?** It is the field that makes the
-   record a story rather than a table, and it is the one a model will confabulate
-   most confidently. The alternative is to drop it and let the topic drift carry
-   the argument.
-4. **Should the queue be acted on, or only measured?** A ranked "still worth
-   your time" list falls straight out of this and it changes the project from a
-   record into a to-do list. Almanac was retired in June because friction killed
-   it, and a 492-item queue rendered as homework is exactly that shape.
-5. **Does the 10,000-character prompt cap stay?** It affects 28 of 79 sampled
-   articles. Keeping it makes the unread corpus comparable to the read corpus.
-   Raising it makes the summaries better and the two corpora no longer strictly
-   comparable.
+Adam, 2026-09-15, on review of this plan:
+
+1. **The public record may show domains.** The source distribution ships.
+2. **`why_saved` is generated.** No harm in seeing the inference, provided it
+   carries a confidence flag and every surface labels it as inference.
+3. **A "still worth your time" shortlist is an output.** Ranked, one line of
+   reasoning each, private first; a public count only if it survives the leak
+   rules.
+4. **The 10,000-character body cap is removed.** Full articles go to the model.
+   Measured cost goes from $0.13 to $0.18 across the whole corpus.
+
+## Open question
+
+**Are the 97 never-opened folder items in scope?** Including them takes the pool
+from 395 to 492 and the build order above assumes yes. The API evidence supports
+treating them as unread rather than read: no archived flag exists, none of the
+105 appear in the unread or archive listings, 97 have zero read progress, and
+exactly one of the 105 was ever read to the end. They are intentions filed
+rather than queued, which is arguably a stronger signal of intent than leaving
+something in the inbox. The only argument against is that filing is itself a
+kind of resolution, and a folder called Steve Jobs may be a keepsake rather than
+a queue.
