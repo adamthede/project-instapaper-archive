@@ -237,6 +237,40 @@ def test_pagination_stops_at_a_page_ceiling_instead_of_looping_forever():
     assert client.calls <= 6
 
 
+def test_repeated_cursor_raises_instead_of_looping_forever():
+    """Mutation: dropping the repeat-cursor guard (keeping only the page
+    ceiling) would let an API that hands back the SAME cursor twice loop
+    until max_pages saves it, or -- with a larger max_pages than a real
+    nightly run would ever need -- run far longer than a genuinely
+    unresolvable pagination state should be allowed to (PR #27 review,
+    M25 -- the two paginator guards are independent and each needs its own
+    probe; a ceiling test alone cannot prove a stuck-cursor is caught
+    before max_pages, only that SOME limit exists).
+
+    Distinct from the page-ceiling test above: this client's `has_more` and
+    `next_cursor` never change, so a suite that only guarded against an
+    ever-INCREASING page count would not catch a paginator stuck replaying
+    the same page.
+    """
+    class StuckCursorClient:
+        def __init__(self):
+            self.calls = 0
+
+        def get(self, path, params=None):
+            self.calls += 1
+            return {"object": "list", "results": [],
+                    "has_more": True, "next_cursor": "same-cursor-always"}
+
+    client = StuckCursorClient()
+    with pytest.raises(qs.MatterAPIError):
+        qs.fetch_queue_items(client, page_size=1, max_pages=10_000)
+
+    # Caught on the SECOND sighting of the repeated cursor, not by
+    # eventually hitting max_pages -- proves the repeat-cursor guard fired,
+    # not the (much higher) page ceiling.
+    assert client.calls <= 3
+
+
 def test_heartbeat_reports_fail_when_run_snapshot_raises(tmp_path):
     """Mutation: hardcoding outcome='ok' regardless of whether run_snapshot
     raised would make this job's only fleet-visible failure signal silently
