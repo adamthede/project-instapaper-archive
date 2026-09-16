@@ -130,6 +130,22 @@ def test_the_dead_fraction_is_measured_per_saved_year():
     assert dead[2025]["fraction"] == 0.0
 
 
+def test_the_plain_get_leg_is_reported_by_domain():
+    """Mutation: folding the direct leg into the resolve counts and moving on.
+
+    Measured on the live run and against the plan: 15 of the first 19
+    direct-resolved items are x.com, and the enrichment prompt's CONTENT_VALID
+    guard marked every one of them valid at high confidence. The plan expected
+    that guard to catch them. Reporting the leg by domain is what makes a
+    concentration on one social host visible instead of buried in a total.
+    """
+    rows = [record(url_sha256="1" * 64, domain="x.com", resolve_path="direct"),
+            record(url_sha256="2" * 64, domain="x.com", resolve_path="direct"),
+            record(url_sha256="3" * 64, domain="nytimes.com", resolve_path="direct"),
+            record(url_sha256="4" * 64, domain="x.com", resolve_path="instapaper")]
+    assert analysis.direct_resolved_by_domain(rows) == [("x.com", 2), ("nytimes.com", 1)]
+
+
 def test_survival_counts_the_url_serving_its_own_article_separately():
     """Mutation: calling an item alive because Wayback held a copy of it.
 

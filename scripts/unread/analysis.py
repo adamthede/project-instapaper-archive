@@ -290,6 +290,27 @@ def saved_versus_read(records, read_topics, limit=20):
     }
 
 
+def direct_resolved_by_domain(records):
+    """Which domains the plain-GET leg resolved, and how many each.
+
+    This exists because of a measurement that contradicts the plan. The plan
+    reads the 51% direct-GET rate as an upper bound and says to gate whatever
+    that leg produces behind the enrichment prompt's CONTENT_VALID check,
+    "which already exists and already catches junk scrapes". On the live run it
+    does not catch this one: the x.com items come back with thousands of words
+    of JavaScript payload, and the prompt - which is instructed to default to
+    YES when uncertain - marks them valid at high confidence.
+
+    So the leg's output is reported by domain rather than trusted or silently
+    dropped. A direct-resolved count concentrated on one social host is the
+    signal that those rows are payload rather than article, and it is a
+    decision for Adam rather than for a heuristic invented here.
+    """
+    counts = Counter(_domain(r) for r in records
+                     if r.get("resolve_path") == "direct" and _domain(r))
+    return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+
+
 def sources_saved_not_read(records, read_frame, limit=20):
     """Domains with a high save rate and a low read rate.
 
@@ -418,6 +439,7 @@ def build(records, read_topics=None, read_frame=None, shortlist_limit=25):
         "by_domain": by_domain(records, limit=40),
         "by_topic": by_topic(records, limit=40).most_common(40),
         "resolve_counts": resolve_counts(records),
+        "direct_resolved_by_domain": direct_resolved_by_domain(records),
         "survival": survival(records),
         "dead_fraction_by_year": dead_fraction_by_year(records),
         "aging_curve": aging_curve(records),
