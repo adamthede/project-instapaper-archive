@@ -33,6 +33,7 @@ import sys
 from pathlib import Path
 
 from . import derive
+from .resolve import ItemStalled, deadline
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
 
@@ -45,6 +46,13 @@ MODEL_NAME = base.MODEL_NAME  # gemini-2.5-flash-lite
 # understate the bill by nearly an order of magnitude.
 PRICE_INPUT_PER_M = 0.10
 PRICE_OUTPUT_PER_M = 0.40
+
+# A wall-clock ceiling on one article, for the same reason the fetch stage has
+# one: `generate_content` takes no timeout, so a hung call freezes a pass over
+# 492 articles with nothing in the log to say so. A stalled article is skipped
+# rather than written - unlike a dead link, which is a finding, this is
+# transient, so the next run picks it up.
+ITEM_DEADLINE = 180
 
 # No cap is not the same as no guard. The longest body in the measured sample
 # is 66,476 characters; anything much past this is a scrape that went wrong.
@@ -360,7 +368,7 @@ def read_body(bodies_dir, row):
 
 
 def run(queue, *, bodies_dir, out_path, model, limit=None, dry_run=False,
-        progress=None, failure_log=None):
+        progress=None, failure_log=None, item_deadline=ITEM_DEADLINE):
     """Enrich every settled row that has not been enriched yet.
 
     Appends one JSON object per article as it completes, so a killed run costs
@@ -378,14 +386,24 @@ def run(queue, *, bodies_dir, out_path, model, limit=None, dry_run=False,
     if dry_run:
         summary = ledger.summary()
         summary["candidates"] = len(rows)
+        summary["stalled"] = 0
         summary["dry_run"] = True
         return summary
 
     failures = 0
+    stalled = 0
     for index, row in enumerate(rows, start=1):
         body = read_body(bodies_dir, row)
         prompt = build_unread_prompt(body, row=row)
-        answer, usage = model.generate(prompt)
+        try:
+            with deadline(item_deadline):
+                answer, usage = model.generate(prompt)
+        except ItemStalled as exc:
+            stalled += 1
+            if failure_log:
+                with open(failure_log, "a", encoding="utf-8") as handle:
+                    handle.write(f"{row['url_sha256']}: stalled, {exc}\n")
+            continue
         tokens = usage_from(usage, prompt=prompt, answer=answer)
         ledger.add(*tokens)
 
@@ -411,5 +429,6 @@ def run(queue, *, bodies_dir, out_path, model, limit=None, dry_run=False,
 
     summary = ledger.summary()
     summary["invalid"] = failures
+    summary["stalled"] = stalled
     summary["candidates"] = len(rows)
     return summary

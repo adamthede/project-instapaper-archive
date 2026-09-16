@@ -525,6 +525,38 @@ def test_the_run_resumes_and_does_not_re_enrich(tmp_path):
     assert len(enrich.load_records(out)) == 3
 
 
+def test_one_stalled_article_cannot_stop_the_enrichment_pass(tmp_path):
+    """Mutation: trusting the Gemini SDK to bound its own call.
+
+    The same defect the fetch stage was caught by twice, in the next long
+    network-bound loop. `generate_content` takes no timeout, so one hung call
+    freezes a pass over 492 articles with nothing in the log to say so.
+
+    A stalled article is skipped rather than written: unlike a dead link, which
+    is a finding, this is transient, so it stays un-enriched and the next run
+    picks it up.
+    """
+    import time as real_time
+
+    queue, bodies = make_corpus(tmp_path, n=3)
+    out = tmp_path / "unread_enriched.jsonl"
+
+    class HangsOnce(FakeModel):
+        def generate(self, prompt):
+            if len(self.prompts) == 1:
+                self.prompts.append(prompt)
+                real_time.sleep(5)
+            return super().generate(prompt)
+
+    model = HangsOnce()
+    summary = enrich.run(queue, bodies_dir=bodies, out_path=out, model=model,
+                         item_deadline=1)
+
+    assert summary["stalled"] == 1
+    assert summary["enriched"] == 2
+    assert len(enrich.load_records(out)) == 2
+
+
 def test_the_run_reports_the_bill_it_actually_ran_up(tmp_path):
     """Mutation: a summary that reports an estimate rather than the meter.
 

@@ -153,6 +153,9 @@ run_mutation "a run with no usage metadata bills zero" \
   scripts/unread/enrich.py \
   'return (max(1, len(prompt or "") // 4), max(1, len(answer or "") // 4))' \
   "return (0, 0)" "$ENRICH"
+run_mutation "one stalled article stops the enrichment pass" \
+  scripts/unread/enrich.py "            with deadline(item_deadline):" \
+  "            with deadline(0):" "$ENRICH"
 run_mutation "the enrichment re-runs over what it already did" \
   scripts/unread/enrich.py "    done = _already_done(out_path)" "    done = set()" "$ENRICH"
 
