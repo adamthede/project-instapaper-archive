@@ -440,11 +440,17 @@ def test_a_wayback_redirect_that_lands_off_the_archive_is_not_a_snapshot():
     interesting number in the analysis.
     """
     snap = rs.wayback_snapshot_url("https://example.com/a-long-article-path", 2016)
-    http = FakeHTTP(heads={snap: FakeResponse(200, "", url="https://example.com/live-page")})
+    live = "https://example.com/live-page"
+    # The live page serves a perfectly good article. The only thing wrong with
+    # it is that it is not a snapshot, so accepting it would resolve the item
+    # against today's web while recording it as archived.
+    http = FakeHTTP(heads={snap: FakeResponse(200, "", url=live)},
+                    gets={live: FakeResponse(200, body(400), url=live)})
     res = rs.resolve_one(row_for(bid=1, saved_year=2016),
                          instapaper=FakeInstapaper(texts={1: (400, "")}),
                          http=http, sleeper=Sleeper())
     assert res.path == "metadata"
+    assert http.get_calls == ["https://example.com/a-long-article-path"]
 
 
 def test_a_wayback_snapshot_of_a_soft_404_is_rejected_by_the_word_floor():
@@ -513,13 +519,21 @@ def test_extracted_text_drops_script_and_style():
 
     The four x.com items Instapaper refused all cleared a naive word floor with
     1,481 to 7,420 words apiece, which on a tweet page is the script payload.
+
+    `noscript` is here on purpose. BeautifulSoup's `get_text` already skips
+    script and style contents on its own, so those two assertions hold whether
+    or not this module removes the tags - but noscript it happily returns, and
+    a noscript block is exactly where a paywalled page keeps the sentence
+    telling you to enable JavaScript.
     """
     html = ("<html><head><style>.a{color:red}</style></head><body>"
             "<script>var x = 'word '.repeat(500);</script>"
+            "<noscript>Please enable JavaScript to read this article.</noscript>"
             "<p>Only these six words are real.</p></body></html>")
     text = rs.extract_text(html)
     assert "color:red" not in text
     assert "var x" not in text
+    assert "enable JavaScript" not in text
     assert "Only these six words are real." in text
 
 
@@ -596,11 +610,14 @@ def test_the_body_filename_is_the_url_hash_not_the_title(tmp_path):
     queue = q.Queue(path)
     queue.upsert(ip.listing_to_rows(
         [bookmark(bid=1, title="A Very Distinctive Article Title")], {}))
+    key = queue.rows()[0]["url_sha256"]
     rs.run(queue, instapaper=FakeInstapaper(texts={1: (200, body())}),
            http=FakeHTTP(), bodies_dir=bodies, sleeper=Sleeper())
+
     names = [p.name for p in bodies.rglob("*") if p.is_file()]
-    assert names
+    assert names == [f"{key}.txt"]
     assert not any("Distinctive" in n for n in names)
+    assert q.Queue(path).rows()[0]["body_path"] == f"{key[:2]}/{key}.txt"
 
 
 def test_every_failed_leg_reaches_the_failure_log(tmp_path):

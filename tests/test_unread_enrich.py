@@ -129,9 +129,14 @@ def test_a_pathological_body_is_still_bounded():
     No cap is not the same as no guard. The longest real body in the sample is
     66,476 characters; anything past the guard is a scrape that went wrong, not
     an article.
+
+    The bound is a literal rather than the module's own constant. Asserting
+    against `MAX_BODY_CHARS` would move with it, so raising the guard to a
+    hundred megabytes would still pass.
     """
-    prompt = enrich.build_unread_prompt("y" * (enrich.MAX_BODY_CHARS + 50_000), row=a_row())
-    assert len(prompt) < enrich.MAX_BODY_CHARS + 10_000
+    prompt = enrich.build_unread_prompt("y" * 400_000, row=a_row())
+    assert len(prompt) < 200_000
+    assert enrich.MAX_BODY_CHARS >= 66_476  # every real body still fits whole
 
 
 def test_the_unread_template_keeps_every_base_field():
