@@ -1,6 +1,6 @@
 ---
 title: "The unread corpus: what I meant to read"
-status: "Queued"
+status: "In Progress"
 priority: "P2"
 project: "articles"
 created: 2026-09-15
