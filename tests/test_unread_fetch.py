@@ -634,6 +634,45 @@ def test_a_run_killed_midway_resumes_where_it_stopped(tmp_path):
     assert q.Queue(path).pending() == []
 
 
+def test_one_stalled_item_cannot_stop_the_pass(tmp_path):
+    """Mutation: trusting the per-request timeout to bound an item's total time.
+
+    It does not, and this was measured twice on the live run. Both stalls
+    looked identical: the process alive at 0% CPU with a single socket in
+    SYN_SENT, the queue frozen, and nothing in the log. `requests` applies its
+    timeout per socket operation rather than to the whole call, so a connection
+    that never completes and a server that trickles bytes both sit outside it.
+
+    A wall-clock deadline per item is the only thing that makes the plan's
+    resume guarantee true. A stalled item becomes one metadata-only row with
+    the stall recorded, and the pass goes on.
+    """
+    import time as real_time
+
+    path = tmp_path / "unread_queue.jsonl"
+    queue = q.Queue(path)
+    queue.upsert(ip.listing_to_rows([
+        bookmark(bid=1, url="https://example.com/the-one-that-hangs"),
+        bookmark(bid=2, url="https://example.com/the-one-after-it")], {}))
+
+    def hangs_on_the_first(row, **kwargs):
+        if row["bookmark_id"] == 1:
+            real_time.sleep(5)
+        return rs.resolve_one(row, **kwargs)
+
+    counts = rs.run(queue, instapaper=FakeInstapaper(texts={1: (200, body()), 2: (200, body())}),
+                    http=FakeHTTP(), bodies_dir=tmp_path / "bodies", sleeper=Sleeper(),
+                    resolver=hangs_on_the_first, item_deadline=1)
+
+    rows = {r["url"]: r for r in q.Queue(path).rows()}
+    stalled = rows["https://example.com/the-one-that-hangs"]
+    assert stalled["outcome"] == "metadata_only"
+    assert any("deadline" in (a.get("note") or "") for a in stalled["attempts"])
+    assert rows["https://example.com/the-one-after-it"]["outcome"] == "resolved"
+    assert counts["total"] == 2
+    assert q.Queue(path).pending() == []
+
+
 def test_a_resolved_body_is_written_and_the_row_points_at_it(tmp_path):
     """Mutation: resolving without persisting, so the enrich stage re-fetches.
 

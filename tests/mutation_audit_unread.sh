@@ -97,6 +97,12 @@ run_mutation "an Instapaper call goes out with no timeout" \
 run_mutation "a hung Instapaper call kills the pass" \
   scripts/unread/instapaper.py "            log.warning(\"get_text %s failed: %s\", bookmark_id, exc)
             return (None, \"\")" "            raise" "$FETCH"
+run_mutation "the per-item deadline is a no-op" \
+  scripts/unread/resolve.py '    if not seconds or not hasattr(signal, "SIGALRM"):' \
+  "    if True:" "$FETCH"
+run_mutation "a stalled item is dropped instead of recorded" \
+  scripts/unread/resolve.py '                    [Attempt(METADATA, None, False, 0, f"deadline: {exc}")])' \
+  "                    [])" "$FETCH"
 run_mutation "all 105 folder items enter the pool, not the 97" \
   scripts/unread/instapaper.py "            if progress > 0.0:
                 continue" "            if False:

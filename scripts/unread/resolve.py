@@ -30,8 +30,10 @@ answers the same question in 0.6 to 2.2 seconds with no throttling observed.
 live site, and counting that as a hit would silently inflate the survival rate,
 which is the most interesting number in the analysis.
 """
+import contextlib
 import datetime as dt
 import logging
+import signal
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -57,11 +59,55 @@ WAYBACK_DELAY = 1.0
 
 TIMEOUT = 30
 
+# A wall-clock ceiling on one item, across all three legs.
+#
+# This is belt over braces and it is here because the braces failed. Twice on
+# the first live pass the run froze with the process alive at 0% CPU and a
+# single socket in SYN_SENT: `requests` applies its timeout per socket
+# operation, not to the whole call, so a connection that never completes and a
+# server that trickles bytes forever both sit outside it. The queue is written
+# after every item, so nothing was lost - but nothing was moving either, and
+# only a process listing said so.
+#
+# The three legs at their slowest are about two minutes of timeouts and waits,
+# so 180 seconds is generous for a healthy item and decisive for a stuck one.
+ITEM_DEADLINE = 180
+
 WAYBACK_HOST = "web.archive.org"
 WAYBACK_PREFIX = f"https://{WAYBACK_HOST}/web/"
 
 INSTAPAPER, DIRECT, WAYBACK, METADATA = "instapaper", "direct", "wayback", "metadata"
 LEGS = (INSTAPAPER, DIRECT, WAYBACK)
+
+
+class ItemStalled(Exception):
+    """One item exceeded its wall-clock deadline. The pass goes on without it."""
+
+
+@contextlib.contextmanager
+def deadline(seconds):
+    """Interrupt the block if it runs longer than `seconds`.
+
+    SIGALRM rather than a thread, because the thing being bounded is a blocking
+    syscall inside a C extension: a worker thread stuck in the same place
+    cannot be joined out of it, and a timer that cannot interrupt the stall is
+    not a deadline. Main thread only, which is where this pipeline runs; where
+    the signal is unavailable the guard is a no-op rather than a failure.
+    """
+    if not seconds or not hasattr(signal, "SIGALRM"):
+        yield
+        return
+
+    def fire(signum, frame):
+        raise ItemStalled(f"exceeded {seconds}s")
+
+    previous = signal.signal(signal.SIGALRM, fire)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
 
 
 @dataclass
@@ -237,7 +283,8 @@ def _log_failure(handle, row, attempt):
 
 
 def run(queue, *, instapaper, http, bodies_dir, sleeper=time.sleep,
-        failure_log=None, resolver=None, limit=None, progress=None):
+        failure_log=None, resolver=None, limit=None, progress=None,
+        item_deadline=ITEM_DEADLINE):
     """Resolve every pending row, writing after each one.
 
     Returns counts per leg. The queue is the resume record: only rows still
@@ -260,7 +307,17 @@ def run(queue, *, instapaper, http, bodies_dir, sleeper=time.sleep,
         handle = open(failure_log, "a", encoding="utf-8")
     try:
         for index, row in enumerate(todo, start=1):
-            result = resolver(row, instapaper=instapaper, http=http, sleeper=sleeper)
+            try:
+                with deadline(item_deadline):
+                    result = resolver(row, instapaper=instapaper, http=http,
+                                      sleeper=sleeper)
+            except ItemStalled as exc:
+                # One item's worth of data, not the pass. The stall is recorded
+                # as an attempt so the failure log carries it like any other.
+                log.warning("item %s stalled: %s", row.get("url_sha256", "")[:12], exc)
+                result = Resolution(
+                    METADATA, "", "", False,
+                    [Attempt(METADATA, None, False, 0, f"deadline: {exc}")])
 
             body_path = None
             if result.ok and result.text:
