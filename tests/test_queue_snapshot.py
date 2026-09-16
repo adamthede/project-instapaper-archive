@@ -112,12 +112,33 @@ def test_fetch_queue_items_dedupes_by_id_across_status_passes():
     """Mutation: dropping the id dedupe would double-count (and double-sum
     word_count for) any item Matter happens to return under more than one
     status pass.
+
+    Mutation (PR #27 review, M17 -- flagged by the reviewer as a real gap:
+    an earlier version of this test served the SAME item object on both
+    passes, so first-wins, last-wins, and no-dedupe-at-all all produced an
+    identical, indistinguishable result). Two DIFFERENT payloads for the
+    same id, with different word_count, make first-wins observable: a
+    broken dedupe (or none) would show 9999 or a double-count instead of 10.
     """
-    shared = make_item("dup", word_count=500, status="queue")
-    client = FakeQueueClient([shared])
+    class TwoPassClient:
+        """A different payload for the same id depending on which call is
+        being served -- the general shape the dedupe exists to handle."""
+
+        def __init__(self):
+            self.calls = 0
+
+        def get(self, path, params=None):
+            self.calls += 1
+            word_count = 10 if self.calls == 1 else 9999
+            return {"object": "list",
+                    "results": [make_item("dup", word_count=word_count, status="queue")],
+                    "has_more": False, "next_cursor": None}
+
+    client = TwoPassClient()
     items = qs.fetch_queue_items(client, extra_statuses=("queue",))
     assert len(items) == 1
     assert items[0]["id"] == "dup"
+    assert items[0]["word_count"] == 10  # first-wins, not overwritten or double-counted
 
 
 def test_incomplete_pagination_raises_instead_of_writing_a_truncated_snapshot(tmp_path):
@@ -166,6 +187,22 @@ def test_missing_or_null_results_field_raises_but_empty_list_does_not():
     items = qs.fetch_queue_items(MalformedClient(
         {"object": "list", "results": [], "has_more": False, "next_cursor": None}))
     assert items == []
+
+
+def test_non_list_results_field_raises():
+    """Mutation: dropping the `isinstance(results, list)` check would let a
+    `results` field that is present and non-None but the wrong TYPE (a
+    string, a dict, a number) pass straight through -- `yield from "abc"`
+    would silently yield three one-character 'items' rather than failing
+    loudly (PR #27 review, residual R4 -- this branch existed since round 1
+    but had never actually been exercised by a test).
+    """
+    class MalformedClient:
+        def get(self, path, params=None):
+            return {"object": "list", "results": "not-a-list", "has_more": False}
+
+    with pytest.raises(qs.MatterAPIError):
+        qs.fetch_queue_items(MalformedClient())
 
 
 def test_pagination_stops_at_a_page_ceiling_instead_of_looping_forever():
@@ -422,6 +459,17 @@ def test_backfill_weekly_reads_aggregation():
     by calendar week instead of ISO week, would produce a weekly series that
     disagrees with what a person means by 'this week'. Mutation: dropping
     zero-read weeks would bias any average computed from the file (finding 4).
+
+    Mutation (PR #27 review, M11 -- flagged by the reviewer as a real gap in
+    an EARLIER version of this test, not an equivalent mutant as first
+    thought): weakening the window check from `since <= read_on <= now` to
+    `since <= read_on` (dropping the upper bound) is invisible to a fixture
+    that only tests the LOWER boundary, because `ordered_keys` already
+    contains the ISO week `now` falls in -- that week extends past `now`
+    itself (`now` is rarely a Sunday), so a future-dated record within that
+    same week leaks straight through a weakened upper-bound check without
+    ever needing an out-of-range WEEK key to exist. 2026-09-19 is such a
+    date: it's after `now` (2026-09-16) but still inside ISO week 2026-W38.
     """
     now = date(2026, 9, 16)  # a Wednesday, ISO week 2026-W38
 
@@ -431,6 +479,10 @@ def test_backfill_weekly_reads_aggregation():
         {"date_read": date(2026, 9, 10), "word_count": 500},
         # ISO week 2026-W38: Mon 2026-09-14 .. Sun 2026-09-20 (in progress)
         {"date_read": date(2026, 9, 15), "word_count": 2000},
+        # Future-dated, but still inside the CURRENT (now-containing) ISO
+        # week: must not leak into 2026-W38's totals even though that week
+        # key is already present in ordered_keys.
+        {"date_read": date(2026, 9, 19), "word_count": 777},
         # Outside the 2-year window -- its word count must not appear anywhere.
         {"date_read": date(2023, 1, 1), "word_count": 999999},
         # No read date at all -- excluded, never counted as zero.
@@ -441,12 +493,14 @@ def test_backfill_weekly_reads_aggregation():
     by_week = {w["week"]: w for w in weeks}
 
     assert by_week["2026-W37"] == {"week": "2026-W37", "reads": 2, "words_read": 1500}
+    # Still just the Sept 15 record: the Sept 19 (future) record must not count.
     assert by_week["2026-W38"] == {"week": "2026-W38", "reads": 1, "words_read": 2000}
 
     # A week with no reads is still emitted, at zero -- not silently dropped.
     assert by_week["2026-W36"] == {"week": "2026-W36", "reads": 0, "words_read": 0}
 
-    # The 999999-word out-of-window record must not have leaked into any week.
+    # Neither the 999999-word out-of-window record nor the 777-word
+    # future-dated-but-in-window-week record leaked into any week's totals.
     assert sum(w["words_read"] for w in weeks) == 3500
     assert sum(w["reads"] for w in weeks) == 3
 
