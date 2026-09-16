@@ -240,7 +240,19 @@ def read_corpus_topics(frame):
 
 
 def drift_by_year(records, read_topics):
-    """Mean per-item distance from what was read the same year it was saved."""
+    """How much of what he saved each year was a subject he was not reading.
+
+    The share of that year's saved topic MENTIONS - weighted the way they were
+    saved, so a topic saved forty times counts forty intentions - whose topic
+    the read corpus did not carry that year.
+
+    Not a Jaccard against the year's vocabulary. That was the first
+    implementation and the live corpus showed why it cannot work: every year
+    scored between 0.9967 and 0.9992, because one item's three topics against a
+    year's several hundred makes the union the vocabulary and the overlap a
+    rounding error. A metric whose every value is 0.998 answers the plan's
+    second question with noise.
+    """
     grouped = defaultdict(list)
     for record in _clean(records):
         year = record.get("saved_year")
@@ -249,24 +261,29 @@ def drift_by_year(records, read_topics):
 
     report = {}
     for year in sorted(grouped):
-        baseline = list((read_topics.get(year) or {}).keys())
-        drifts = [derive.topic_drift(_topics(r), baseline) for r in grouped[year]]
-        measured = [d for d in drifts if d is not None]
+        baseline = read_topics.get(year) or {}
+        baseline_set = {str(t).strip().casefold() for t in baseline}
+        mentions = [t for r in grouped[year] for t in _topics(r)]
+        unmatched = [t for t in mentions if t.casefold() not in baseline_set]
         report[year] = {
             "items": len(grouped[year]),
-            "measured": len(measured),
-            # None where the read corpus has no baseline for the year. 1.0
-            # there would invent the project's own finding.
-            "mean_drift": round(statistics.mean(measured), 4) if measured else None,
-            "read_topics": len(baseline),
+            "topic_mentions": len(mentions),
+            "unmatched_topic_mentions": len(unmatched),
+            # None where the read corpus has no baseline for the year, or the
+            # unread side carries no topics. 1.0 there would invent the
+            # project's own finding.
+            "unmatched_share": (round(len(unmatched) / len(mentions), 4)
+                                if (mentions and baseline_set) else None),
+            "read_topics": len(baseline_set),
+            "shared_topics": len({t.casefold() for t in mentions} & baseline_set),
         }
     return report
 
 
 def peak_drift_year(report):
     """The year the intentions diverged most from the behaviour."""
-    measurable = {y: v["mean_drift"] for y, v in report.items()
-                  if v.get("mean_drift") is not None}
+    measurable = {y: v["unmatched_share"] for y, v in report.items()
+                  if v.get("unmatched_share") is not None}
     if not measurable:
         return None
     return sorted(measurable.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]

@@ -46,17 +46,27 @@ def abandonment(read_progress):
 
 
 def topic_drift(item_topics, year_distribution):
-    """Distance between one item's topics and what was read the year it was saved.
+    """The share of one item's topics the read corpus did not carry that year.
 
-    One minus the Jaccard overlap: 0.0 when every topic on the item is a topic
-    the read corpus carries for that year, 1.0 when none is. An item with no
-    topics, or a year the read corpus never saw, has no measurable drift and
-    returns None rather than a zero that would read as "no drift".
+    0.0 when every topic on the item is one he also read that year, 1.0 when
+    none is. An item with no topics, or a year the read corpus never saw, has
+    no measurable drift and returns None rather than a zero that would read as
+    "no drift".
+
+    Deliberately NOT a Jaccard against the year's vocabulary. That was the
+    first implementation and it was useless: a year's read corpus carries
+    several hundred distinct topics and one item carries three, so the union is
+    the vocabulary, the overlap is a rounding error, and every year of the live
+    corpus scored between 0.9967 and 0.9992. A metric whose every value is the
+    same is not a measurement.
+
+    The denominator is the item's own topics, so the answer means what it says:
+    how much of what he saved was a subject he was not reading.
     """
-    topics = {str(t).strip().casefold() for t in (item_topics or []) if str(t).strip()}
-    year_topics = {str(t).strip().casefold() for t in (year_distribution or []) if str(t).strip()}
+    topics = [str(t).strip() for t in (item_topics or []) if str(t).strip()]
+    year_topics = {str(t).strip().casefold()
+                   for t in (year_distribution or []) if str(t).strip()}
     if not topics or not year_topics:
         return None
-    overlap = len(topics & year_topics)
-    union = len(topics | year_topics)
-    return round(1.0 - (overlap / union), 4)
+    unmatched = sum(1 for t in topics if t.casefold() not in year_topics)
+    return round(unmatched / len(topics), 4)

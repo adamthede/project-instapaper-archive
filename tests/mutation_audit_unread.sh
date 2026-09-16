@@ -202,8 +202,14 @@ run_mutation "the shortlist order is not deterministic" \
   'picks.sort(key=lambda p: -p["score"])' "$ANALYSIS"
 run_mutation "an unmeasurable year is scored as total drift" \
   scripts/unread/analysis.py \
-  '            "mean_drift": round(statistics.mean(measured), 4) if measured else None,' \
-  '            "mean_drift": round(statistics.mean(measured), 4) if measured else 1.0,' "$ANALYSIS"
+  '            "unmatched_share": (round(len(unmatched) / len(mentions), 4)
+                                if (mentions and baseline_set) else None),' \
+  '            "unmatched_share": (round(len(unmatched) / len(mentions), 4)
+                                if (mentions and baseline_set) else 1.0),' "$ANALYSIS"
+run_mutation "drift goes back to a Jaccard against the whole vocabulary" \
+  scripts/unread/analysis.py \
+  "        mentions = [t for r in grouped[year] for t in _topics(r)]" \
+  "        mentions = list({t for r in grouped[year] for t in _topics(r)} | baseline_set)" "$ANALYSIS"
 run_mutation "the comparison ships without its caveat" \
   scripts/unread/analysis.py '        "caveat": COMPARISON_CAVEAT,' '        "caveat": "",' "$ANALYSIS"
 run_mutation "a corrupted row joins the topic aggregates" \

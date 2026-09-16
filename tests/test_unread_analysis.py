@@ -294,6 +294,44 @@ def test_an_item_with_no_topics_has_no_measurable_drift():
     assert derive.topic_drift(["A"], []) is None
 
 
+def test_the_drift_metric_is_not_swamped_by_the_size_of_the_read_vocabulary():
+    """Mutation: scoring a year by Jaccard against its whole topic vocabulary.
+
+    Measured on the live corpus, and it is why this test exists: every single
+    year came out between 0.9967 and 0.9992. A year's read corpus carries
+    several hundred distinct topics and one item carries three, so the union is
+    the vocabulary, the overlap is a rounding error, and the answer is 0.998 no
+    matter what was saved. A metric whose every value is the same answers the
+    plan's second question with noise.
+
+    Drift is the share of what he saved that the read corpus did not carry that
+    year. A year where everything he saved is a subject he also read is zero
+    drift, however large that year's vocabulary.
+    """
+    frame = read_frame([read_row(date_saved="2018-03-01", topics=(f"Topic {i}",))
+                        for i in range(200)])
+    read_topics = analysis.read_corpus_topics(frame)
+    rows = [record(url_sha256=f"{i:064d}", year=2018, topics=("Topic 1", "Topic 2"))
+            for i in range(30)]
+    report = analysis.drift_by_year(rows, read_topics)
+    assert report[2018]["unmatched_share"] == 0.0
+
+
+def test_drift_counts_the_topics_the_read_corpus_never_carried():
+    """Mutation: counting distinct topics rather than mentions.
+
+    A topic saved forty times that year is forty intentions, not one. The
+    denominator is what was saved, weighted the way it was saved.
+    """
+    frame = read_frame([read_row(date_saved="2018-03-01", topics=("Attention",))])
+    read_topics = analysis.read_corpus_topics(frame)
+    rows = [record(url_sha256="1" * 64, year=2018, topics=("Attention", "Obscure Hobby")),
+            record(url_sha256="2" * 64, year=2018, topics=("Obscure Hobby",))]
+    report = analysis.drift_by_year(rows, read_topics)
+    assert report[2018]["topic_mentions"] == 3
+    assert report[2018]["unmatched_share"] == pytest.approx(2 / 3, abs=1e-4)
+
+
 def test_the_drift_report_finds_the_year_the_two_corpora_diverged_most():
     """Mutation: averaging drift across all years, losing the year it peaked in.
 
@@ -307,7 +345,7 @@ def test_the_drift_report_finds_the_year_the_two_corpora_diverged_most():
             + [record(url_sha256=f"b{i:063d}", year=2015, topics=("Attention",))
                for i in range(3)])
     report = analysis.drift_by_year(rows, analysis.read_corpus_topics(frame))
-    assert report[2018]["mean_drift"] > report[2015]["mean_drift"]
+    assert report[2018]["unmatched_share"] > report[2015]["unmatched_share"]
     assert analysis.peak_drift_year(report) == 2018
 
 
@@ -320,7 +358,7 @@ def test_a_year_the_read_corpus_never_saw_is_not_reported_as_total_drift():
     frame = read_frame([read_row(date_saved="2018-03-01")])
     rows = [record(url_sha256=f"z{i:063d}", year=2026) for i in range(3)]
     report = analysis.drift_by_year(rows, analysis.read_corpus_topics(frame))
-    assert report[2026]["mean_drift"] is None
+    assert report[2026]["unmatched_share"] is None
 
 
 def test_the_comparison_carries_the_caveat_the_plan_requires():
