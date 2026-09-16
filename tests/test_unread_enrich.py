@@ -525,6 +525,42 @@ def test_the_run_resumes_and_does_not_re_enrich(tmp_path):
     assert len(enrich.load_records(out)) == 3
 
 
+class RecordingGemini:
+    """Stands in for the SDK's GenerativeModel, recording call keywords."""
+
+    def __init__(self):
+        self.calls = []
+
+    def generate_content(self, prompt, **kwargs):
+        self.calls.append(kwargs)
+
+        class Response:
+            text = "CONTENT_VALID: YES\nSUMMARY: fine.\n"
+            usage_metadata = None
+
+        return Response()
+
+
+def test_the_gemini_call_carries_its_own_timeout():
+    """Mutation: relying on the wall-clock deadline to bound a Gemini call.
+
+    It cannot. The deadline is SIGALRM, and Python runs a signal handler only
+    when the interpreter regains control between bytecodes. The Gemini SDK
+    blocks inside gRPC's C core, which never yields, so the alarm is raised and
+    then simply never delivered.
+
+    Measured: the enrichment pass froze on one call and sat there for over ten
+    minutes with the 180-second deadline armed and no stall recorded. The guard
+    that works for `requests` does not work here, and the SDK's own
+    `request_options` timeout is the thing that does.
+    """
+    recorder = RecordingGemini()
+    model = enrich.GeminiModel(_model=recorder)
+    model.generate("a prompt")
+    assert recorder.calls
+    assert recorder.calls[0]["request_options"]["timeout"] > 0
+
+
 def test_one_stalled_article_cannot_stop_the_enrichment_pass(tmp_path):
     """Mutation: trusting the Gemini SDK to bound its own call.
 

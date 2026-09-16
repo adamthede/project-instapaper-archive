@@ -54,6 +54,16 @@ PRICE_OUTPUT_PER_M = 0.40
 # transient, so the next run picks it up.
 ITEM_DEADLINE = 180
 
+# The Gemini call's own timeout, and the one that actually bites.
+#
+# ITEM_DEADLINE above is SIGALRM, and Python runs a signal handler only when
+# the interpreter regains control between bytecodes. The SDK blocks inside
+# gRPC's C core, which never yields, so the alarm is raised and then never
+# delivered: the live pass froze on one call for over ten minutes with the
+# deadline armed and no stall recorded. The guard that works for `requests`
+# does not work here. This is the one that does.
+REQUEST_TIMEOUT = 120
+
 # No cap is not the same as no guard. The longest body in the measured sample
 # is 66,476 characters; anything much past this is a scrape that went wrong.
 MAX_BODY_CHARS = 120_000
@@ -320,7 +330,16 @@ def usage_from(usage, *, prompt, answer):
 class GeminiModel:
     """The project's existing Gemini plumbing, with the meter attached."""
 
-    def __init__(self, api_key=None, model_name=MODEL_NAME):
+    def __init__(self, api_key=None, model_name=MODEL_NAME,
+                 timeout=REQUEST_TIMEOUT, _model=None):
+        self.model_name = model_name
+        self.timeout = timeout
+        if _model is not None:
+            # Injected for tests: the SDK is not importable without a key and
+            # the point under test is which keywords the call carries.
+            self._model = _model
+            return
+
         import google.generativeai as genai
         from dotenv import load_dotenv
 
@@ -330,10 +349,10 @@ class GeminiModel:
             raise RuntimeError("GEMINI_API_KEY is not set")
         genai.configure(api_key=key)
         self._model = genai.GenerativeModel(model_name)
-        self.model_name = model_name
 
     def generate(self, prompt):
-        response = self._model.generate_content(prompt)
+        response = self._model.generate_content(
+            prompt, request_options={"timeout": self.timeout})
         usage = None
         meta = getattr(response, "usage_metadata", None)
         if meta is not None:
