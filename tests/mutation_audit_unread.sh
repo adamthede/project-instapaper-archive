@@ -153,6 +153,9 @@ run_mutation "a run with no usage metadata bills zero" \
   scripts/unread/enrich.py \
   'return (max(1, len(prompt or "") // 4), max(1, len(answer or "") // 4))' \
   "return (0, 0)" "$ENRICH"
+run_mutation "one refused article kills the enrichment pass" \
+  scripts/unread/enrich.py "        except Exception as exc:  # noqa: BLE001" \
+  "        except ZeroDivisionError as exc:" "$ENRICH"
 run_mutation "the Gemini call has no timeout of its own" \
   scripts/unread/enrich.py "            prompt, request_options={\"timeout\": self.timeout})" \
   "            prompt)" "$ENRICH"

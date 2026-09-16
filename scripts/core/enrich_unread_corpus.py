@@ -79,8 +79,14 @@ def main(argv=None):
     print(f"  output tokens  {summary['output_tokens']:,}")
     print(f"  cost           ${summary['usd']:.4f} "
           f"(${summary['usd_per_article']:.5f} per article)")
-    if summary.get("invalid"):
-        print(f"  invalid        {summary['invalid']} (see {args.failure_log})")
+    trouble = (summary.get("invalid", 0) + summary.get("stalled", 0)
+               + summary.get("failed", 0))
+    if trouble:
+        print(f"  invalid        {summary.get('invalid', 0)}")
+        print(f"  stalled        {summary.get('stalled', 0)}")
+        print(f"  refused        {summary.get('failed', 0)}")
+        print(f"  (see {args.failure_log}; stalled and refused articles stay "
+              f"candidates for the next run)")
         return 1
     return 0
 

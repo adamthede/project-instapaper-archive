@@ -496,10 +496,15 @@ def test_the_run_writes_after_every_article(tmp_path):
     """
     queue, bodies = make_corpus(tmp_path, n=3)
     out = tmp_path / "unread_enriched.jsonl"
-    model = FakeModel(fail_on={2})
 
-    with pytest.raises(RuntimeError):
-        enrich.run(queue, bodies_dir=bodies, out_path=out, model=model)
+    class KilledOnTheSecond(FakeModel):
+        def generate(self, prompt):
+            if len(self.prompts) == 1:
+                raise KeyboardInterrupt
+            return super().generate(prompt)
+
+    with pytest.raises(KeyboardInterrupt):
+        enrich.run(queue, bodies_dir=bodies, out_path=out, model=KilledOnTheSecond())
 
     written = [json.loads(l) for l in out.read_text().splitlines() if l.strip()]
     assert len(written) == 1
@@ -514,9 +519,14 @@ def test_the_run_resumes_and_does_not_re_enrich(tmp_path):
     queue, bodies = make_corpus(tmp_path, n=3)
     out = tmp_path / "unread_enriched.jsonl"
 
-    first = FakeModel(fail_on={2})
-    with pytest.raises(RuntimeError):
-        enrich.run(queue, bodies_dir=bodies, out_path=out, model=first)
+    class KilledOnTheSecond(FakeModel):
+        def generate(self, prompt):
+            if len(self.prompts) == 1:
+                raise KeyboardInterrupt
+            return super().generate(prompt)
+
+    with pytest.raises(KeyboardInterrupt):
+        enrich.run(queue, bodies_dir=bodies, out_path=out, model=KilledOnTheSecond())
 
     second = FakeModel()
     summary = enrich.run(queue, bodies_dir=bodies, out_path=out, model=second)
@@ -591,6 +601,35 @@ def test_one_stalled_article_cannot_stop_the_enrichment_pass(tmp_path):
     assert summary["stalled"] == 1
     assert summary["enriched"] == 2
     assert len(enrich.load_records(out)) == 2
+
+
+def test_one_article_the_api_refuses_does_not_kill_the_pass(tmp_path):
+    """Mutation: letting an API exception propagate out of the loop.
+
+    The SDK timeout added for the gRPC stall raises `DeadlineExceeded`, and a
+    transient 500 or a safety refusal raises too. A 492-article paid run that
+    dies on article 12 and needs a human to notice and restart it is not the
+    resumable pipeline the plan describes.
+
+    The article is left un-enriched rather than written, so the next run
+    retries it - the opposite of a dead link, which is a finding to keep.
+    """
+    queue, bodies = make_corpus(tmp_path, n=3)
+    out = tmp_path / "unread_enriched.jsonl"
+    log = tmp_path / "failures.log"
+
+    model = FakeModel(fail_on={2})
+    summary = enrich.run(queue, bodies_dir=bodies, out_path=out, model=model,
+                         failure_log=log)
+
+    assert summary["failed"] == 1
+    assert summary["enriched"] == 2
+    assert len(enrich.load_records(out)) == 2
+    assert "model unavailable" in log.read_text()
+
+    # The refused article is still a candidate on the next pass.
+    again = enrich.run(queue, bodies_dir=bodies, out_path=out, model=FakeModel())
+    assert again["enriched"] == 1
 
 
 def test_the_run_reports_the_bill_it_actually_ran_up(tmp_path):

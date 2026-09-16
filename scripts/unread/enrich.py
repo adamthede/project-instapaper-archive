@@ -28,6 +28,7 @@ enriching one article, so it is computed in `analysis`.
 """
 import datetime as dt
 import json
+import logging
 import os
 import sys
 from pathlib import Path
@@ -38,6 +39,8 @@ from .resolve import ItemStalled, deadline
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
 
 import enrich_archive_gemini as base  # noqa: E402
+
+log = logging.getLogger("unread.enrich")
 
 MODEL_NAME = base.MODEL_NAME  # gemini-2.5-flash-lite
 
@@ -365,6 +368,15 @@ class GeminiModel:
 # the run
 # ---------------------------------------------------------------------------
 
+def _log(failure_log, row, message):
+    if not failure_log:
+        return
+    Path(failure_log).parent.mkdir(parents=True, exist_ok=True)
+    with open(failure_log, "a", encoding="utf-8") as handle:
+        handle.write(f"{dt.datetime.now(dt.timezone.utc).isoformat(timespec='seconds')} "
+                     f"{row['url_sha256'][:12]}: {message}\n")
+
+
 def load_records(path):
     path = Path(path)
     if not path.exists():
@@ -406,11 +418,13 @@ def run(queue, *, bodies_dir, out_path, model, limit=None, dry_run=False,
         summary = ledger.summary()
         summary["candidates"] = len(rows)
         summary["stalled"] = 0
+        summary["failed"] = 0
         summary["dry_run"] = True
         return summary
 
     failures = 0
     stalled = 0
+    refused = 0
     for index, row in enumerate(rows, start=1):
         body = read_body(bodies_dir, row)
         prompt = build_unread_prompt(body, row=row)
@@ -419,9 +433,19 @@ def run(queue, *, bodies_dir, out_path, model, limit=None, dry_run=False,
                 answer, usage = model.generate(prompt)
         except ItemStalled as exc:
             stalled += 1
-            if failure_log:
-                with open(failure_log, "a", encoding="utf-8") as handle:
-                    handle.write(f"{row['url_sha256']}: stalled, {exc}\n")
+            _log(failure_log, row, f"stalled, {exc}")
+            continue
+        except Exception as exc:  # noqa: BLE001
+            # One article's worth of data, not the pass. The SDK's own timeout
+            # raises DeadlineExceeded, and a transient 500 or a safety refusal
+            # raises too; a 492-article paid run that dies on article 12 and
+            # waits for a human to notice is not a resumable pipeline.
+            #
+            # `Exception`, so KeyboardInterrupt and SystemExit still stop the
+            # run: a kill should kill.
+            refused += 1
+            log.warning("article %s refused: %s", row["url_sha256"][:12], exc)
+            _log(failure_log, row, f"{type(exc).__name__}: {exc}")
             continue
         tokens = usage_from(usage, prompt=prompt, answer=answer)
         ledger.add(*tokens)
@@ -432,9 +456,7 @@ def run(queue, *, bodies_dir, out_path, model, limit=None, dry_run=False,
             validate_record(record)
         except SchemaError as exc:
             failures += 1
-            if failure_log:
-                with open(failure_log, "a", encoding="utf-8") as handle:
-                    handle.write(f"{row['url_sha256']}: {exc}\n")
+            _log(failure_log, row, str(exc))
             continue
 
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -449,5 +471,6 @@ def run(queue, *, bodies_dir, out_path, model, limit=None, dry_run=False,
     summary = ledger.summary()
     summary["invalid"] = failures
     summary["stalled"] = stalled
+    summary["failed"] = refused
     summary["candidates"] = len(rows)
     return summary
