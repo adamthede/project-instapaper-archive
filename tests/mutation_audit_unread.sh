@@ -218,6 +218,12 @@ run_mutation "a corrupted row joins the topic aggregates" \
 
 echo
 echo "STAGE 4 - the public shape and the leak scan"
+run_mutation "a title that is also a published topic stays a needle" \
+  scripts/unread/public.py "            if title.casefold() not in publishable:" \
+  "            if True:" "$PUBLIC"
+run_mutation "collisions are dropped until nothing is left to scan for" \
+  scripts/unread/public.py "    if not titles and not paths:" \
+  "    if not titles and not paths and records:" "$PUBLIC"
 run_mutation "the needle floor comes off" \
   scripts/unread/public.py "MIN_NEEDLE = 12" "MIN_NEEDLE = 1" "$PUBLIC"
 run_mutation "a corpus with no needles publishes anyway" \

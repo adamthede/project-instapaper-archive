@@ -136,6 +136,37 @@ def _concentration(domains):
 # the leak scan
 # ---------------------------------------------------------------------------
 
+def publishable_strings(records):
+    """Every string the record publishes verbatim: topics, concepts, hosts.
+
+    A needle identical to one of these cannot distinguish a leaked title from a
+    published topic, because the published topic is there on every build.
+    """
+    out = set()
+    for record in records:
+        for field in ("ai_topics", "ai_concepts"):
+            for value in (record.get(field) or []):
+                text = str(value).strip()
+                if text:
+                    out.add(text.casefold())
+        host = str(record.get("domain") or "").strip()
+        if host:
+            out.add(host.casefold())
+    return out
+
+
+def publishable_collisions(records, min_len=MIN_NEEDLE):
+    """Titles dropped as needles because the record publishes that exact string.
+
+    Reported rather than silently discarded: an exclusion nobody can see is
+    indistinguishable from a scan that was quietly narrowed.
+    """
+    publishable = publishable_strings(records)
+    return {str(r.get("title") or "").strip() for r in records
+            if len(str(r.get("title") or "").strip()) >= min_len
+            and str(r.get("title") or "").strip().casefold() in publishable}
+
+
 def private_needles(records, min_len=MIN_NEEDLE):
     """(titles, URL paths) from this corpus, longest first, deduplicated.
 
@@ -150,12 +181,23 @@ def private_needles(records, min_len=MIN_NEEDLE):
     A URL's path, not the whole URL and not the host: the record ranks
     publications by host on purpose, and a host is a fact about the archive
     while a path identifies one article in it.
+
+    A title that IS a string the record publishes - a topic, a concept, a host
+    - is not a needle. Found on the live corpus: one article is titled exactly
+    "Productivity", which is also an extracted topic, and topics ship. Such a
+    needle matches on every build and can never tell a leak from the topic.
+    `publishable_collisions` reports what was dropped this way.
     """
+    publishable = publishable_strings(records)
     titles, paths = set(), set()
     for record in records:
         title = str(record.get("title") or "").strip()
         if len(title) >= min_len:
-            titles.add(title)
+            # The WHOLE title must equal a publishable string, not merely
+            # contain one: "Productivity" goes, "Productivity And The Modern
+            # Office" stays.
+            if title.casefold() not in publishable:
+                titles.add(title)
         url = record.get("url")
         if url:
             path = urlsplit(str(url)).path.rstrip("/")
@@ -263,6 +305,16 @@ public_data.json  sha256 {digest}
 """
 
 
+def _collision_note(records):
+    dropped = sorted(publishable_collisions(records))
+    if not dropped:
+        return "No title collided with a string the record publishes."
+    return (f"{len(dropped)} title(s) were dropped as needles because the "
+            f"record publishes that exact string as a topic, concept or host, "
+            f"so they could never distinguish a leak from the published value. "
+            f"They are listed in the needle file rather than here.")
+
+
 def build(records, out_dir, needle_file=None, payload_hook=None,
           shortlist_count=None, today=None):
     """Render, scan, and only then publish.
@@ -278,9 +330,11 @@ def build(records, out_dir, needle_file=None, payload_hook=None,
         # silent pass would be indistinguishable from a clean corpus.
         raise LeakTestError(
             f"No leak needles could be derived from {len(records)} record(s): "
-            f"no title or URL path reached {MIN_NEEDLE} characters. This check "
-            f"fails closed, because with nothing to look for every tree passes. "
-            f"Refusing to publish.")
+            f"no title or URL path reached {MIN_NEEDLE} characters, or every "
+            f"one collided with a string the record publishes "
+            f"({len(publishable_collisions(records))} dropped that way). This "
+            f"check fails closed, because with nothing to look for every tree "
+            f"passes. Refusing to publish.")
 
     out = Path(out_dir).resolve()
     _guard(out)
@@ -311,7 +365,8 @@ def build(records, out_dir, needle_file=None, payload_hook=None,
             commit=_commit(), built=(today or dt.date.today()).isoformat(),
             record=RECORD_URL, items=f"{len(records):,}",
             titles=f"{len(titles):,}", paths=f"{len(paths):,}", floor=MIN_NEEDLE,
-            findings="It found nothing.", digest=sha256(data_path)),
+            findings="It found nothing.", collisions=_collision_note(records),
+            digest=sha256(data_path)),
             encoding="utf-8")
 
         found = leak_scan(tmp, titles, paths)
@@ -330,7 +385,8 @@ def build(records, out_dir, needle_file=None, payload_hook=None,
             shutil.rmtree(tmp, ignore_errors=True)
 
     if needle_file is not None:
-        write_needle_file(needle_file, titles, paths)
+        write_needle_file(needle_file, titles, paths,
+                          publishable_collisions(records))
 
     return {"out": out, "items": len(records), "needles": len(titles) + len(paths),
             "titles": len(titles), "paths": len(paths), "leak_findings": 0}
@@ -350,10 +406,15 @@ NEEDLE_HEADER = """# Leak needles from the unread corpus, for data.adamthede.com
 """
 
 
-def write_needle_file(path, titles, paths):
+def write_needle_file(path, titles, paths, collisions=()):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     body = NEEDLE_HEADER.format(titles=len(titles), paths=len(paths), floor=MIN_NEEDLE)
     body += "\n".join(list(titles) + list(paths)) + "\n"
+    if collisions:
+        body += ("\n# Dropped as needles: the record publishes these exact\n"
+                 "# strings as a topic, concept or host, so they can never\n"
+                 "# distinguish a leak from the published value.\n")
+        body += "".join(f"# {c}\n" for c in sorted(collisions))
     path.write_text(body, encoding="utf-8")
     return path

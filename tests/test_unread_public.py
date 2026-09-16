@@ -221,6 +221,41 @@ def test_a_needle_shorter_than_the_floor_is_not_used():
     assert "Hi" not in titles
 
 
+def test_a_title_that_is_also_a_published_topic_cannot_be_a_needle():
+    """Mutation: scanning for a needle the record publishes by design.
+
+    Found on the live corpus. One article is titled exactly "Productivity",
+    twelve characters, and "Productivity" is also an extracted topic - and
+    topics ship. That needle matches the published topic on every build, so it
+    cannot tell a leaked title from a published topic, and a scan that is
+    permanently red is a scan somebody turns off.
+
+    The exclusion is narrow and it is recorded: the whole title must equal a
+    publishable string, not merely contain one.
+    """
+    rows = [record(url_sha256="1" * 64, title="Productivity",
+                   topics=("Productivity", "Attention")),
+            record(url_sha256="2" * 64, title="Productivity And The Modern Office",
+                   topics=("Productivity",))]
+    titles, _ = public.private_needles(rows)
+    assert "Productivity" not in titles
+    assert "Productivity And The Modern Office" in titles
+    assert "Productivity" in public.publishable_collisions(rows)
+
+
+def test_a_corpus_of_nothing_but_collisions_still_fails_closed(tmp_path):
+    """Mutation: excluding collisions until the needle list is empty, silently.
+
+    Dropping every needle leaves a scan with nothing to look for, which passes
+    on any tree. The build must refuse rather than publish unscanned, whatever
+    emptied the list.
+    """
+    rows = [record(url_sha256="1" * 64, title="Productivity",
+                   topics=("Productivity",), url="https://x.io/a")]
+    with pytest.raises(public.LeakTestError):
+        public.build(rows, tmp_path / "record")
+
+
 def test_the_needles_are_longest_first():
     """Mutation: an arbitrary order.
 
