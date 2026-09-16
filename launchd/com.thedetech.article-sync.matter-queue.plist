@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Matter queue snapshot -- nightly at 04:55 local, ten minutes after the
+  Matter article sync (com.thedetech.article-sync.matter, 04:45).
+
+  Appends one dated row to the unread-backlog ledger: how big the Matter queue
+  is tonight, how many words, how many articles are started-not-finished, and
+  how many ids arrived/left since the last snapshot from an earlier date. See
+  scripts/matter/queue_snapshot.py's module docstring for the full design
+  (why the diff never moves on a same-day rerun, why titles/URLs never appear
+  in the ledger, why the "queue" status alone is the whole unread backlog).
+
+  Ordering vs. the article sync matters, but only loosely: this job reads the
+  live Matter API directly (GET /v1/items?status=queue), not the archive's
+  parquet index, so it does not actually depend on the article sync having
+  finished. Ten minutes after is enough clearance that the two jobs are never
+  fighting Matter's read-rate-limit window (120/min) or each other's log
+  directory at the same moment; it is not a hard data dependency.
+
+  Fleet conventions honoured (same as com.thedetech.article-sync.matter.plist):
+    * ProgramArguments[0] is /opt/homebrew/bin/python3, the interpreter that
+      holds the TCC grant this job doesn't even need (it writes only inside
+      the repo's own data/ and to ~/Library/Logs) -- kept anyway for fleet
+      consistency and because queue_snapshot.py's default mode imports only
+      the standard library and `requests`, exactly what that interpreter has.
+      (--backfill-reads and --seed-2023 need pandas/pyarrow and are meant to
+      be hand-run once under .venv/bin/python, not by this job.)
+    * Log paths live under ~/Library/Logs/MatterSync/, alongside the article
+      sync's own logs.
+    * RunAtLoad is false: this reads an API on a schedule: firing it on every
+      login would burn Matter's rate-limit budget for nothing.
+
+  Prerequisites:
+    * ~/.secrets/matter.token exists, mode 0600 (same credential the article
+      sync uses -- see docs/MATTER_SYNC.md).
+    * No vault mount is required. This job never touches /Volumes/AST.
+
+  Verify before installing:
+    python3 scripts/matter/queue_snapshot.py --json
+
+  Install (Adam's one-liner -- the mkdir matters, launchd will not create the
+  log directory itself and dies with EX_CONFIG if it is missing):
+    mkdir -p ~/Library/Logs/MatterSync && cp launchd/com.thedetech.article-sync.matter-queue.plist ~/Library/LaunchAgents/ && launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.thedetech.article-sync.matter-queue.plist
+
+  Run it once by hand:
+    launchctl kickstart -k gui/$(id -u)/com.thedetech.article-sync.matter-queue
+
+  Uninstall:
+    launchctl bootout gui/$(id -u)/com.thedetech.article-sync.matter-queue && rm ~/Library/LaunchAgents/com.thedetech.article-sync.matter-queue.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.thedetech.article-sync.matter-queue</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/python3</string>
+        <string>/Users/adam_thede/Documents/Code/Project - Instapaper Archive/scripts/matter/queue_snapshot.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/adam_thede/Documents/Code/Project - Instapaper Archive</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/adam_thede/.volta/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/adam_thede</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>4</integer>
+        <key>Minute</key>
+        <integer>55</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/adam_thede/Library/Logs/MatterSync/queue-snapshot.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/adam_thede/Library/Logs/MatterSync/queue-snapshot.err.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+</dict>
+</plist>
