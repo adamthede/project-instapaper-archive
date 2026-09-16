@@ -92,6 +92,11 @@ run_mutation "script and style survive text extraction" \
 run_mutation "body files are named after titles" \
   scripts/unread/resolve.py 'return f"{url_sha256[:2]}/{url_sha256}.txt"' \
   'return f"{url_sha256[:2]}/x.txt"' "$FETCH"
+run_mutation "an Instapaper call goes out with no timeout" \
+  scripts/unread/instapaper.py "TIMEOUT = 30" "TIMEOUT = None" "$FETCH"
+run_mutation "a hung Instapaper call kills the pass" \
+  scripts/unread/instapaper.py "            log.warning(\"get_text %s failed: %s\", bookmark_id, exc)
+            return (None, \"\")" "            raise" "$FETCH"
 run_mutation "all 105 folder items enter the pool, not the 97" \
   scripts/unread/instapaper.py "            if progress > 0.0:
                 continue" "            if False:

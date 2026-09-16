@@ -35,6 +35,17 @@ RATE_DELAY = 0.8
 MAX_RETRIES = 4
 BACKOFF_FACTOR = 2
 
+# Every call carries this, and the reason is a measurement rather than a
+# principle. The first full pass over the 492 stalled at item 288 and sat there
+# for fifteen minutes at 0% CPU with a socket in SYN_SENT, because these calls
+# went out with no timeout while the direct and Wayback legs had one.
+# `requests` blocks indefinitely by default, and a resumable pipeline that
+# hangs is not resumable, it is stopped.
+#
+# A scalar covers connect and read separately, not the total: a server that
+# trickles bytes forever still hangs. 30 seconds of silence is the signal.
+TIMEOUT = 30
+
 log = logging.getLogger("unread.instapaper")
 
 
@@ -70,7 +81,7 @@ def oauth_session():
         "x_auth_username": username,
         "x_auth_password": password,
         "x_auth_mode": "client_auth",
-    })
+    }, timeout=TIMEOUT)
     resp.raise_for_status()
     creds = dict(pair.split("=", 1) for pair in resp.text.split("&"))
     return OAuth1Session(
@@ -99,7 +110,8 @@ class InstapaperClient:
         last = None
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                resp = self.session.post(f"{API_BASE}{path}", data=data or {})
+                resp = self.session.post(f"{API_BASE}{path}", data=data or {},
+                                         timeout=TIMEOUT)
                 if resp.status_code == 503:
                     raise InstapaperError("503")
                 resp.raise_for_status()
@@ -144,7 +156,8 @@ class InstapaperClient:
         """
         try:
             resp = self.session.post(f"{API_BASE}/bookmarks/get_text",
-                                     data={"bookmark_id": bookmark_id})
+                                     data={"bookmark_id": bookmark_id},
+                                     timeout=TIMEOUT)
         except Exception as exc:  # noqa: BLE001 - a connection failure is an outcome
             log.warning("get_text %s failed: %s", bookmark_id, exc)
             return (None, "")

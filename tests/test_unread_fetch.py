@@ -135,6 +135,62 @@ def row_for(url="https://example.com/a-long-article-path", bid=1, saved_year=201
     return row
 
 
+class RecordingSession:
+    """An OAuth session that records the keyword arguments of every call."""
+
+    def __init__(self, payload=None, text="<p>body</p>", status=200):
+        self.calls = []
+        self._payload = payload if payload is not None else []
+        self._text = text
+        self._status = status
+
+    def post(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        resp = FakeResponse(self._status, self._text, url=url)
+        resp.json = lambda: self._payload
+        resp.raise_for_status = lambda: None
+        return resp
+
+
+# ---------------------------------------------------------------------------
+# the API client
+# ---------------------------------------------------------------------------
+
+def test_every_instapaper_request_carries_a_timeout():
+    """Mutation: a request with no timeout, which hangs the whole run forever.
+
+    This is not hypothetical. The first full pass over the 492 stalled at item
+    288 and sat there for fifteen minutes at 0% CPU with a socket in SYN_SENT,
+    because these three calls went out with no timeout at all while the direct
+    and Wayback legs had one. `requests` blocks indefinitely by default, and a
+    resumable pipeline that hangs is not resumable, it is stopped.
+    """
+    session = RecordingSession(payload={"bookmarks": []})
+    client = ip.InstapaperClient(session, sleeper=Sleeper())
+    client.bookmarks("unread")
+    client.get_text(7)
+    session._payload = []
+    client.folders()
+
+    assert session.calls
+    for url, kwargs in session.calls:
+        assert kwargs.get("timeout"), f"{url} went out with no timeout"
+
+
+def test_a_hung_instapaper_call_is_an_outcome_not_a_stall():
+    """Mutation: letting a connection failure propagate and kill the pass.
+
+    A timeout on one bookmark is one item's worth of data, and the chain has
+    two more legs to try. Killing the run would cost the other 491.
+    """
+    class Hanging:
+        def post(self, url, **kwargs):
+            raise OSError("timed out")
+
+    client = ip.InstapaperClient(Hanging(), sleeper=Sleeper())
+    assert client.get_text(7) == (None, "")
+
+
 # ---------------------------------------------------------------------------
 # the listing: what is in the pool
 # ---------------------------------------------------------------------------
