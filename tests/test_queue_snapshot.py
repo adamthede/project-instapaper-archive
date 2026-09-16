@@ -455,21 +455,58 @@ def test_derive_date_read_does_not_fall_back_for_matter_rows():
     assert result.iloc[2] == pd.Timestamp("2025-12-01")
 
 
+def test_backfill_reads_writes_the_weekly_csv_end_to_end(tmp_path):
+    """Mutation: skipping the write_weekly_reads_csv call (or any refactor
+    that computes the rows but never persists them) would leave
+    reads_weekly.csv stale or missing while backfill_reads still returns
+    successfully and the nightly caller reports success (M16 in PR #27's
+    mutation table -- the previous test suite never called backfill_reads()
+    at all, only its pure helpers). Mutation: dating an undated row (no
+    date_archived, no date_saved) by `now` instead of leaving it None would
+    silently count a row with zero read evidence as read this week (M12).
+    """
+    import pandas as pd
+
+    df = pd.DataFrame({
+        "date_saved": pd.to_datetime(["2026-09-01", "2026-09-08", None]),
+        "date_archived": pd.to_datetime(["2026-09-02", None, None]),
+        "word_count": [500, 700, 900],
+        "source": ["instapaper", "legacy_pdf", "legacy_pdf"],
+    })
+    parquet_path = tmp_path / "archive_index.parquet"
+    df.to_parquet(parquet_path)
+
+    csv_path = tmp_path / "reads_weekly.csv"
+    assert not csv_path.exists()
+
+    rows = qs.backfill_reads(parquet_path, csv_path, now=date(2026, 9, 16), years=1)
+
+    assert csv_path.exists()
+    written = read_csv_rows(csv_path)
+    assert [r["week"] for r in written] == [r["week"] for r in rows]
+    assert len(written) == len(rows)
+    # Rows 1 and 2 have an effective date_read (row 2 is non-Matter, so it
+    # falls back to date_saved) -- proves the parquet -> derive -> group ->
+    # write chain ran end to end. Row 3 has neither date and must be excluded
+    # entirely, not dated by `now`.
+    assert sum(int(r["reads"]) for r in written) == 2
+
+
 # ---- the 2023 seed row -------------------------------------------------------
 
-def test_seed_2023_records_487_unread_as_one_historical_row(tmp_path):
+def test_seed_2023_records_queue_equivalent_unread_as_one_historical_row(tmp_path):
     """Mutation: filtering on the wrong column/value (e.g. the string 'false'
-    instead of 'False', or requiring Saved=='True') would silently seed the
-    wrong count.
+    instead of 'False', or dropping the Saved condition entirely) would
+    silently seed the wrong count.
 
-    Deliberately includes both Saved=True and Saved=False unread rows to
-    prove the filter is Read-only, as the dispatch spec specifies verbatim
-    ("Read column False = unread") and as Adam's own plan doc already
-    anchors at 487. See load_export_unread_totals' docstring and PR #27
-    review finding 2 for the caveat this deliberately does NOT act on here:
-    56 of the 487 are Saved=False/Read=False, arguably closer to Matter's
-    "inbox" than "queue", so this historical anchor sits ~13% above the
-    population definition every API-driven row in the same file uses.
+    The population is Saved=="True" AND Read=="False" -- Matter's present-day
+    `status=="queue"` equivalent, matching every API-driven row in this same
+    file. Adam confirmed this reading (via the team lead, 2026-09-16) after
+    PR #27 review, finding 2, showed that filtering on Read alone (487) pulls
+    in 56 Saved=="False" rows that are closer to Matter's "inbox" (unsaved,
+    not even intent) than to "queue". The fixture deliberately includes a
+    Saved=="False"/Read=="False" row (B) to prove it is now excluded, not
+    just a Read=="True" row (D) to prove Read still matters.
     """
     export_csv = tmp_path / "_matter_history.csv"
     with open(export_csv, "w", newline="") as f:
@@ -485,8 +522,8 @@ def test_seed_2023_records_487_unread_as_one_historical_row(tmp_path):
     daily_csv = tmp_path / "queue_daily.csv"
     row = qs.seed_2023(export_csv, daily_csv)
 
-    assert row["count"] == 3          # A, B, C -- regardless of Saved
-    assert row["total_words"] == 600
+    assert row["count"] == 2          # A, C only -- B excluded (Saved=="False")
+    assert row["total_words"] == 400
     assert row["source"] == "export-2023"
     assert row["date"] == "2023-05-12"
 

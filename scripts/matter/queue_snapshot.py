@@ -570,32 +570,31 @@ def backfill_reads(parquet_path: Path, csv_path: Path, *, now: date | None = Non
 # ---- seed: the May 2023 export's unread snapshot -------------------------------
 
 def load_export_unread_totals(export_csv_path: Path) -> tuple[int, int]:
-    """(count, total_words) of rows where Read == "False" in a Matter export CSV.
+    """(count, total_words) of rows that are queue-equivalent unread in a
+    Matter export CSV: `Saved == "True"` AND `Read == "False"`.
 
     Reads the export in place; never copies it (see the dispatch spec -- the
     export lives under ~/Downloads and stays there).
 
-    Read-only, by design, per the dispatch spec verbatim ("Read column False
-    = unread") and matching the 487/1,017,211 figure Adam's own plan doc
-    (docs/plans-to-do/2026-09-15-unread-corpus-what-i-meant-to-read.md,
-    Follow-on tasks item 2) already anchors for this exact historical point.
-
-    Caveat (PR #27 review, finding 2, not acted on here without Adam's
-    sign-off): the export also carries a `Saved` column. Of the 487,
-    431 are Saved=True (arguably "queue"-equivalent, matching every API-driven
-    row in this same ledger) and 56 are Saved=False (arguably closer to
-    Matter's "inbox" -- unsaved, not even intent, per this module's own
-    EXTRA_UNREAD_STATUSES docstring). That would put this one historical
-    anchor about 13% above the population definition every other row in
-    queue_daily.csv uses. Left as specified rather than silently
-    reinterpreted, because the spec gave an explicit column and an explicit
-    target value; flagged on the PR for Adam to decide.
+    History: the dispatch spec said "Read column False = unread" verbatim,
+    which filters on Read alone and counts 487 (1,017,211 words). PR #27
+    review, finding 2, measured that 56 of those 487 are Saved == "False" --
+    arguably closer to Matter's "inbox" (unsaved, not even intent, per this
+    module's own EXTRA_UNREAD_STATUSES docstring) than to "queue" -- and that
+    every OTHER row in queue_daily.csv counts `status == "queue"` only, i.e.
+    Matter's present-day equivalent of Saved == "True" && Read == "False".
+    Adam confirmed (via the team lead, 2026-09-16): filter on both columns, so
+    this one historical anchor uses the same population definition as every
+    live snapshot row. That is 431 items / 941,221 words -- verified directly
+    against the real export file, not just the reviewer's cross-tab.
     """
     count = 0
     total_words = 0
     with open(export_csv_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
+            if (row.get("Saved") or "").strip() != "True":
+                continue
             if (row.get("Read") or "").strip() != "False":
                 continue
             count += 1
