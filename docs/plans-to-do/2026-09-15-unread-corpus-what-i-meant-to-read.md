@@ -572,12 +572,4 @@ Adam, 2026-09-15, on review of this plan:
 
 ## Open question
 
-**Are the 97 never-opened folder items in scope?** Including them takes the pool
-from 395 to 492 and the build order above assumes yes. The API evidence supports
-treating them as unread rather than read: no archived flag exists, none of the
-105 appear in the unread or archive listings, 97 have zero read progress, and
-exactly one of the 105 was ever read to the end. They are intentions filed
-rather than queued, which is arguably a stronger signal of intent than leaving
-something in the inbox. The only argument against is that filing is itself a
-kind of resolution, and a folder called Steve Jobs may be a keepsake rather than
-a queue.
+**Resolved 2026-09-16 (Adam): the 97 never-opened folder items are in scope.** Pool is 492. The build order above stands as written.
