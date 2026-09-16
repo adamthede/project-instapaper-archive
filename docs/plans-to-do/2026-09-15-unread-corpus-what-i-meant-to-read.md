@@ -1,12 +1,12 @@
 ---
 title: "The unread corpus: what I meant to read"
-status: "In Progress"
+status: "QA Needed"
 priority: "P2"
 project: "articles"
 created: 2026-09-15
 completed:
 effort: "L - a fetch pipeline, an enrichment template, an analysis, and a new public record"
-linked_pr: ""
+linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/28"
 depends_on:
   - "the reading cover (PR #24, merged 2026-09-08)"
   - "the public shape (PR #25, merged 2026-09-10) - site/public_shape.py is the pattern"
