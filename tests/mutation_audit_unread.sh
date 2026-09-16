@@ -153,6 +153,8 @@ run_mutation "a run with no usage metadata bills zero" \
   scripts/unread/enrich.py \
   'return (max(1, len(prompt or "") // 4), max(1, len(answer or "") // 4))' \
   "return (0, 0)" "$ENRICH"
+run_mutation "the SDK stays on gRPC" \
+  scripts/unread/enrich.py 'TRANSPORT = "rest"' 'TRANSPORT = "grpc"' "$ENRICH"
 run_mutation "one refused article kills the enrichment pass" \
   scripts/unread/enrich.py "        except Exception as exc:  # noqa: BLE001" \
   "        except ZeroDivisionError as exc:" "$ENRICH"

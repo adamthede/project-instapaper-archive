@@ -571,6 +571,27 @@ def test_the_gemini_call_carries_its_own_timeout():
     assert recorder.calls[0]["request_options"]["timeout"] > 0
 
 
+def test_the_sdk_is_configured_for_rest_not_grpc(monkeypatch):
+    """Mutation: leaving the SDK on its default gRPC transport.
+
+    gRPC is why the wall-clock deadline cannot help here: it blocks in C, the
+    interpreter never regains control, and SIGALRM is raised and never
+    delivered. Worse, the stall sat below the per-RPC timeout too - the pass
+    froze twice with `request_options` set.
+
+    On REST the SDK goes out through the ordinary HTTP stack, where a timeout
+    is enforced and a signal can interrupt a blocked read. This is the setting
+    that makes every other guard in this module work.
+    """
+    import google.generativeai as genai
+
+    seen = {}
+    monkeypatch.setattr(genai, "configure", lambda **kw: seen.update(kw))
+    monkeypatch.setattr(genai, "GenerativeModel", lambda name: RecordingGemini())
+    enrich.GeminiModel(api_key="test-key")
+    assert seen.get("transport") == "rest"
+
+
 def test_one_stalled_article_cannot_stop_the_enrichment_pass(tmp_path):
     """Mutation: trusting the Gemini SDK to bound its own call.
 

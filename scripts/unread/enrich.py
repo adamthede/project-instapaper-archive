@@ -67,6 +67,16 @@ ITEM_DEADLINE = 180
 # does not work here. This is the one that does.
 REQUEST_TIMEOUT = 120
 
+# And the setting that makes the timeout reachable at all.
+#
+# On its default gRPC transport the SDK blocks in C: the interpreter never
+# regains control, so SIGALRM is raised and never delivered, and on the live
+# run the stall sat below the per-RPC timeout as well - the pass froze twice
+# with `request_options` already set. On REST the SDK goes out through the
+# ordinary HTTP stack, where the timeout is enforced and a signal can interrupt
+# a blocked read.
+TRANSPORT = "rest"
+
 # No cap is not the same as no guard. The longest body in the measured sample
 # is 66,476 characters; anything much past this is a scrape that went wrong.
 MAX_BODY_CHARS = 120_000
@@ -350,7 +360,7 @@ class GeminiModel:
         key = api_key or os.getenv("GEMINI_API_KEY")
         if not key:
             raise RuntimeError("GEMINI_API_KEY is not set")
-        genai.configure(api_key=key)
+        genai.configure(api_key=key, transport=TRANSPORT)
         self._model = genai.GenerativeModel(model_name)
 
     def generate(self, prompt):
