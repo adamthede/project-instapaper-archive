@@ -291,6 +291,18 @@ def pool_split(records):
 # the paired series against the read corpus
 # ---------------------------------------------------------------------------
 
+def read_corpus_rows(frame):
+    """How many rows the whole index holds, read-it-later or not.
+
+    The record's plate-01 footnote says "6,769 of the index's 17,320 rows; the
+    other 10,551 are the legacy document archive". Both of those were typed on
+    the page, which is the failure this payload exists to remove - and unlike
+    the May 2025 export's counts, this one is a live measurement the build is
+    already holding the frame for.
+    """
+    return int(len(frame)) if frame is not None else None
+
+
 def read_corpus_by_year(frame):
     """Read-it-later articles by the year they were saved.
 

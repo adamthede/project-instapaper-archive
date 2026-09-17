@@ -738,3 +738,31 @@ def test_the_paired_topic_table_carries_the_comparison_caveat():
     """
     payload = public.public_shape(corpus(), read_topics={2018: {"Attention": 5}})
     assert "10,000" in payload["topic_comparison"]["caveat"]
+
+
+def test_the_comparison_carries_the_whole_index_and_the_part_it_is_not():
+    """Mutation: the record's page typing "17,320" and "10,551".
+
+    Plate 01's footnote says which slice of the index the comparison is, and
+    both halves of that sentence were authored figures until adversarial review
+    swept for them. Unlike the May 2025 export's counts, this is a live
+    measurement the build already holds the frame for, so there is no reason
+    for it to be typed.
+    """
+    payload = public.public_shape(corpus(), read_by_year={2018: 237},
+                                 read_index_rows=1000)
+    comparison = payload["read_comparison"]
+    assert comparison["index_rows"] == 1000
+    assert comparison["other_rows"] == 1000 - 237
+    assert comparison["total"] + comparison["other_rows"] == comparison["index_rows"]
+
+
+def test_the_index_row_count_is_absent_rather_than_guessed():
+    """Mutation: defaulting it to the comparison's own total.
+
+    That would publish "6,769 of the index's 6,769 rows", a sentence whose
+    whole point is the difference between the two.
+    """
+    payload = public.public_shape(corpus(), read_by_year={2018: 237})
+    assert payload["read_comparison"]["index_rows"] is None
+    assert payload["read_comparison"]["other_rows"] is None

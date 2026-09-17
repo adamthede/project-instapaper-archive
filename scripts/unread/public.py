@@ -71,7 +71,8 @@ class LeakTestError(RuntimeError):
 # ---------------------------------------------------------------------------
 
 def public_shape(records, shortlist_count=None, today=None,
-                 read_by_year=None, read_topics=None, read_titles=()):
+                 read_by_year=None, read_topics=None, read_titles=(),
+                 read_index_rows=None):
     """Everything the record may say, built from aggregates and nothing else.
 
     Assembled field by field rather than filtered down from the enriched rows.
@@ -164,6 +165,12 @@ def public_shape(records, shortlist_count=None, today=None,
                                          in sorted(read_by_year.items())},
                              "total": int(sum(read_by_year.values())),
                              "sources": list(analysis.READ_IT_LATER_SOURCES),
+                             # The whole index, and the part of it this
+                             # comparison is not. Both were typed on the
+                             # record's page before adversarial review.
+                             "index_rows": read_index_rows,
+                             "other_rows": (read_index_rows - sum(read_by_year.values())
+                                            if read_index_rows else None),
                              "note": READ_COMPARISON_NOTE}
                             if read_by_year else None),
         "topic_comparison": comparison,
@@ -503,7 +510,7 @@ def _collision_note(records):
 
 def build(records, out_dir, needle_file=None, payload_hook=None,
           shortlist_count=None, today=None, read_by_year=None,
-          read_topics=None, read_titles=()):
+          read_topics=None, read_titles=(), read_index_rows=None):
     """Render, scan, and only then publish.
 
     The order is the whole design. Everything is written into a sibling
@@ -548,7 +555,8 @@ def build(records, out_dir, needle_file=None, payload_hook=None,
     try:
         payload = public_shape(records, shortlist_count=shortlist_count,
                                today=today, read_by_year=read_by_year,
-                               read_topics=read_topics, read_titles=read_titles)
+                               read_topics=read_topics, read_titles=read_titles,
+                               read_index_rows=read_index_rows)
         if payload_hook:
             payload = payload_hook(payload)
         data_path = tmp / "public_data.json"

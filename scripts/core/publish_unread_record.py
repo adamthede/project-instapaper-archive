@@ -48,7 +48,8 @@ def read_corpus(index_path):
     frame = pd.read_parquet(index_path)
     return (analysis.read_corpus_by_year(frame),
             analysis.read_corpus_topics(frame),
-            analysis.read_corpus_titles(frame))
+            analysis.read_corpus_titles(frame),
+            analysis.read_corpus_rows(frame))
 
 
 def main(argv=None):
@@ -72,7 +73,7 @@ def main(argv=None):
         print(f"Nothing enriched at {args.enriched}.", file=sys.stderr)
         return 2
 
-    by_year = topics = None
+    by_year = topics = index_rows = None
     titles = ()
     if not args.no_comparison:
         # Refuse rather than warn. A payload silently missing the read series
@@ -85,7 +86,7 @@ def main(argv=None):
                   f"--no-comparison to build the unpaired half on purpose.",
                   file=sys.stderr)
             return 2
-        by_year, topics, titles = read_corpus(args.index)
+        by_year, topics, titles, index_rows = read_corpus(args.index)
 
     # What qualified, not what one page of it holds: publishing
     # len(shortlist) would publish the --shortlist default rather than a
@@ -95,7 +96,8 @@ def main(argv=None):
     try:
         result = public.build(records, args.out, needle_file=args.needles,
                               shortlist_count=count, read_by_year=by_year,
-                              read_topics=topics, read_titles=titles)
+                              read_topics=topics, read_titles=titles,
+                              read_index_rows=index_rows)
     except public.LeakTestError as exc:
         print(f"\n{exc}\n", file=sys.stderr)
         print("Nothing was published.", file=sys.stderr)

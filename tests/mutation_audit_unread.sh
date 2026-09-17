@@ -502,6 +502,12 @@ run_mutation "the per-year split files a folder item in the queue" \
   '        side = ("filed_in_folders" if str(record.get("folder") or "").strip()
                 else "unread_queue")' \
   '        side = "unread_queue"' "$ANALYSIS"
+run_mutation "the index row count is guessed from the comparison" \
+  scripts/unread/public.py '                             "index_rows": read_index_rows,' \
+  '                             "index_rows": sum(read_by_year.values()),' "$PUBLIC"
+run_mutation "the whole index is counted as the comparison" \
+  scripts/unread/analysis.py '    return int(len(frame)) if frame is not None else None' \
+  '    return None' "$PUBLIC"
 
 echo
 find . -name "__pycache__" -type d -not -path "./.git/*" -exec rm -rf {} + 2>/dev/null

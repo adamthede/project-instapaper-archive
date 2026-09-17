@@ -6671,7 +6671,9 @@
       "2025": 391,
       "2026": 163
     },
+    "index_rows": 17320,
     "note": "Read-it-later articles only, counted by the year they were saved. The legacy document archive - scanned PDFs, Word files and text dumps, the larger half of the index - was never saved with an intention to read later, so it is not the comparison. Its denominator also differs from the topic comparison's on purpose: a row the content guard rejected still went through the save-then-read loop and counts as a read, it simply carries no usable topics.",
+    "other_rows": 10551,
     "sources": [
       "instapaper",
       "matter"
