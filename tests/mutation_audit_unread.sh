@@ -267,7 +267,7 @@ echo
 echo "STAGE 4 - the public shape and the leak scan"
 run_mutation "a topic that is an article title is published anyway" \
   scripts/unread/public.py \
-  '    return [v for v in values if str(v).strip().casefold() not in titles]' \
+  '    return [v for v in values if analysis.normalize(v) not in titles]' \
   "    return list(values)" "$PUBLIC"
 run_mutation "the band topic lists skip the title-shaped redaction" \
   scripts/unread/public.py \
@@ -378,7 +378,7 @@ run_mutation "the comparison ranks on the saved side only" \
   '        if len(chosen) >= limit + read_extra:' '        if True:' "$ANALYSIS"
 run_mutation "a title-shaped string survives in the read column" \
   scripts/unread/analysis.py \
-  '    keep = lambda name: str(name).strip().casefold() not in titles  # noqa: E731' \
+  '    keep = lambda name: normalize(name) not in titles  # noqa: E731' \
   '    keep = lambda name: True  # noqa: E731' "$ANALYSIS"
 run_mutation "the paired topic table ships without its caveat" \
   scripts/unread/analysis.py '        "unread_corpus": len(records),
@@ -417,7 +417,7 @@ run_mutation "the paired series ships as an empty container" \
   '                            if read_by_year else {}),' "$PUBLIC"
 run_mutation "the read column skips the title-shaped redaction" \
   scripts/unread/public.py \
-  '    all_titles = titles | {str(t).strip().casefold() for t in (read_titles or ())}' \
+  '    all_titles = titles | {analysis.normalize(t) for t in (read_titles or ())}' \
   '    all_titles = set()' "$PUBLIC"
 run_mutation "the confidence split never reaches the payload" \
   scripts/unread/public.py \
@@ -460,8 +460,9 @@ run_mutation "internal whitespace stops being collapsed" \
   scripts/unread/analysis.py '    return _SPACES.sub(" ", folded).strip().casefold()' \
   '    return folded.strip().casefold()' "$ANALYSIS"
 run_mutation "the normalizer collapses two different titles" \
-  scripts/unread/analysis.py '_SPACES = re.compile(r"\\s+")' \
-  '_SPACES = re.compile(r"[\\s\\w]+")' "$ANALYSIS"
+  scripts/unread/analysis.py \
+  '    return _SPACES.sub(" ", folded).strip().casefold()' \
+  '    return _SPACES.sub("", folded).strip().casefold()[:12]' "$ANALYSIS"
 run_mutation "the read column goes back to exact match" \
   scripts/unread/analysis.py '    keep = lambda name: normalize(name) not in titles  # noqa: E731' \
   '    keep = lambda name: str(name).strip().casefold() not in titles  # noqa: E731' "$ANALYSIS"
