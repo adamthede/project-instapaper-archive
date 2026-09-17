@@ -19,10 +19,51 @@ summaries were built on whole articles and the read corpus's on
 first-10,000-character truncations. A caveat that lives only in a document can
 be separated from the numbers it qualifies.
 """
+import datetime as dt
+import re
 import statistics
+import unicodedata
 from collections import Counter, defaultdict
 
 from . import derive
+
+#: Characters a model, a CMS or a copy-paste swaps for one another without
+#: changing a word. Apostrophes, quotes, dashes and the non-breaking space are
+#: the whole set that matters here; NFKC handles the rest.
+_CONFUSABLES = str.maketrans({
+    "\u2018": "'", "\u2019": "'", "\u201a": "'", "\u201b": "'", "\u02bc": "'",
+    "\u201c": '"', "\u201d": '"', "\u201e": '"', "\u00ab": '"', "\u00bb": '"',
+    "\u2010": "-", "\u2011": "-", "\u2012": "-", "\u2013": "-", "\u2014": "-",
+    "\u2015": "-", "\u2212": "-",
+    "\u00a0": " ", "\u2007": " ", "\u202f": " ", "\u2009": " ", "\u200a": " ",
+    "\u200b": "", "\u200c": "", "\u200d": "", "\ufeff": "",
+})
+
+_SPACES = re.compile(r"\s+")
+
+
+def normalize(value):
+    """The key a title and a near-copy of it both hash to.
+
+    Exact-match redaction was the hole adversarial review found on 2026-09-16.
+    A model reads an article and emits a "topic"; topics ship. If it reproduces
+    the headline byte for byte the redaction drops it, and if it changes one
+    curly apostrophe to a straight one - or an en dash to a hyphen, or NFC to
+    NFD, or one space to two - the redaction passes it and the leak scan
+    downstream, which is also exact-substring, then does not look for it
+    either. Two gates, one blind spot, failing in the same direction.
+
+    Measured on the live corpus: 120 of 460 titles, 26 percent, change under
+    ordinary NFKC plus punctuation folding. That is not an exotic attack, it is
+    a coin flip on the next re-vendor.
+
+    NFKC, then the confusable punctuation NFKC leaves alone, then whitespace
+    collapsed, then casefold. Used for COMPARISON only - nothing published is
+    ever the normalized form, because normalizing a published string would
+    change what the record says.
+    """
+    folded = unicodedata.normalize("NFKC", str(value)).translate(_CONFUSABLES)
+    return _SPACES.sub(" ", folded).strip().casefold()
 
 READ_IT_LATER_SOURCES = ("instapaper", "matter")
 
@@ -227,8 +268,23 @@ def pool_split(records):
     number for the pool would hide the finding.
     """
     filed = sum(1 for r in records if str(r.get("folder") or "").strip())
+    by_year = defaultdict(lambda: {"unread_queue": 0, "filed_in_folders": 0})
+    for record in records:
+        year = record.get("saved_year")
+        if not year:
+            continue
+        side = ("filed_in_folders" if str(record.get("folder") or "").strip()
+                else "unread_queue")
+        by_year[str(year)][side] += 1
     return {"unread_queue": len(records) - filed, "filed_in_folders": filed,
-            "total": len(records)}
+            "total": len(records),
+            # Per year as well as overall, because the finding is not the split
+            # but WHERE it falls: the queue holds nothing at all from before
+            # 2014, so every item that survived fifteen years unread survived
+            # in a folder. The record's page states that in prose, and prose
+            # with a typed number in it is the failure this payload exists to
+            # remove.
+            "by_year": {y: by_year[y] for y in sorted(by_year)}}
 
 
 # ---------------------------------------------------------------------------
@@ -270,7 +326,7 @@ def read_corpus_titles(frame, min_len=12):
     """
     if frame is None or not len(frame) or "title" not in frame.columns:
         return set()
-    return {str(t).strip().casefold() for t in frame["title"].dropna()
+    return {normalize(t) for t in frame["title"].dropna()
             if len(str(t).strip()) >= min_len}
 
 
@@ -291,8 +347,8 @@ def topic_comparison(records, read_topics, limit=10, read_extra=2, titles=()):
     record publishes them; one of them colliding with an unread title would
     launder that title onto the page through a column nothing was scanning.
     """
-    titles = {str(t).strip().casefold() for t in (titles or ())}
-    keep = lambda name: str(name).strip().casefold() not in titles  # noqa: E731
+    titles = {normalize(t) for t in (titles or ())}
+    keep = lambda name: normalize(name) not in titles  # noqa: E731
 
     saved = by_topic(records)
     read = Counter()
@@ -344,12 +400,52 @@ def topic_comparison(records, read_topics, limit=10, read_extra=2, titles=()):
 # the per-day rollup, in the shape Silo's provider daily summary takes
 # ---------------------------------------------------------------------------
 
-#: Silo keys a provider daily summary on (provider, date_of_summary) and
-#: carries its provenance inside the payload rather than in a column, so the
-#: rollup declares both. `computed_stats` is Silo's name for the derived,
-#: chartable half of a summary; `raw_data` is the provider's own shape and this
-#: record has none to offer that is not item level, so it is not emitted.
-DAILY_PROVIDER = "meant-to-read"
+#: The provider name a generic "record" import would file these under.
+#:
+#: Silo does NOT accept it today, and neither does the house rule's own
+#: "record". Both fail `ProviderDailySummary#valid?` with "Provider is not
+#: included in the list", and the same allowlist is duplicated in
+#: `app/models/bulk_import.rb`, `app/models/provider_data_availability.rb`,
+#: `app/services/provider_data_service.rb` and five guards in
+#: `app/controllers/daily_summaries_controller.rb`. The payload says so out
+#: loud in `silo_import` rather than emitting a name that looks accepted.
+DAILY_PROVIDER = "record"
+
+#: What a Silo import of this rollup actually needs, on the Silo side. Written
+#: into the payload because a shape that only LOOKS like Silo's is worse than
+#: one that says what is missing: the first gets imported and silently breaks,
+#: the second gets read.
+#:
+#: The sharp one is the second. Silo treats `computed_stats` as OUTPUT - every
+#: provider writes `raw_data` and then `Analytics::StatsService` recomputes
+#: `computed_stats` from it - and `compute_stats` returns `{}` for a provider
+#: it has no method for. So a rollup that shipped its numbers in
+#: `computed_stats` would be erased by one run of `rake
+#: provider_analytics:compute_all`, with nothing in `raw_data` to rebuild from.
+#: The numbers therefore ship in `raw_data`, which is the column Silo ingests
+#: verbatim and never overwrites.
+SILO_IMPORT_NOTE = {
+    "provider_accepted": False,
+    "needs": [
+        "add the provider to ProviderDailySummary::SUPPORTED_PROVIDERS, and to "
+        "the four other copies of that allowlist (BulkImport, "
+        "ProviderDataAvailability, ProviderDataService, DailySummariesController)",
+        "add Analytics::StatsService#compute_record_stats, or the first "
+        "`rake provider_analytics:compute_all` erases every imported day's "
+        "computed_stats and nils word_count and total_seconds",
+        "map each day's `word_count` onto the column of that name; "
+        "StatsService lifts word_count for limitless and omi only",
+        "assert `timezone` against `user.time_zone`; there is no timezone "
+        "column on provider_daily_summaries",
+    ],
+    "note": "Nothing in Silo mentions this record today. The import is not this "
+            "repository's job and does not gate the record shipping; what this "
+            "field exists to prevent is the import looking ready when it is not.",
+}
+
+#: What `raw_data["source"]` carries, the way the limitless archive job
+#: distinguishes an imported row from a live-API one.
+DAILY_SOURCE = "meant-to-read"
 
 DAILY_READS_NOTE = (
     "Reads are null rather than 0 on every day. Every item in this corpus is "
@@ -379,6 +475,8 @@ def daily_rollup(records, built=None):
             continue
         grouped[day].append(record)
 
+    stamp = f"{built}T00:00:00Z" if built and "T" not in str(built) else built
+
     days = []
     for day in sorted(grouped):
         rows = grouped[day]
@@ -387,7 +485,21 @@ def daily_rollup(records, built=None):
         bands = Counter(r.get("abandonment") or derive.NEVER_OPENED for r in rows)
         days.append({
             "date_of_summary": day,
-            "computed_stats": {
+            # Silo's own column, and one it will not populate for this provider
+            # (StatsService lifts word_count for limitless and omi only).
+            "word_count": sum(int(r.get("body_words") or 0) for r in rows),
+            # raw_data, not computed_stats. Silo recomputes computed_stats from
+            # raw_data and returns {} for a provider it has no method for, so a
+            # rollup shipping its numbers there is erased by the first
+            # `rake provider_analytics:compute_all`. raw_data is ingested
+            # verbatim and never overwritten.
+            #
+            # The key set is an ALLOWLIST and it is asserted in the tests.
+            # `public_shape`'s allowlist covers the top-level payload keys and
+            # stops at the door of this dict, which is where adversarial review
+            # walked `url_sha256` straight through - the very join key
+            # `five_ws.source_id` calls the one disclosure this record refuses.
+            "raw_data": {
                 "saves": len(rows),
                 "reads": None,
                 "starred": sum(1 for r in rows if r.get("starred") is True),
@@ -396,22 +508,41 @@ def daily_rollup(records, built=None):
                 "by_recovery": dict(Counter(r.get("resolve_path") for r in rows)),
                 "why_saved_present": with_reason,
                 "why_saved_rate": round(with_reason / len(rows), 4),
+                # The provenance keys the archive-sourced precedent nests HERE
+                # rather than beside `days`, because nothing in Silo can see a
+                # sibling of the column.
+                "source": DAILY_SOURCE,
+                "imported_at": stamp,
             },
         })
 
     return {
         "provider": DAILY_PROVIDER,
-        "source": "instapaper",
-        "imported_at": built,
+        "source": DAILY_SOURCE,
+        "imported_at": stamp,
         # `saved_date` is a calendar date with no zone on it, as Instapaper
         # reports it. Declaring UTC is how a day boundary gets one meaning
-        # instead of the importer's.
+        # instead of the importer's - and Silo has no timezone column, so an
+        # importer can only assert this against the user's own zone.
         "timezone": "UTC",
         "date_field": "date_of_summary",
         "days": days,
         "undated": undated,
         "reads_note": DAILY_READS_NOTE,
+        "silo_import": SILO_IMPORT_NOTE,
     }
+
+
+#: The complete set of keys a day's `raw_data` may carry. An allowlist, and the
+#: tests assert it: the top-level payload allowlist stops at the door of this
+#: dict, and that is exactly where a join key walked through unnoticed.
+DAILY_RAW_KEYS = frozenset({
+    "saves", "reads", "starred", "words", "by_abandonment", "by_recovery",
+    "why_saved_present", "why_saved_rate", "source", "imported_at",
+})
+
+#: Every key a day itself may carry.
+DAILY_DAY_KEYS = frozenset({"date_of_summary", "word_count", "raw_data"})
 
 
 # ---------------------------------------------------------------------------

@@ -109,7 +109,7 @@ def public_shape(records, shortlist_count=None, today=None,
     # string is dropped if it is an article title anywhere the record can see,
     # because a topic costs one row of an aggregate and a laundered title costs
     # the record.
-    all_titles = titles | {str(t).strip().casefold() for t in (read_titles or ())}
+    all_titles = titles | {analysis.normalize(t) for t in (read_titles or ())}
     comparison = (analysis.topic_comparison(records, read_topics, titles=all_titles)
                   if read_topics else None)
 
@@ -244,6 +244,7 @@ def five_ws():
             "held": True, "published": True, "kind": "inference",
             "public_shape": "the inferred-reason presence rate",
             "fields": ["why_saved", "daily"],
+            "per_day": "daily.days[].raw_data.why_saved_rate",
             "note": "The user-applied annotation this slot wants does not "
                     "exist: he saved these without writing down why. What "
                     "stands in is a model's one-sentence guess, and it is "
@@ -258,7 +259,12 @@ def five_ws():
                     "it is also a confirmable guess: anyone holding a URL can "
                     "hash it and test whether it is in this queue. That is the "
                     "whole disclosure this record refuses, so the id stays on "
-                    "the private side and an importer is handed the aggregates.",
+                    "the private side and an importer is handed the aggregates. "
+                    "Adversarial review walked exactly this field into the "
+                    "per-day rollup on 2026-09-16 and every guard missed it, "
+                    "because they all constrained the day's keys and stopped at "
+                    "the door of the dict inside. Both key sets are allowlists "
+                    "now, and both are asserted.",
         },
         "provenance": {
             "repo": "adamthede/project-instapaper-archive",
@@ -288,8 +294,15 @@ def _concentration(domains):
 # ---------------------------------------------------------------------------
 
 def corpus_titles(records, min_len=MIN_NEEDLE):
-    """Every article title in the corpus, case-folded, at the needle floor."""
-    return {str(r.get("title") or "").strip().casefold() for r in records
+    """Every article title in the corpus, normalized, at the needle floor.
+
+    Normalized rather than case-folded. Adversarial review on 2026-09-16 showed
+    the exact-match version publishing a title whose only difference from the
+    corpus's was a straight apostrophe for a curly one - and the leak scan
+    downstream is exact-substring too, so nothing then looked for it. 26 percent
+    of this corpus's titles change under ordinary punctuation folding.
+    """
+    return {analysis.normalize(r.get("title") or "") for r in records
             if len(str(r.get("title") or "").strip()) >= min_len}
 
 
@@ -306,7 +319,7 @@ def drop_title_shaped(values, titles):
     A dropped topic costs one row of an aggregate. A laundered title costs the
     record.
     """
-    return [v for v in values if str(v).strip().casefold() not in titles]
+    return [v for v in values if analysis.normalize(v) not in titles]
 
 
 def private_needles(records, min_len=MIN_NEEDLE):
@@ -478,7 +491,7 @@ def _collision_note(records):
     topics = set(analysis.by_topic(records, limit=None))
     for band in analysis.abandonment_bands(records).values():
         topics |= set(band["top_topics"])
-    dropped = [t for t in topics if str(t).strip().casefold() in titles]
+    dropped = [t for t in topics if analysis.normalize(t) in titles]
     if not dropped:
         return ("No model-generated topic matched an article title, so nothing "
                 "was withheld on that ground.")

@@ -1,6 +1,6 @@
 # What I Meant To Read - provenance
 
-Source repository: Article Archive (`scripts/unread/`), commit abefb80.
+Source repository: Article Archive (`scripts/unread/`), commit ce9b1b9.
 Built: 2026-09-16
 Record: https://data.adamthede.com/meant-to-read/
 
@@ -20,11 +20,42 @@ columns are never handed to a writer. An allowlist, not a denylist: a denylist
 over a payload like this fails silently the first time a field is added.
 
 Published: counts, years, topic distributions, source hosts, the aging curve,
-the abandonment bands, and the survival figures.
+the abandonment bands, the survival figures, the cover aggregates (recovered
+words, the span of save dates, the star count, the queue-against-folders split),
+the confidence split on the inference, the paired series against the read
+corpus, and a per-day rollup of saves.
 Not published: anything item level.
 
 Domains ship deliberately (Adam, 2026-09-15). A host is a fact about the
 archive; a path identifies one article in it, and paths do not ship.
+
+## The paired series
+
+Two of the six plates draw the unread queue against what was actually read, so
+the payload carries the read side as aggregates: counts by saved year, and a
+topic table pairing each subject's share of one corpus with its share of the
+other. Read-it-later sources only - the legacy document archive was never saved
+with an intention to read later.
+
+The topic redaction runs on BOTH columns against BOTH title sets. The read
+corpus's topics are model-generated strings out of 17,320 articles and this
+record publishes them; one of them colliding with an unread title would print
+that title in a column the leak scan is not looking at, because this record's
+needles are its own corpus's titles.
+
+## The per-day rollup and the 5Ws
+
+`daily` is a compact series, one row per day saved, in the shape of Silo's
+provider daily summary: keyed on `date_of_summary`, carrying `computed_stats`
+and declaring its provider, source, timezone and provenance in the payload
+rather than in a column. `reads` is null on every day rather than 0, because
+every item in this corpus is unread by definition - there is no observation, not
+an observation of nothing.
+
+`five_ws` declares what the record holds per item and which halves ship: who
+never ships at all, where does not exist for a saved article, what ships as
+category counts, when ships as a date at day precision, and why ships as the
+presence rate of a model's inference rather than as the inference.
 
 ## The scan
 
@@ -38,4 +69,4 @@ passing, because with nothing to look for every tree passes.
 
 ## Files
 
-public_data.json  sha256 eed1e93e2b300651270e61a030e0889442173c7b68be7b7ff28f0b01efb4ad70
+public_data.json  sha256 8c5c65024e01840dcf9a5cac7dc159d79f42db7f14e09aa42d730fc97e4e0553

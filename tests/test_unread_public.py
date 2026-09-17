@@ -24,6 +24,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "scripts"))
 
+from unread import analysis  # noqa: E402
 from unread import public  # noqa: E402
 
 
@@ -474,7 +475,10 @@ def test_the_cover_aggregates_are_in_the_payload():
     assert payload["saved_span"]["newest"] == "2019-06-01"
     assert payload["saved_span"]["years_spanned"] == 6
     assert payload["starred"] == 0
-    assert payload["pool"] == {"unread_queue": 6, "filed_in_folders": 0, "total": 6}
+    assert {k: v for k, v in payload["pool"].items() if k != "by_year"} == {
+        "unread_queue": 6, "filed_in_folders": 0, "total": 6}
+    assert payload["pool"]["by_year"]["2014"] == {"unread_queue": 1,
+                                                  "filed_in_folders": 0}
     assert payload["why_saved"]["by_confidence"]["high"] == 6
 
 
@@ -622,8 +626,13 @@ def test_the_payload_carries_a_per_day_rollup_and_it_holds_no_item(tmp_path):
     rows = corpus(6)
     payload = public.public_shape(rows)
     days = payload["daily"]["days"]
-    assert days and all(set(d) == {"date_of_summary", "computed_stats"} for d in days)
-    assert payload["daily"]["provider"] == "meant-to-read"
+    assert days
+    # Both key sets, the day's and the one inside it. Constraining only the
+    # outer one is what let a per-day join key through adversarial review: the
+    # top-level payload allowlist stops at the door of `raw_data`.
+    assert all(set(d) == analysis.DAILY_DAY_KEYS for d in days)
+    assert all(set(d["raw_data"]) == analysis.DAILY_RAW_KEYS for d in days)
+    assert payload["daily"]["provider"] == "record"
     serialised = json.dumps(payload["daily"], ensure_ascii=False).casefold()
     for row in rows:
         assert row["title"].casefold() not in serialised
@@ -635,7 +644,7 @@ def test_the_payload_carries_a_per_day_rollup_and_it_holds_no_item(tmp_path):
 def test_the_rollup_reports_reads_as_unknown():
     """Mutation: `reads: 0`, which imports as a measurement of nothing read."""
     payload = public.public_shape(corpus())
-    assert all(d["computed_stats"]["reads"] is None
+    assert all(d["raw_data"]["reads"] is None
                for d in payload["daily"]["days"])
 
 

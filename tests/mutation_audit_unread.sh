@@ -448,6 +448,61 @@ run_mutation "the unpaired build says nothing about being unpaired" \
   '        pass' "$PUBLIC"
 
 echo
+echo "STAGE 6 - what adversarial review found on 2026-09-16"
+run_mutation "the redaction goes back to exact match" \
+  scripts/unread/analysis.py \
+  '    folded = unicodedata.normalize("NFKC", str(value)).translate(_CONFUSABLES)
+    return _SPACES.sub(" ", folded).strip().casefold()' \
+  '    return str(value).strip().casefold()' "$ANALYSIS $PUBLIC"
+run_mutation "the confusable punctuation table is emptied" \
+  scripts/unread/analysis.py '.translate(_CONFUSABLES)' '' "$ANALYSIS"
+run_mutation "internal whitespace stops being collapsed" \
+  scripts/unread/analysis.py '    return _SPACES.sub(" ", folded).strip().casefold()' \
+  '    return folded.strip().casefold()' "$ANALYSIS"
+run_mutation "the normalizer collapses two different titles" \
+  scripts/unread/analysis.py '_SPACES = re.compile(r"\\s+")' \
+  '_SPACES = re.compile(r"[\\s\\w]+")' "$ANALYSIS"
+run_mutation "the read column goes back to exact match" \
+  scripts/unread/analysis.py '    keep = lambda name: normalize(name) not in titles  # noqa: E731' \
+  '    keep = lambda name: str(name).strip().casefold() not in titles  # noqa: E731' "$ANALYSIS"
+run_mutation "the read titles are not normalized" \
+  scripts/unread/analysis.py '    return {normalize(t) for t in frame["title"].dropna()' \
+  '    return {str(t).strip().casefold() for t in frame["title"].dropna()' "$ANALYSIS"
+run_mutation "the read title floor comes off" \
+  scripts/unread/analysis.py 'def read_corpus_titles(frame, min_len=12):' \
+  'def read_corpus_titles(frame, min_len=0):' "$ANALYSIS"
+run_mutation "the rollup carries the day's join key" \
+  scripts/unread/analysis.py '                "why_saved_present": with_reason,' \
+  '                "url_sha256": [r.get("url_sha256") for r in rows],
+                "why_saved_present": with_reason,' "$ANALYSIS $PUBLIC"
+run_mutation "the rollup carries the day's titles" \
+  scripts/unread/analysis.py '                "starred": sum(1 for r in rows if r.get("starred") is True),' \
+  '                "titles": [r.get("title") for r in rows],
+                "starred": sum(1 for r in rows if r.get("starred") is True),' "$ANALYSIS $PUBLIC"
+run_mutation "the numbers go back into the column Silo overwrites" \
+  scripts/unread/analysis.py '            "raw_data": {' '            "computed_stats": {' "$ANALYSIS $PUBLIC"
+run_mutation "the provenance sits beside the column instead of inside it" \
+  scripts/unread/analysis.py '                "source": DAILY_SOURCE,
+                "imported_at": stamp,' '' "$ANALYSIS $PUBLIC"
+run_mutation "imported_at loses its time and zone" \
+  scripts/unread/analysis.py \
+  '    stamp = f"{built}T00:00:00Z" if built and "T" not in str(built) else built' \
+  '    stamp = built' "$ANALYSIS"
+run_mutation "the payload claims Silo already accepts the provider" \
+  scripts/unread/analysis.py '    "provider_accepted": False,' '    "provider_accepted": True,' "$ANALYSIS"
+run_mutation "the Silo note stops naming the recompute that erases the import" \
+  scripts/unread/analysis.py '        "add Analytics::StatsService#compute_record_stats, or the first "' \
+  '        "nothing, it just works, "  # ' "$ANALYSIS"
+run_mutation "the per-year pool split goes" \
+  scripts/unread/analysis.py '            "by_year": {y: by_year[y] for y in sorted(by_year)}}' \
+  '            "by_year": {}}' "$ANALYSIS $PUBLIC"
+run_mutation "the per-year split files a folder item in the queue" \
+  scripts/unread/analysis.py \
+  '        side = ("filed_in_folders" if str(record.get("folder") or "").strip()
+                else "unread_queue")' \
+  '        side = "unread_queue"' "$ANALYSIS"
+
+echo
 find . -name "__pycache__" -type d -not -path "./.git/*" -exec rm -rf {} + 2>/dev/null
 echo "Mutations caught: $PASS   escaped or stale: $FAIL"
 

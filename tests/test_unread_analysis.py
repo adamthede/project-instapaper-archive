@@ -702,7 +702,8 @@ def test_the_pool_splits_the_queue_from_the_folders():
             record(url_sha256="2" * 64, folder=""),
             record(url_sha256="3" * 64, folder="Steve Jobs")]
     pool = analysis.pool_split(rows)
-    assert pool == {"unread_queue": 2, "filed_in_folders": 1, "total": 3}
+    assert {k: v for k, v in pool.items() if k != "by_year"} == {
+        "unread_queue": 2, "filed_in_folders": 1, "total": 3}
 
 
 # ---------------------------------------------------------------------------
@@ -828,8 +829,8 @@ def test_the_daily_rollup_is_one_row_per_day_with_its_counts():
     rollup = analysis.daily_rollup(rows)
     days = {d["date_of_summary"]: d for d in rollup["days"]}
     assert len(rollup["days"]) == 2
-    assert days["2018-06-01"]["computed_stats"]["saves"] == 2
-    assert days["2019-01-05"]["computed_stats"]["saves"] == 1
+    assert days["2018-06-01"]["raw_data"]["saves"] == 2
+    assert days["2019-01-05"]["raw_data"]["saves"] == 1
 
 
 def test_the_daily_rollup_is_ordered_by_day():
@@ -854,14 +855,23 @@ def test_a_day_carries_category_counts_and_never_an_item():
             record(url_sha256="2" * 64, saved_date="2018-06-01",
                    abandonment="never_opened", words=100)]
     day = analysis.daily_rollup(rows)["days"][0]
-    stats = day["computed_stats"]
+    stats = day["raw_data"]
     assert stats["by_abandonment"] == {"never_opened": 1, "started": 0,
                                        "nearly_finished": 1}
     assert stats["starred"] == 1
     assert stats["words"] == 1000
+    assert day["word_count"] == 1000
     serialised = repr(day)
     assert "An article title long enough to be a needle" not in serialised
     assert "https://" not in serialised
+
+    # The allowlist, asserted rather than assumed. Adversarial review walked
+    # `url_sha256` into this dict - the join key `five_ws.source_id` calls the
+    # one disclosure this record refuses - and every guard missed it, because
+    # they all constrained the DAY's keys and then greped the inside for the
+    # fixture's own strings. A key this set does not name is a key nobody chose.
+    assert set(day) == analysis.DAILY_DAY_KEYS
+    assert set(stats) == analysis.DAILY_RAW_KEYS
 
 
 def test_a_day_reports_reads_as_unknown_rather_than_zero():
@@ -873,7 +883,7 @@ def test_a_day_reports_reads_as_unknown_rather_than_zero():
     bottom of a chart and call it measurement.
     """
     day = analysis.daily_rollup([record(saved_date="2018-06-01")])["days"][0]
-    assert day["computed_stats"]["reads"] is None
+    assert day["raw_data"]["reads"] is None
     assert "unread" in analysis.DAILY_READS_NOTE.casefold()
 
 
@@ -889,7 +899,7 @@ def test_the_day_carries_the_inferred_reason_presence_rate_not_the_reason():
                    why="He was thinking about attention.", confidence="high"),
             record(url_sha256="2" * 64, saved_date="2018-06-01", why="",
                    confidence="low")]
-    stats = analysis.daily_rollup(rows)["days"][0]["computed_stats"]
+    stats = analysis.daily_rollup(rows)["days"][0]["raw_data"]
     assert stats["why_saved_present"] == 1
     assert stats["why_saved_rate"] == 0.5
     assert "thinking about attention" not in repr(stats)
@@ -904,10 +914,15 @@ def test_the_rollup_declares_its_provider_source_and_provenance():
     """
     rollup = analysis.daily_rollup([record(saved_date="2018-06-01")],
                                    built="2026-09-16")
-    assert rollup["provider"] == "meant-to-read"
-    assert rollup["source"] == "instapaper"
-    assert rollup["imported_at"] == "2026-09-16"
+    assert rollup["provider"] == "record"
+    assert rollup["source"] == "meant-to-read"
+    assert rollup["imported_at"] == "2026-09-16T00:00:00Z"
     assert rollup["timezone"] == "UTC"
+    # The precedent nests provenance inside the column Silo ingests, because
+    # nothing in Silo can see a sibling of it.
+    inner = rollup["days"][0]["raw_data"]
+    assert inner["source"] == "meant-to-read"
+    assert inner["imported_at"] == "2026-09-16T00:00:00Z"
 
 
 def test_an_undated_row_is_reported_rather_than_filed_under_a_guessed_day():
@@ -918,4 +933,113 @@ def test_an_undated_row_is_reported_rather_than_filed_under_a_guessed_day():
     rollup = analysis.daily_rollup([record(url_sha256="1" * 64, saved_date=None),
                                     record(url_sha256="2" * 64, saved_date="2018-06-01")])
     assert rollup["undated"] == 1
-    assert sum(d["computed_stats"]["saves"] for d in rollup["days"]) == 1
+    assert sum(d["raw_data"]["saves"] for d in rollup["days"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# what adversarial review found on 2026-09-16
+# ---------------------------------------------------------------------------
+
+def test_a_near_copy_of_a_title_normalizes_onto_the_title():
+    """Mutation: comparing on `.strip().casefold()`.
+
+    The hole, found by adversarial review: a model reads an article, emits the
+    headline as a "topic" with one curly apostrophe turned straight, and the
+    exact-match redaction publishes it. The leak scan downstream is
+    exact-substring too, so nothing then looks for it - two gates, one blind
+    spot, failing in the same direction. 26 percent of this corpus's titles
+    change under ordinary punctuation folding.
+    """
+    import unicodedata
+    base = "The Crane Wife, and What I Learned About Wanting Less"
+    for variant in (base.replace("'", "’"),
+                    base.replace(",", "—"),  # not a variant: must differ
+                    unicodedata.normalize("NFD", base),
+                    base.replace(" ", "  "),
+                    base.replace(" ", " "),
+                    base.upper()):
+        same = analysis.normalize(variant) == analysis.normalize(base)
+        assert same is (variant != base.replace(",", "—"))
+
+
+def test_normalization_does_not_collapse_two_different_titles():
+    """Mutation: a normalizer so aggressive it merges distinct titles.
+
+    A redaction that drops everything is a record with no topics on it, which
+    is the other way this fails. Two headlines that differ by a word stay two.
+    """
+    assert analysis.normalize("A Very Long Headline About Farming") != \
+        analysis.normalize("A Very Long Headline About Fishing")
+
+
+def test_the_pool_splits_by_year_as_well_as_overall():
+    """Mutation: an overall split only.
+
+    The finding is not the split, it is where it falls. The queue holds nothing
+    from before 2014, so every item that survived fifteen years unread survived
+    in a folder, and the record says that in prose. Prose with a typed number
+    in it is what the payload exists to remove.
+    """
+    rows = [record(url_sha256="1" * 64, year=2011, folder="Steve Jobs"),
+            record(url_sha256="2" * 64, year=2011, folder="Steve Jobs"),
+            record(url_sha256="3" * 64, year=2018, folder=None)]
+    by_year = analysis.pool_split(rows)["by_year"]
+    assert by_year["2011"] == {"unread_queue": 0, "filed_in_folders": 2}
+    assert by_year["2018"] == {"unread_queue": 1, "filed_in_folders": 0}
+
+
+def test_the_read_titles_are_normalized_and_respect_the_floor():
+    """Mutation: an untested producer of the read-column redaction set.
+
+    `read_corpus_titles()` had zero references in any test file. It builds the
+    set the READ column is redacted against, and that column has no leak-scan
+    backstop at all - the needles are this corpus's titles, and the index
+    repository's word list is a hundred hand-kept strings, not 17,320.
+    """
+    frame = read_frame([
+        {"title": "A Read Article Title’s Long Enough", "source": "instapaper",
+         "date_saved": "2018-03-01", "topics": ["X"], "content_corrupted": False,
+         "url": "https://x.example/y"},
+        {"title": "Short", "source": "instapaper", "date_saved": "2018-03-01",
+         "topics": ["X"], "content_corrupted": False, "url": "https://x.example/z"}])
+    titles = analysis.read_corpus_titles(frame)
+    assert analysis.normalize("A Read Article Title's Long Enough") in titles
+    assert analysis.normalize("Short") not in titles
+
+
+def test_the_read_column_drops_a_near_copy_of_an_unread_title():
+    """Mutation: normalizing the unread column and not the read one.
+
+    The read corpus's topics are model-generated out of 17,320 articles and
+    this record publishes them beside the saved ones. A near-copy of an unread
+    title arriving through that column has no scan behind it at all.
+    """
+    title = "A Very Distinctive Headline About Wanting Less"
+    near = title.replace("About", "About ")
+    rows = [record(url_sha256="1" * 64, title=title, topics=("Attention",))]
+    table = analysis.topic_comparison(rows, {2018: {near: 99, "Attention": 5}},
+                                      limit=5, read_extra=5,
+                                      titles={analysis.normalize(title)})
+    assert near not in [r["topic"] for r in table["topics"]]
+
+
+def test_the_rollup_declares_what_a_silo_import_still_needs():
+    """Mutation: a shape that only LOOKS like Silo's.
+
+    Executed against Silo by adversarial review: both "meant-to-read" and the
+    house rule's own "record" fail `ProviderDailySummary#valid?`, and Silo
+    recomputes `computed_stats` from `raw_data`, returning {} for a provider it
+    has no method for - so numbers shipped in `computed_stats` are erased by the
+    first `rake provider_analytics:compute_all` with nothing left to rebuild
+    from. A payload that imports and silently self-destructs is worse than one
+    that says what is missing.
+    """
+    rollup = analysis.daily_rollup([record(saved_date="2018-06-01")])
+    assert rollup["silo_import"]["provider_accepted"] is False
+    needs = " ".join(rollup["silo_import"]["needs"]).casefold()
+    assert "supported_providers" in needs
+    assert "compute_record_stats" in needs
+    assert "word_count" in needs
+    # The numbers are in the column Silo ingests, not the one it overwrites.
+    assert "computed_stats" not in rollup["days"][0]
+    assert rollup["days"][0]["raw_data"]["saves"] == 1
