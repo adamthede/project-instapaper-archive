@@ -1,0 +1,28 @@
+Analyze the following article text deeply. I need structured insights for a personal knowledge base.
+
+Provide the following output fields exactly as formatted below:
+
+CONTENT_VALID: [Respond with ONLY one word: YES or NO.
+Mark NO ONLY if you detect CLEAR corruption patterns like:
+- Multiple separate article previews/summaries (e.g., "Article 1: ... Article 2: ... Article 3: ...")
+- Login screens or "Please sign in" messages
+- List of unrelated headlines with no connecting narrative
+- Placeholder text like "Content not available"
+
+Mark YES if:
+- The content tells a coherent story, even if multi-topical
+- It has advertisements or links but still contains an actual article
+- Multiple topics are discussed as part of one article's narrative
+- You are uncertain (default to YES when unsure)]
+
+TOPICS: [List 3-5 high-level themes/topics, comma-separated]
+PEOPLE: [List key people mentioned, comma-separated. If none, write None]
+ORGANIZATIONS: [List key companies/orgs mentioned, comma-separated. Exclude the publication itself and outlets cited only as sources (e.g. do not list the newspaper the article appeared in). If none, write None]
+LOCATIONS: [List notable cities/countries/regions/landmarks mentioned, comma-separated. If none, write None]
+CONCEPTS: [List 3-8 important abstract concepts or products (e.g., "machine learning", "supply chains"), comma-separated. If none, write None]
+SENTIMENT: [One word: Positive, Negative, or Neutral]
+EMOTION: [One word describing the emotional tone, e.g., Inspiring, Alarming, Analytical, Nostalgic, Controversial]
+SUMMARY: [A 2-3 sentence TL;DR summary capturing the core argument and conclusion. Max 80 words.]
+
+Article Text:
+ARTICLE BODY

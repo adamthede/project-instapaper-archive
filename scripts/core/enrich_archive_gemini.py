@@ -38,9 +38,31 @@ def log_failure(title: str, file_path: str, reason: str, failure_log_path: Path)
     with open(failure_log_path, "a", encoding="utf-8") as f:
         f.write(log_entry)
 
-def build_prompt(content):
+def build_prompt(content, max_chars=10000, extra_fields=""):
     """The one shared prompt - the local (LM Studio) variant imports this
-    so the two backends can never drift apart."""
+    so the two backends can never drift apart.
+
+    Both keyword arguments default to the behaviour that built the read corpus,
+    and `tests/fixtures/base_prompt.golden.txt` pins that default rendering
+    character for character. They exist for the unread corpus
+    (`scripts/unread/enrich.py`), which Adam decided on 2026-09-15 should send
+    whole articles rather than their first 10,000 characters:
+
+        max_chars     None sends the whole body. 28 of the 79 bodies measured
+                      for the unread plan exceed the cap and the longest is
+                      66,476 characters, so under it a third of that corpus
+                      would be summarised from its opening only. Across 492
+                      articles, removing the cap was priced at five cents.
+        extra_fields  Extra output fields, inserted after SUMMARY and before
+                      the article text. Before, because instructions placed
+                      after the body get read as part of the document - a
+                      worse prompt, and a small injection surface on text
+                      fetched from the open web.
+
+    A caller that passes neither gets the read corpus's prompt unchanged.
+    """
+    body = content[:max_chars] if max_chars else content
+    extra = f"{extra_fields.rstrip()}\n" if extra_fields else ""
     return f"""Analyze the following article text deeply. I need structured insights for a personal knowledge base.
 
 Provide the following output fields exactly as formatted below:
@@ -66,9 +88,9 @@ CONCEPTS: [List 3-8 important abstract concepts or products (e.g., "machine lear
 SENTIMENT: [One word: Positive, Negative, or Neutral]
 EMOTION: [One word describing the emotional tone, e.g., Inspiring, Alarming, Analytical, Nostalgic, Controversial]
 SUMMARY: [A 2-3 sentence TL;DR summary capturing the core argument and conclusion. Max 80 words.]
-
+{extra}
 Article Text:
-{content[:10000]}
+{body}
 """
 
 
