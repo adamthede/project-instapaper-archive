@@ -1064,3 +1064,26 @@ def test_the_index_row_count_is_the_whole_frame_not_the_comparison():
     assert analysis.read_corpus_rows(frame) > sum(
         analysis.read_corpus_by_year(frame).values())
     assert analysis.read_corpus_rows(None) is None
+
+
+def test_the_read_side_does_not_add_a_second_row_for_the_same_subject():
+    """Mutation: deduping the paired table on a different key from the filter.
+
+    `topic_comparison` picks the top of the saved pile, then reaches down the
+    read side for subjects that are not already there. "Already there" was
+    decided on casefold while the redaction beside it was decided on normalize,
+    so a read topic differing from a chosen one by one curly apostrophe would
+    be appended as a SECOND row for the same subject - two bars, two
+    percentages, one thing.
+
+    Escaped the audit until this test existed, because every other fixture in
+    this file is plain ASCII and on ASCII the two keys agree exactly.
+    """
+    rows = [record(url_sha256=f"{i:064d}", topics=("Children's Health",))
+            for i in range(3)]
+    read_topics = {2018: {"Children’s Health": 400, "Technology": 9}}
+    table = analysis.topic_comparison(rows, read_topics, limit=1, read_extra=2)
+    names = [r["topic"] for r in table["topics"]]
+    assert names.count("Children's Health") == 1
+    assert "Children’s Health" not in names
+    assert "Technology" in names

@@ -284,8 +284,8 @@ run_mutation "the needle floor comes off" \
 run_mutation "a corpus with no needles publishes anyway" \
   scripts/unread/public.py "    if not titles and not paths:" "    if False:" "$PUBLIC"
 run_mutation "the scan reads raw bytes only" \
-  scripts/unread/public.py 'haystack = (text + "\n" + html_mod.unescape(text)).casefold()' \
-  "haystack = text.casefold()" "$PUBLIC"
+  scripts/unread/public.py '        unescaped = html_mod.unescape(text)' \
+  "        unescaped = text" "$PUBLIC"
 run_mutation "URL paths are not scanned for" \
   scripts/unread/public.py '               + [(p, "url path") for p in paths if len(p) >= min_len])' \
   "               )" "$PUBLIC"
@@ -428,8 +428,8 @@ run_mutation "the cover aggregates never reach the payload" \
   scripts/unread/public.py '        "starred": analysis.starred_count(records),' \
   '        "starred": None,' "$PUBLIC"
 run_mutation "the record publishes its per-day titles" \
-  scripts/unread/public.py '        "daily": analysis.daily_rollup(records, built=today.isoformat()),' \
-  '        "daily": dict(analysis.daily_rollup(records, built=today.isoformat()),
+  scripts/unread/public.py '        "daily": _checked_rollup(records, today),' \
+  '        "daily": dict(_checked_rollup(records, today),
                       titles=[r.get("title") for r in records]),' "$PUBLIC"
 run_mutation "the 5Ws declaration hides the halves that do not ship" \
   scripts/unread/public.py '            "held": True, "published": False, "public_shape": None,
