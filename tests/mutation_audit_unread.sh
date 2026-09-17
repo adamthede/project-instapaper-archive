@@ -256,7 +256,9 @@ run_mutation "drift goes back to a Jaccard against the whole vocabulary" \
   "        mentions = [t for r in grouped[year] for t in _topics(r)]" \
   "        mentions = list({t for r in grouped[year] for t in _topics(r)} | baseline_set)" "$ANALYSIS"
 run_mutation "the comparison ships without its caveat" \
-  scripts/unread/analysis.py '        "caveat": COMPARISON_CAVEAT,' '        "caveat": "",' "$ANALYSIS"
+  scripts/unread/analysis.py '        "read_but_not_saved": read_only,
+        "caveat": COMPARISON_CAVEAT,' '        "read_but_not_saved": read_only,
+        "caveat": "",' "$ANALYSIS"
 run_mutation "a corrupted row joins the topic aggregates" \
   scripts/unread/analysis.py 'return [r for r in records if not r.get("content_corrupted")]' \
   "return list(records)" "$ANALYSIS"
@@ -307,8 +309,10 @@ run_mutation "the record publishes the shortlist itself" \
   '        "still_worth_your_time": shortlist_count,
         "picks": [{"title": r.get("title")} for r in records],' "$PUBLIC"
 run_mutation "the inference count ships without its label" \
-  scripts/unread/public.py '"why_saved": dict(analysis.why_saved_summary(records), kind="inference"),' \
-  '"why_saved": analysis.why_saved_summary(records),' "$PUBLIC"
+  scripts/unread/public.py '"why_saved": dict(analysis.why_saved_summary(records), kind="inference",
+                          by_confidence=analysis.confidence_split(records)),' \
+  '"why_saved": dict(analysis.why_saved_summary(records),
+                          by_confidence=analysis.confidence_split(records)),' "$PUBLIC"
 run_mutation "a leak publishes and then reports itself" \
   scripts/unread/public.py "        found = leak_scan(tmp, titles, paths)
         if found:" "        found = leak_scan(tmp, titles, paths)
@@ -376,6 +380,10 @@ run_mutation "a title-shaped string survives in the read column" \
   scripts/unread/analysis.py \
   '    keep = lambda name: str(name).strip().casefold() not in titles  # noqa: E731' \
   '    keep = lambda name: True  # noqa: E731' "$ANALYSIS"
+run_mutation "the paired topic table ships without its caveat" \
+  scripts/unread/analysis.py '        "unread_corpus": len(records),
+        "caveat": COMPARISON_CAVEAT,' '        "unread_corpus": len(records),
+        "caveat": "",' "$PUBLIC"
 run_mutation "a topic the read corpus never carried gets a zero ratio" \
   scripts/unread/analysis.py \
   '            "ratio": (round(unread_share / read_share, 4)

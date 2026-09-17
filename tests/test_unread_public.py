@@ -717,3 +717,15 @@ def test_the_publish_cli_builds_the_unpaired_half_when_asked(tmp_path, capsys):
     payload = json.loads((out / "public_data.json").read_text())
     assert payload["read_comparison"] is None
     assert "plates 01 and 02 cannot be drawn" in capsys.readouterr().out
+
+
+def test_the_paired_topic_table_carries_the_comparison_caveat():
+    """Mutation: publishing the paired plate stripped of its qualification.
+
+    The record already publishes the caveat once at the top level, and that was
+    enough while the comparison lived in a private report. It is not enough on
+    a plate: the two bars sit side by side, and the reason they are not quite
+    comparable has to travel with the figure rather than with the document.
+    """
+    payload = public.public_shape(corpus(), read_topics={2018: {"Attention": 5}})
+    assert "10,000" in payload["topic_comparison"]["caveat"]
