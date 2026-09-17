@@ -1095,3 +1095,31 @@ def test_the_leak_scan_still_stops_a_publish_on_its_own(tmp_path):
         public.build(rows, out, payload_hook=plant)
     assert "leak scan" in str(exc.value)
     assert not out.exists()
+
+
+def test_a_hook_that_adds_a_harmless_stray_key_is_still_refused(tmp_path):
+    """Mutation: the post-hook shape check, which `public_shape`'s own call
+    makes look redundant.
+
+    It is not redundant, and the difference is exactly the payload hook - the
+    shape of every "just add one field" change this payload will ever get.
+    `public_shape` checks what IT built; only the post-hook call sees what the
+    hook added.
+
+    The stray key here carries nothing private, so the content check has
+    nothing to say about it. That is the division of labour: the content check
+    catches what a key contains, and this catches a key nobody designed.
+    """
+    rows = corpus()
+    out = tmp_path / "record"
+
+    def hook(payload):
+        payload["daily"]["days"][0]["raw_data"]["median_words"] = 1479
+        return payload
+
+    with pytest.raises(public.LeakTestError) as exc:
+        public.build(rows, out, payload_hook=hook)
+    assert "median_words" in str(exc.value)
+    assert not out.exists()
+    # and it is the SHAPE check that refused, not the content one
+    assert public.content_findings(hook(public.public_shape(rows)), rows) == []
