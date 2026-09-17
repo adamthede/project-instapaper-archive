@@ -541,6 +541,43 @@ through the existing Gemini script.
   measurement is the aging of the queue, so it also appends a dated count row so
   the turnover is recorded going forward rather than reconstructed later.
 
+
+## Follow-ups opened by the build (2026-09-16)
+
+**Question 6 needs its own probe pass, and does not have one.** "What
+survives?" asks how much of the queue still serves its article from its own
+URL. The resolve chain cannot answer it and never could: it short-circuits by
+design, trying Instapaper first because its stored copy is the better text, so
+the 353 items Instapaper resolved were never requested from their own URL at
+all. The first build read `resolve_path == "direct"` as "still live" and
+reported 27; on a corpus shaped like this plan's measured 100-item sample that
+same arithmetic gives 4, against the 51 the sample actually measured.
+
+`survival()` now reports which leg recovered the text and refuses to name a
+live-web figure. The real number needs a separate, cheap pass: one HEAD or
+ranged GET per URL across all 492, independent of text resolution, recording
+status and final host. It is about ten minutes of network and it is the whole
+of the link-rot finding, so it should land before the thedetech essay is
+written.
+
+**CONTENT_VALID is not a sufficient gate on the direct-GET leg.** Measured on
+the live run: a PDF's raw bytes (34,457 tokens of object tables), a
+domain-for-sale parking page, a site homepage and two index pages all passed
+it, three of them with the model describing the problem in its own summary
+while returning YES. Two deterministic guards now sit in front of it - a body
+that is a binary document is refused, and a deep saved link that redirects to
+the site root is refused - and those two moved the PDF to metadata-only and
+sent one front-door redirect to a real Wayback snapshot. The parking and index
+pages that serve at their *original* path are still accepted, because
+distinguishing those from a real article is a judgement, and the judgement is
+the model's. That residue is an open question, not a solved one.
+
+**The plan's x.com prediction did not hold, and nothing was discarded on it.**
+The inventory expected x.com bodies to be JavaScript payloads rather than
+articles. All 15 in the live corpus are real prose, 358 to 8,123 words:
+fourteen are X's long-form Articles and one is a substantive thread post. Both
+guards above are decided on the document, never on the host.
+
 ## Build order
 
 | # | Step | Effort |

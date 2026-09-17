@@ -50,6 +50,10 @@ def main(argv=None):
     ap.add_argument("--failure-log", default=str(FAILURE_LOG))
     ap.add_argument("--limit", type=int, default=None,
                     help="resolve at most this many pending items")
+    ap.add_argument("--recheck-leg", default=None,
+                    choices=["instapaper", "direct", "wayback", "metadata"],
+                    help="put every row this leg settled back on the queue "
+                         "before fetching, for when its acceptance rule changed")
     ap.add_argument("--list-only", action="store_true",
                     help="refresh the queue from the API and stop")
     ap.add_argument("--quiet", action="store_true")
@@ -71,6 +75,11 @@ def main(argv=None):
     added = queue.upsert(rows)
     print(f"Queue: {len(queue)} rows ({added} new), {len(queue.pending())} pending "
           f"-> {args.queue}")
+
+    if args.recheck_leg:
+        reopened = rs.reopen_leg(queue, args.recheck_leg)
+        print(f"Recheck: reopened {reopened} row(s) settled by the "
+              f"{args.recheck_leg} leg; {len(queue.pending())} now pending.")
 
     if args.list_only:
         return 0

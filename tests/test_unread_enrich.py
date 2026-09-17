@@ -694,6 +694,56 @@ def test_one_article_the_api_refuses_does_not_kill_the_pass(tmp_path):
     assert again["enriched"] == 1
 
 
+def test_an_enrichment_goes_stale_when_the_fetch_changes_its_mind(tmp_path):
+    """Mutation: keying resumption on the URL hash alone.
+
+    When a fetch leg's acceptance rule is tightened and the leg re-run, rows
+    change their resolve path and their body. An enrichment that only asks "have
+    I seen this hash" keeps the summary built from the text that was just
+    rejected - which is exactly the corpus state the tightening existed to
+    remove, now invisible because the pipeline thinks it is done.
+    """
+    queue, bodies = make_corpus(tmp_path, n=3)
+    out = tmp_path / "unread_enriched.jsonl"
+    enrich.run(queue, bodies_dir=bodies, out_path=out, model=FakeModel())
+    assert len(enrich.load_records(out)) == 3
+
+    # The fetch stage revisits one row and now finds nothing.
+    changed = queue.rows()[1]["url_sha256"]
+    queue.mark(changed, outcome="metadata_only", resolve_path="metadata",
+               body_path=None, body_words=0)
+
+    model = FakeModel()
+    summary = enrich.run(queue, bodies_dir=bodies, out_path=out, model=model)
+    assert summary["enriched"] == 1
+    assert summary["restated"] == 1
+
+    # Count the FILE, not a dict keyed by hash - a dict silently collapses the
+    # duplicate this assertion exists to catch.
+    on_disk = enrich.load_records(out)
+    assert len(on_disk) == 3, "the stale record was replaced, not duplicated"
+    assert len({r["url_sha256"] for r in on_disk}) == 3
+    records = {r["url_sha256"]: r for r in on_disk}
+    assert records[changed]["resolve_path"] == "metadata"
+    assert records[changed]["enriched_from"] == "metadata"
+
+
+def test_an_unchanged_row_is_still_skipped_after_a_recheck(tmp_path):
+    """Mutation: a staleness check so loose it re-enriches the whole corpus.
+
+    492 articles is $0.24 a pass. A recheck that touched 27 rows must not bill
+    for 492.
+    """
+    queue, bodies = make_corpus(tmp_path, n=4)
+    out = tmp_path / "unread_enriched.jsonl"
+    enrich.run(queue, bodies_dir=bodies, out_path=out, model=FakeModel())
+
+    model = FakeModel()
+    summary = enrich.run(queue, bodies_dir=bodies, out_path=out, model=model)
+    assert model.prompts == []
+    assert summary["enriched"] == 0
+
+
 def test_the_run_reports_the_bill_it_actually_ran_up(tmp_path):
     """Mutation: a summary that reports an estimate rather than the meter.
 

@@ -35,6 +35,7 @@ import sys
 from pathlib import Path
 
 from . import derive
+from . import queue as queue_mod
 from .resolve import ItemStalled, deadline
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
@@ -423,8 +424,26 @@ def load_records(path):
             if line.strip()]
 
 
-def _already_done(path):
-    return {r["url_sha256"] for r in load_records(path)}
+# What an enriched record must still agree with in the queue. If the fetch
+# stage revisits a row - a leg's acceptance rule tightened, a re-run reached
+# something it could not reach before - the summary was built from text that no
+# longer stands, and resuming on the hash alone would keep it forever.
+FETCH_FACTS = ("resolve_path", "body_words")
+
+
+def _existing(path):
+    return {r["url_sha256"]: r for r in load_records(path)}
+
+
+def is_stale(record, row):
+    """Whether an enriched record still describes what the queue now holds."""
+    return any((record.get(f) or 0) != (row.get(f) or 0) for f in FETCH_FACTS)
+
+
+def _rewrite(path, records):
+    """Replace the file atomically: a re-enrichment updates, never appends."""
+    body = "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in records)
+    queue_mod._atomic_write(Path(path), body)
 
 
 def read_body(bodies_dir, row):
@@ -444,10 +463,17 @@ def run(queue, *, bodies_dir, out_path, model, limit=None, dry_run=False,
     one article. Returns the meter reading: tokens and dollars actually spent.
     """
     out_path = Path(out_path)
-    done = _already_done(out_path)
-    rows = [r for r in queue.rows()
-            if r.get("outcome") in ("resolved", "metadata_only")
-            and r["url_sha256"] not in done]
+    existing = _existing(out_path)
+    settled = [r for r in queue.rows()
+               if r.get("outcome") in ("resolved", "metadata_only")]
+    rows, stale_keys = [], set()
+    for row in settled:
+        record = existing.get(row["url_sha256"])
+        if record is None:
+            rows.append(row)
+        elif is_stale(record, row):
+            rows.append(row)
+            stale_keys.add(row["url_sha256"])
     if limit:
         rows = rows[:limit]
 
@@ -457,6 +483,7 @@ def run(queue, *, bodies_dir, out_path, model, limit=None, dry_run=False,
         summary["candidates"] = len(rows)
         summary["stalled"] = 0
         summary["failed"] = 0
+        summary["restated"] = len(stale_keys)
         summary["dry_run"] = True
         return summary
 
@@ -498,10 +525,18 @@ def run(queue, *, bodies_dir, out_path, model, limit=None, dry_run=False,
             continue
 
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_path, "a", encoding="utf-8") as handle:
-            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
-            handle.flush()
-            os.fsync(handle.fileno())
+        if row["url_sha256"] in existing:
+            # A restatement replaces the stale record in place. Appending would
+            # leave two rows for one article and let the older one win on a
+            # later read.
+            existing[row["url_sha256"]] = record
+            _rewrite(out_path, list(existing.values()))
+        else:
+            existing[row["url_sha256"]] = record
+            with open(out_path, "a", encoding="utf-8") as handle:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
 
         if progress:
             progress(index, len(rows), row, record, ledger)
@@ -510,5 +545,6 @@ def run(queue, *, bodies_dir, out_path, model, limit=None, dry_run=False,
     summary["invalid"] = failures
     summary["stalled"] = stalled
     summary["failed"] = refused
+    summary["restated"] = len(stale_keys & {r["url_sha256"] for r in rows})
     summary["candidates"] = len(rows)
     return summary

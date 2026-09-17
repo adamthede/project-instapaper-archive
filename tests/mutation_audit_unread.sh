@@ -83,6 +83,28 @@ run_mutation "the Instapaper leg stops ending the item" \
   "    attempt, text, html = _leg_instapaper(row, instapaper, sleeper)
     attempts.append(attempt)
     if False:" "$FETCH"
+run_mutation "a binary document is accepted as article text" \
+  scripts/unread/resolve.py "    wrong_kind = looks_like_a_document_not_a_page(" \
+  "    wrong_kind = None or (lambda *a, **k: \"\")(" "$FETCH"
+run_mutation "the binary magic check goes, leaving only the header" \
+  scripts/unread/resolve.py '    head = (body or "")[:8]' '    head = ""' "$FETCH"
+run_mutation "a redirect to the site front door is accepted" \
+  scripts/unread/resolve.py "    wrong_page = landed_on_the_front_door(url, getattr(resp, \"url\", None))" \
+  "    wrong_page = \"\"" "$FETCH"
+run_mutation "the front-door guard fires on any redirect" \
+  scripts/unread/resolve.py "    if final_path:
+        return \"\"" "    if False:
+        return \"\"" "$FETCH"
+run_mutation "a recheck reopens every leg, not the one named" \
+  scripts/unread/resolve.py '        if row.get("resolve_path") != leg:' "        if False:" "$FETCH"
+run_mutation "a reopened row keeps its old verdict" \
+  scripts/unread/resolve.py "                   resolve_path=None, body_path=None, body_words=None," \
+  "                   body_words=None," "$FETCH"
+run_mutation "the enrichment never notices a row the fetch revisited" \
+  scripts/unread/enrich.py '    return any((record.get(f) or 0) != (row.get(f) or 0) for f in FETCH_FACTS)' \
+  "    return False" "$ENRICH"
+run_mutation "a restated record is appended instead of replacing" \
+  scripts/unread/enrich.py "        if row[\"url_sha256\"] in existing:" "        if False:" "$ENRICH"
 run_mutation "the rate limit between Instapaper calls" \
   scripts/unread/resolve.py "INSTAPAPER_DELAY = 0.8" "INSTAPAPER_DELAY = 0.0" "$FETCH"
 run_mutation "script and style survive text extraction" \
@@ -178,7 +200,7 @@ run_mutation "one stalled article stops the enrichment pass" \
   scripts/unread/enrich.py "            with deadline(item_deadline):" \
   "            with deadline(0):" "$ENRICH"
 run_mutation "the enrichment re-runs over what it already did" \
-  scripts/unread/enrich.py "    done = _already_done(out_path)" "    done = set()" "$ENRICH"
+  scripts/unread/enrich.py "    existing = _existing(out_path)" "    existing = {}" "$ENRICH"
 
 echo
 echo "STAGE 3 - the analysis rules"

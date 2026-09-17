@@ -73,6 +73,28 @@ TIMEOUT = 30
 # so 180 seconds is generous for a healthy item and decisive for a stuck one.
 ITEM_DEADLINE = 180
 
+# What the direct leg will accept as a document. Both checks are decided on the
+# response, never on the host: the plan predicted x.com would serve JavaScript
+# payloads, and the live corpus says otherwise - all 15 are real prose, 358 to
+# 8,123 words, fourteen of them X's long-form Articles. A host guard would have
+# discarded two Ray Dalio essays and an Anthropic announcement.
+#
+# What the live run actually served, past a 150-word floor AND past the
+# enrichment prompt's CONTENT_VALID check:
+#
+#   a PDF          34,457 "words" of object tables and stream offsets, which
+#                  the model summarised as "a collection of PDF metadata ...
+#                  does not contain a coherent narrative" and marked YES
+#   a parked domain  820 words of prose offering the domain for sale, at HIGH
+#                  confidence
+#   three index or front-door pages, one summarised as "a compilation of recent
+#                  news headlines" - which CONTENT_VALID's own instructions say
+#                  to mark NO
+#
+# So the model cannot be the only gate on this leg. These two are arithmetic.
+HTML_TYPES = ("text/html", "application/xhtml+xml", "text/plain")
+BINARY_MAGIC = ("%PDF", "PK\x03\x04", "\x89PNG", "GIF8", "\xff\xd8\xff")
+
 WAYBACK_HOST = "web.archive.org"
 WAYBACK_PREFIX = f"https://{WAYBACK_HOST}/web/"
 
@@ -176,6 +198,46 @@ def _accept(text):
     return words >= WORD_FLOOR, words
 
 
+def looks_like_a_document_not_a_page(body, content_type=""):
+    """Whether this response is a binary document rather than a web page.
+
+    Checked on the declared type AND the leading bytes: a server that labels a
+    PDF correctly should be refused on the label alone, and one that labels it
+    `text/html` should still be refused on its magic bytes. Bytes are not
+    words, whatever a whitespace split makes of them.
+    """
+    declared = (content_type or "").split(";")[0].strip().lower()
+    if declared and not any(declared.startswith(t) for t in HTML_TYPES):
+        return f"not html: {declared}"
+    head = (body or "")[:8]
+    for magic in BINARY_MAGIC:
+        if head.startswith(magic):
+            return f"not html: binary document ({magic.strip()!r})"
+    return ""
+
+
+def landed_on_the_front_door(saved_url, final_url):
+    """Whether a deep saved link redirected to the site's root.
+
+    A dead article very often redirects to a homepage, a section index or a
+    domain-for-sale notice, each with hundreds of words of coherent prose. The
+    fetch succeeded; the article is still gone.
+
+    Only the root counts. Publishers move articles and add tracking segments
+    constantly, so landing on a DIFFERENT deep path is normal - and a save that
+    was always a homepage may legitimately resolve at one.
+    """
+    if not saved_url or not final_url:
+        return ""
+    saved_path = urlsplit(str(saved_url)).path.strip("/")
+    final_path = urlsplit(str(final_url)).path.strip("/")
+    if not saved_path:
+        return ""  # the save itself was the front door
+    if final_path:
+        return ""
+    return "the front door: a deep saved link redirected to the site root"
+
+
 def _leg_instapaper(row, client, sleeper):
     sleeper(INSTAPAPER_DELAY)
     bookmark_id = row.get("bookmark_id")
@@ -201,6 +263,16 @@ def _leg_direct(row, http, sleeper):
         return Attempt(DIRECT, None, False, 0, f"{type(exc).__name__}"), "", ""
     if resp.status_code != 200:
         return Attempt(DIRECT, resp.status_code, False, 0, ""), "", ""
+
+    wrong_kind = looks_like_a_document_not_a_page(
+        resp.text, (getattr(resp, "headers", None) or {}).get("Content-Type", ""))
+    if wrong_kind:
+        return Attempt(DIRECT, 200, False, 0, wrong_kind), "", ""
+
+    wrong_page = landed_on_the_front_door(url, getattr(resp, "url", None))
+    if wrong_page:
+        return Attempt(DIRECT, 200, False, 0, wrong_page), "", ""
+
     text = extract_text(resp.text)
     ok, words = _accept(text)
     return (Attempt(DIRECT, 200, ok, words, "" if ok else "below word floor"),
@@ -263,6 +335,29 @@ def resolve_one(row, *, instapaper, http, sleeper=time.sleep):
     # An item that resolves nowhere still carries a title, a domain, a saved
     # date and a word count, and it is still an intention.
     return Resolution(METADATA, "", "", False, attempts)
+
+
+def reopen_leg(queue, leg):
+    """Put every row that a given leg settled back on the queue.
+
+    For when a leg's acceptance rule changes: the old verdicts were reached
+    under the old rule and have to be revisited, but only that leg's. Re-running
+    Instapaper's share would pay its rate limit again for nothing.
+
+    The row forgets the whole verdict, not just the outcome - a row still
+    carrying `resolve_path` and a body path while marked pending would report
+    the old answer in every aggregate until the re-run finished.
+    """
+    reopened = 0
+    for row in list(queue.rows()):
+        if row.get("resolve_path") != leg:
+            continue
+        queue.mark(row["url_sha256"], outcome=queue_mod.PENDING,
+                   resolve_path=None, body_path=None, body_words=None,
+                   attempts=[], reopened_at=dt.datetime.now(
+                       dt.timezone.utc).isoformat(timespec="seconds"))
+        reopened += 1
+    return reopened
 
 
 def body_path_for(url_sha256):

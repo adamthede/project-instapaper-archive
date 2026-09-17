@@ -432,6 +432,128 @@ def test_instapaper_400_is_recorded_as_an_attempt_with_its_status():
     assert first.path == "instapaper" and first.status == 400 and first.ok is False
 
 
+# A minimal document with a PDF's magic bytes and structure. Synthetic, but it
+# reproduces exactly what the live run hit: one saved link served a PDF, and
+# 34,457 "words" of object tables and stream offsets went to the model, which
+# summarised them as "a collection of PDF metadata ... does not contain a
+# coherent narrative" and then marked CONTENT_VALID: YES.
+PDF_BYTES = ("%PDF-1.4\n%\xe2\xe3\xcf\xd3\n528 0 obj\n<< /Linearized 1 >>\nendobj\n"
+             + "xref\n528 0 obj << /Type /Page >> endobj stream endstream " * 200)
+
+# A parked domain, as frontdeveloper.pl served one on the live run: 820 words of
+# real Polish prose about buying the domain, which the model happily summarised
+# as "a listing for the sale of the domain" at HIGH confidence.
+PARKING_PAGE = ("<html><body><h1>Oferta sprzedazy domeny</h1><p>"
+                + "Ta domena jest na sprzedaz w serwisie aftermarket. " * 80
+                + "</p></body></html>")
+
+
+def test_a_pdf_served_to_the_direct_leg_is_not_article_text():
+    """Mutation: accepting any 200 with enough "words" in it.
+
+    Found on the live corpus. A PDF's object tables and stream offsets split
+    into 34,457 whitespace-separated tokens, which clears a 150-word floor by
+    two orders of magnitude. The enrichment prompt's CONTENT_VALID guard did
+    not catch it either - the model described the problem in its own summary
+    and still returned YES.
+
+    Bytes are not words. This is decided on the document, not on the model.
+    """
+    url = "https://example.com/a-long-article-path"
+    http = FakeHTTP(gets={url: FakeResponse(200, PDF_BYTES, url=url)})
+    res = rs.resolve_one(row_for(bid=1), instapaper=FakeInstapaper(texts={1: (400, "")}),
+                         http=http, sleeper=Sleeper())
+    assert res.path == "metadata"
+    direct = [a for a in res.attempts if a.path == "direct"][0]
+    assert "not html" in direct.note.lower() or "pdf" in direct.note.lower()
+
+
+def test_a_non_html_content_type_is_refused_before_it_is_counted():
+    """Mutation: sniffing the body but trusting the header, or the reverse.
+
+    A server that labels a PDF correctly should be refused on the label alone,
+    without the pipeline having to recognise every binary format by its magic
+    bytes.
+    """
+    url = "https://example.com/a-long-article-path"
+    resp = FakeResponse(200, body(400), url=url,
+                        headers={"Content-Type": "application/pdf"})
+    res = rs.resolve_one(row_for(bid=1), instapaper=FakeInstapaper(texts={1: (400, "")}),
+                         http=FakeHTTP(gets={url: resp}), sleeper=Sleeper())
+    assert res.path == "metadata"
+
+
+def test_a_direct_fetch_that_lands_on_the_site_front_door_is_not_the_article():
+    """Mutation: accepting whatever the host redirects you to.
+
+    Measured on the live run: a dead article on a deep path redirects to the
+    site's homepage, an index page, or a domain-for-sale notice - each with
+    hundreds of words of perfectly coherent prose that the model summarises
+    without complaint. The article is gone; the fetch succeeded at reaching
+    something else.
+    """
+    saved = "https://example.com/2016/11/the-article-that-is-gone"
+    http = FakeHTTP(gets={saved: FakeResponse(200, PARKING_PAGE,
+                                              url="https://example.com/")})
+    res = rs.resolve_one(row_for(bid=1, url=saved),
+                         instapaper=FakeInstapaper(texts={1: (400, "")}),
+                         http=http, sleeper=Sleeper())
+    assert res.path == "metadata"
+    direct = [a for a in res.attempts if a.path == "direct"][0]
+    assert "front door" in direct.note.lower() or "root" in direct.note.lower()
+
+
+def test_a_direct_fetch_that_stays_on_the_article_is_accepted():
+    """Mutation: a front-door guard so blunt it refuses every redirect.
+
+    Publishers move articles and add tracking segments constantly. Landing on a
+    different deep path is normal; landing on the root is the signal.
+    """
+    saved = "https://example.com/2016/11/the-article"
+    landed = "https://example.com/2016/11/the-article-slug-v2?utm_source=x"
+    http = FakeHTTP(gets={saved: FakeResponse(200, body(400), url=landed)})
+    res = rs.resolve_one(row_for(bid=1, url=saved),
+                         instapaper=FakeInstapaper(texts={1: (400, "")}),
+                         http=http, sleeper=Sleeper())
+    assert res.path == "direct"
+
+
+def test_an_item_saved_as_a_site_root_may_still_resolve_at_the_root():
+    """Mutation: a guard that fires on depth it should never have expected.
+
+    Some saves ARE a homepage. Refusing those would invent a dead link.
+    """
+    saved = "https://example.com/"
+    http = FakeHTTP(gets={saved: FakeResponse(200, body(400), url="https://example.com/")})
+    res = rs.resolve_one(row_for(bid=1, url=saved),
+                         instapaper=FakeInstapaper(texts={1: (400, "")}),
+                         http=http, sleeper=Sleeper())
+    assert res.path == "direct"
+
+
+def test_the_x_com_long_form_articles_are_not_discarded():
+    """Mutation: a host guard on x.com or twitter.com.
+
+    The plan predicted that x.com bodies would be JavaScript payloads rather
+    than articles, and round 2 of review asked for them to be classed
+    metadata-only on that basis. Checked against the live corpus first: all 15
+    are real prose, 358 to 8,123 words - fourteen are X's long-form Articles
+    and one is a substantive thread post. Discarding them would have thrown
+    away two Ray Dalio essays and an Anthropic announcement.
+
+    The guards here are about the document, never about the host.
+    """
+    tweet_article = ("<html><body><article><h1>The Big Thing</h1><p>"
+                     + "I will start off by wishing you well in these times. " * 60
+                     + "</p></article></body></html>")
+    saved = "https://x.com/RayDalio/status/2041531182018367773"
+    http = FakeHTTP(gets={saved: FakeResponse(200, tweet_article, url=saved)})
+    res = rs.resolve_one(row_for(bid=1, url=saved),
+                         instapaper=FakeInstapaper(texts={1: (400, "")}),
+                         http=http, sleeper=Sleeper())
+    assert res.path == "direct"
+
+
 def test_the_direct_leg_sends_a_browser_user_agent():
     """Mutation: fetching with python-requests' default agent.
 
@@ -777,3 +899,58 @@ def test_the_run_reports_counts_per_leg(tmp_path):
     assert counts["instapaper"] == 1
     assert counts["metadata"] == 1
     assert counts["total"] == 2
+
+
+# ---------------------------------------------------------------------------
+# re-running one leg after tightening it
+# ---------------------------------------------------------------------------
+
+def test_a_recheck_reopens_only_the_leg_named(tmp_path):
+    """Mutation: a recheck that reopens the whole corpus, or nothing at all.
+
+    Tightening the direct leg means its earlier verdicts have to be revisited -
+    but re-running Instapaper's 351 would pay that rate limit again for nothing,
+    and re-running none would leave the old verdicts standing under the new
+    rule. This is the operation that makes a guard change auditable.
+    """
+    path = tmp_path / "unread_queue.jsonl"
+    queue = q.Queue(path)
+    queue.upsert(ip.listing_to_rows([
+        bookmark(bid=1, url="https://a.example/from-instapaper-path"),
+        bookmark(bid=2, url="https://b.example/from-the-direct-leg"),
+        bookmark(bid=3, url="https://c.example/from-nowhere-at-all")], {}))
+    for key, leg, outcome in zip(
+            [r["url_sha256"] for r in queue.rows()],
+            ["instapaper", "direct", "metadata"],
+            ["resolved", "resolved", "metadata_only"]):
+        queue.mark(key, outcome=outcome, resolve_path=leg)
+
+    reopened = rs.reopen_leg(queue, "direct")
+    assert reopened == 1
+
+    again = q.Queue(path)
+    pending = again.pending()
+    assert [r["url"] for r in pending] == ["https://b.example/from-the-direct-leg"]
+    assert {r["resolve_path"] for r in again.rows() if r["outcome"] != "pending"} == \
+        {"instapaper", "metadata"}
+
+
+def test_a_reopened_row_forgets_its_old_verdict(tmp_path):
+    """Mutation: reopening the outcome but leaving the stale path and body.
+
+    A row carrying `resolve_path: direct` and a body file while marked pending
+    would report the old verdict in every aggregate until the re-run happened
+    to finish, and would leave an orphan body if it never did.
+    """
+    path = tmp_path / "unread_queue.jsonl"
+    queue = q.Queue(path)
+    queue.upsert(ip.listing_to_rows([bookmark(bid=1)], {}))
+    key = queue.rows()[0]["url_sha256"]
+    queue.mark(key, outcome="resolved", resolve_path="direct",
+               body_path="aa/bb.txt", body_words=900)
+
+    rs.reopen_leg(queue, "direct")
+    row = q.Queue(path).rows()[0]
+    assert row["outcome"] == "pending"
+    assert row["resolve_path"] is None
+    assert row["body_path"] is None
