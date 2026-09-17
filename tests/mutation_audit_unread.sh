@@ -100,9 +100,12 @@ run_mutation "a hung Instapaper call kills the pass" \
 run_mutation "the per-item deadline is a no-op" \
   scripts/unread/resolve.py '    if not seconds or not hasattr(signal, "SIGALRM"):' \
   "    if True:" "$FETCH"
-run_mutation "a stalled item is dropped instead of recorded" \
-  scripts/unread/resolve.py '                    [Attempt(METADATA, None, False, 0, f"deadline: {exc}")])' \
-  "                    [])" "$FETCH"
+run_mutation "a stall is recorded as a dead link instead of staying retryable" \
+  scripts/unread/resolve.py "                counts[\"stalled\"] = stalled
+                continue" "                counts[\"stalled\"] = stalled
+                queue.mark(row[\"url_sha256\"], outcome=queue_mod.METADATA_ONLY,
+                           resolve_path=METADATA)
+                continue" "$FETCH"
 run_mutation "all 105 folder items enter the pool, not the 97" \
   scripts/unread/instapaper.py "            if progress > 0.0:
                 continue" "            if False:
@@ -137,6 +140,16 @@ run_mutation "the guard on a pathological body" \
   scripts/unread/enrich.py "MAX_BODY_CHARS = 120_000" "MAX_BODY_CHARS = 100_000_000" "$ENRICH"
 run_mutation "a missing confidence defaults to high" \
   scripts/unread/enrich.py 'DEFAULT_CONFIDENCE = "low"' 'DEFAULT_CONFIDENCE = "high"' "$ENRICH"
+run_mutation "a hedged NO is read as a confident NO" \
+  scripts/unread/enrich.py '    if aged == "YES":
+        aged_out = True
+    elif aged == "NO":' '    if aged.startswith("YES"):
+        aged_out = True
+    elif aged.startswith("NO"):' "$ENRICH"
+run_mutation "a wrapped field value falls through to the summary" \
+  scripts/unread/enrich.py \
+  "        if current and stripped and not _looks_like_a_field(stripped):" \
+  "        if False:" "$ENRICH"
 run_mutation "an unknown aged_out becomes False" \
   scripts/unread/enrich.py "        aged_out = None" "        aged_out = False" "$ENRICH"
 run_mutation "the unread lines are left in the summary" \
@@ -189,9 +202,19 @@ run_mutation "corrupted rows set the read baseline" \
 run_mutation "www.nytimes.com and nytimes.com count separately" \
   scripts/unread/analysis.py 'return host[4:] if host.startswith("www.") else host' \
   "return host" "$ANALYSIS"
-run_mutation "archived-only and live-web survival are folded together" \
-  scripts/unread/analysis.py '"live_web": counts.get("direct", 0),' \
-  '"live_web": counts.get("direct", 0) + counts.get("wayback", 0),' "$ANALYSIS"
+run_mutation "survival claims a liveness the chain never measured" \
+  scripts/unread/analysis.py '        "liveness_measured": False,' \
+  '        "liveness_measured": False, "live_web": counts.get("direct", 0),' "$ANALYSIS"
+run_mutation "survival ships without the note that says what it is not" \
+  scripts/unread/analysis.py '        "note": SURVIVAL_NOTE,' '        "note": "",' "$ANALYSIS"
+run_mutation "one article can take the drift peak" \
+  scripts/unread/analysis.py "MIN_DRIFT_ITEMS = 10" "MIN_DRIFT_ITEMS = 0" "$ANALYSIS"
+run_mutation "the public shortlist count is the page size" \
+  scripts/unread/analysis.py \
+  '    return sum(1 for r in records
+               if r.get("aged_out") is False and not r.get("content_corrupted"))' \
+  "    return min(25, sum(1 for r in records
+               if r.get(\"aged_out\") is False and not r.get(\"content_corrupted\")))" "$ANALYSIS"
 run_mutation "an unjudged item becomes eligible for the shortlist" \
   scripts/unread/analysis.py 'if r.get("aged_out") is False and not r.get("content_corrupted")]' \
   'if r.get("aged_out") is not True and not r.get("content_corrupted")]' "$ANALYSIS"
@@ -218,12 +241,20 @@ run_mutation "a corrupted row joins the topic aggregates" \
 
 echo
 echo "STAGE 4 - the public shape and the leak scan"
-run_mutation "a title that is also a published topic stays a needle" \
-  scripts/unread/public.py "            if title.casefold() not in publishable:" \
-  "            if True:" "$PUBLIC"
-run_mutation "collisions are dropped until nothing is left to scan for" \
-  scripts/unread/public.py "    if not titles and not paths:" \
-  "    if not titles and not paths and records:" "$PUBLIC"
+run_mutation "a topic that is an article title is published anyway" \
+  scripts/unread/public.py \
+  '    return [v for v in values if str(v).strip().casefold() not in titles]' \
+  "    return list(values)" "$PUBLIC"
+run_mutation "the band topic lists skip the title-shaped redaction" \
+  scripts/unread/public.py \
+  '"top_topics": drop_title_shaped(values["top_topics"], titles)}' \
+  '"top_topics": values["top_topics"]}' "$PUBLIC"
+run_mutation "the topic table skips the title-shaped redaction" \
+  scripts/unread/public.py \
+  "                  if topic.casefold() not in titles][:40]" \
+  "                  ][:40]" "$PUBLIC"
+run_mutation "a corpus with titles but no title needles publishes" \
+  scripts/unread/public.py "    if has_titles and not titles:" "    if False:" "$PUBLIC"
 run_mutation "the needle floor comes off" \
   scripts/unread/public.py "MIN_NEEDLE = 12" "MIN_NEEDLE = 1" "$PUBLIC"
 run_mutation "a corpus with no needles publishes anyway" \

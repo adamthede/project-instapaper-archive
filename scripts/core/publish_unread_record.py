@@ -36,7 +36,8 @@ def main(argv=None):
     ap.add_argument("--needles", default=None,
                     help="write this corpus's leak needles here, beside the build")
     ap.add_argument("--shortlist", type=int, default=25,
-                    help="the shortlist length; only its COUNT is published")
+                    help="private shortlist page size; the PUBLIC count is the "
+                         "number of pieces that qualified, not this")
     args = ap.parse_args(argv)
 
     records = enrich.load_records(args.enriched)
@@ -44,7 +45,10 @@ def main(argv=None):
         print(f"Nothing enriched at {args.enriched}.", file=sys.stderr)
         return 2
 
-    count = len(analysis.shortlist(records, {}, limit=args.shortlist))
+    # What qualified, not what one page of it holds: publishing
+    # len(shortlist) would publish the --shortlist default rather than a
+    # measurement.
+    count = analysis.shortlist_eligible_count(records)
 
     try:
         result = public.build(records, args.out, needle_file=args.needles,

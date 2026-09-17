@@ -43,6 +43,12 @@ ABANDONMENT_WEIGHT = {derive.NEVER_OPENED: 0.0, derive.STARTED: 0.5,
                       derive.NEARLY: 1.0}
 ABANDONMENT_SCALE = 0.6
 
+# The floor on a year that may be called the peak. Adversarial review showed a
+# single article taking it, and the metric also runs against how much the read
+# corpus carried that year, so a thin year wins twice over. A peak one article
+# can move is not a finding.
+MIN_DRIFT_ITEMS = 10
+
 
 def _topics(record):
     return [str(t).strip() for t in (record.get("ai_topics") or []) if str(t).strip()]
@@ -107,20 +113,38 @@ def dead_fraction_by_year(records):
             for year in sorted(totals)}
 
 
-def survival(records):
-    """Where each item's text still lives.
+SURVIVAL_NOTE = (
+    "This is which leg of the fetch chain produced the text, NOT whether the "
+    "URL is still live. The chain short-circuits: the direct fetch runs only "
+    "where Instapaper held no stored text, so every item Instapaper resolved "
+    "was never probed against its own URL at all. A live-web survival figure "
+    "needs a separate probe of all of them and is not reported here. For "
+    "scale, the plan's 100-item sample measured 51 URLs still serving their "
+    "own article; this chain cannot reproduce that number and does not try."
+)
 
-    Kept apart on purpose: the finding is that about half of a twelve-year
-    reading list no longer serves its article from its own URL, and it is the
-    Internet Archive and Instapaper's stored copies rather than the publishers
-    holding it up. Folding those together erases the finding.
+
+def survival(records):
+    """Where each item's text was recovered from, and what that does not say.
+
+    The first version of this function called the direct-resolved count the
+    live web, and adversarial review caught it. The direct leg only ever runs
+    after Instapaper has failed, so on a corpus shaped like the plan's measured
+    sample it reported 4 items live where the measurement says 51. Question 6
+    of the plan - what survives - needs its own probe, and naming a figure the
+    chain cannot establish would put a wrong number on a public record.
     """
     counts = Counter(r.get("resolve_path") for r in records)
     return {
-        "live_web": counts.get("direct", 0),
-        "archived_only": counts.get("instapaper", 0) + counts.get("wayback", 0),
-        "dead": counts.get("metadata", 0),
+        "instapaper_stored_copy": counts.get("instapaper", 0),
+        "direct_fetch_after_instapaper_failed": counts.get("direct", 0),
+        "wayback_snapshot": counts.get("wayback", 0),
+        "text_recovered": (counts.get("instapaper", 0) + counts.get("direct", 0)
+                           + counts.get("wayback", 0)),
+        "no_text_anywhere": counts.get("metadata", 0),
         "total": len(records),
+        "liveness_measured": False,
+        "note": SURVIVAL_NOTE,
     }
 
 
@@ -280,10 +304,11 @@ def drift_by_year(records, read_topics):
     return report
 
 
-def peak_drift_year(report):
-    """The year the intentions diverged most from the behaviour."""
+def peak_drift_year(report, min_items=MIN_DRIFT_ITEMS):
+    """The year the intentions diverged most, over years with enough evidence."""
     measurable = {y: v["unmatched_share"] for y, v in report.items()
-                  if v.get("unmatched_share") is not None}
+                  if v.get("unmatched_share") is not None
+                  and v.get("items", 0) >= min_items}
     if not measurable:
         return None
     return sorted(measurable.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
@@ -362,6 +387,18 @@ def sources_saved_not_read(records, read_frame, limit=20):
 # ---------------------------------------------------------------------------
 # the shortlist
 # ---------------------------------------------------------------------------
+
+def shortlist_eligible_count(records):
+    """How many pieces qualify, before any page limit.
+
+    `shortlist(limit=n)` truncates, so its length is the caller's page size
+    rather than a measurement - a corpus with 200 qualifying pieces and one
+    with 25 would publish the same number. This is the figure the public record
+    carries.
+    """
+    return sum(1 for r in records
+               if r.get("aged_out") is False and not r.get("content_corrupted"))
+
 
 def shortlist(records, read_topics_now, limit=25):
     """The pieces that hold up today, ranked, each with one line of reasoning.
@@ -467,6 +504,7 @@ def build(records, read_topics=None, read_frame=None, shortlist_limit=25):
         "saved_versus_read": saved_versus_read(records, read_topics),
         "sources_saved_not_read": sources_saved_not_read(records, read_frame),
         "shortlist": shortlist(records, now, limit=shortlist_limit),
+        "shortlist_eligible": shortlist_eligible_count(records),
         # It carries titles and URLs. It ships to reading.adamthede.com behind
         # Cloudflare Access; the public record gets a count at most.
         "shortlist_visibility": "private",

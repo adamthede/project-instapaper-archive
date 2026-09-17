@@ -146,22 +146,42 @@ def test_the_plain_get_leg_is_reported_by_domain():
     assert analysis.direct_resolved_by_domain(rows) == [("x.com", 2), ("nytimes.com", 1)]
 
 
-def test_survival_counts_the_url_serving_its_own_article_separately():
-    """Mutation: calling an item alive because Wayback held a copy of it.
+def test_survival_does_not_claim_a_liveness_the_chain_never_measured():
+    """Mutation: reading `resolve_path == "direct"` as "the URL is still live".
 
-    The link rot finding is precisely that about half of a twelve-year reading
-    list no longer exists on the live web and the Internet Archive and
-    Instapaper's stored copies are what hold it up. Folding those together
-    erases the finding.
+    Found by adversarial review. The chain short-circuits: the direct leg runs
+    ONLY where Instapaper failed, so the 351 items Instapaper resolved were
+    never probed against their own URL at all. Counting the direct-resolved
+    items as the live web understates liveness by the whole Instapaper leg -
+    the plan measured 51 of 100 sampled URLs serving their own article, and
+    this arithmetic would have reported 4.
+
+    The report says what the chain actually establishes and refuses to name a
+    live-web figure it did not measure.
     """
     rows = [record(url_sha256="1" * 64, resolve_path="direct"),
             record(url_sha256="2" * 64, resolve_path="instapaper"),
             record(url_sha256="3" * 64, resolve_path="wayback"),
             record(url_sha256="4" * 64, resolve_path="metadata")]
     survival = analysis.survival(rows)
-    assert survival["live_web"] == 1
-    assert survival["archived_only"] == 2
-    assert survival["dead"] == 1
+    assert "live_web" not in survival
+    assert survival["text_recovered"] == 3
+    assert survival["no_text_anywhere"] == 1
+    assert survival["direct_fetch_after_instapaper_failed"] == 1
+    assert survival["liveness_measured"] is False
+
+
+def test_survival_says_why_it_cannot_report_link_rot():
+    """Mutation: dropping the caveat and letting the numbers read as link rot.
+
+    Question 6 of the plan wants what survives on the live web. Answering it
+    needs a probe of every URL, which the resolve chain deliberately does not
+    do because Instapaper's stored copy is the better text. The gap has to
+    travel with the numbers.
+    """
+    note = analysis.survival(many(3))["note"]
+    assert "short-circuits" in note or "short circuits" in note
+    assert "not" in note.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -340,10 +360,13 @@ def test_the_drift_report_finds_the_year_the_two_corpora_diverged_most():
     """
     frame = read_frame([read_row(date_saved="2018-03-01", topics=("Business Strategy",)),
                         read_row(date_saved="2015-03-01", topics=("Attention",))])
+    # Both years above MIN_DRIFT_ITEMS: the peak is about the metric here, not
+    # about the evidence floor, and a fixture under the floor would pass for
+    # the wrong reason.
     rows = ([record(url_sha256=f"a{i:063d}", year=2018, topics=("Attention",))
-             for i in range(3)]
+             for i in range(12)]
             + [record(url_sha256=f"b{i:063d}", year=2015, topics=("Attention",))
-               for i in range(3)])
+               for i in range(12)])
     report = analysis.drift_by_year(rows, analysis.read_corpus_topics(frame))
     assert report[2018]["unmatched_share"] > report[2015]["unmatched_share"]
     assert analysis.peak_drift_year(report) == 2018
@@ -407,6 +430,39 @@ def test_a_corrupted_row_is_never_recommended():
     assert analysis.shortlist(rows, {"Attention": 10}, limit=10) == []
 
 
+def test_the_public_shortlist_count_is_what_qualified_not_the_page_size():
+    """Mutation: publishing len(shortlist) when the list was truncated.
+
+    `shortlist(limit=25)` returns at most 25 rows, so publishing its length
+    publishes the CLI's default rather than a measurement: a corpus with 200
+    qualifying pieces and one with 25 would print the same number.
+    """
+    rows = [record(url_sha256=f"{i:064d}", aged_out=False) for i in range(40)]
+    assert analysis.shortlist_eligible_count(rows) == 40
+    assert len(analysis.shortlist(rows, {}, limit=25)) == 25
+
+
+def test_peak_drift_ignores_a_year_with_too_little_evidence():
+    """Mutation: letting one article decide the project's headline finding.
+
+    Found by adversarial review: a single-article year can take the peak, and
+    the metric correlates with how much the read corpus carried that year
+    (r = -0.79 on the live data), so a thin year wins twice over. A peak that
+    one article can move is not a finding.
+    """
+    frame = read_frame([read_row(date_saved="2018-03-01", topics=("Attention",)),
+                        read_row(date_saved="2022-03-01", topics=("Attention",))])
+    read_topics = analysis.read_corpus_topics(frame)
+    rows = ([record(url_sha256=f"a{i:063d}", year=2018,
+                    topics=("Obscure Hobby", "Attention")) for i in range(30)]
+            + [record(url_sha256="b" * 64, year=2022, topics=("Another Hobby",))])
+    report = analysis.drift_by_year(rows, read_topics)
+    # 2022 scores higher on the raw metric and is one article.
+    assert report[2022]["unmatched_share"] == 1.0
+    assert report[2018]["unmatched_share"] == 0.5
+    assert analysis.peak_drift_year(report) == 2018
+
+
 def test_a_piece_he_nearly_finished_outranks_one_he_never_opened():
     """Mutation: ignoring the abandonment band in the ranking.
 
@@ -443,15 +499,34 @@ def test_every_pick_carries_one_line_of_reasoning():
         assert "\n" not in pick["reason"]
 
 
-def test_the_shortlist_is_ranked_on_the_enrichment_not_a_fresh_model_pass():
-    """Mutation: calling the model again to rank.
+def test_the_shortlist_score_is_exactly_the_sum_of_its_published_parts():
+    """Mutation: any ranking term that is not in `score_parts`.
 
-    The plan says rank on the enrichment. A fresh pass would cost another run
-    and, worse, would produce a ranking that cannot be traced to any field.
+    A fresh model pass, a recency boost, a random tiebreak - each would change
+    the order while the key names stayed the same, which is why the previous
+    version of this test (a check on the key names alone) could not detect the
+    mutation its docstring named. Adversarial review caught that.
+
+    The plan says rank on the enrichment. What makes that checkable is that the
+    published parts add up to the published score, so a reader can recompute
+    the ranking from fields that are all in the record.
     """
-    picks = analysis.shortlist(many(4), {"Attention": 10}, limit=4)
+    picks = analysis.shortlist(
+        [record(url_sha256=f"{i:064d}", abandonment=band, topics=topics)
+         for i, (band, topics) in enumerate([
+             (derive.NEVER_OPENED, ("Attention",)),
+             (derive.STARTED, ("Obscure Hobby",)),
+             (derive.NEARLY, ("Attention", "Obscure Hobby")),
+             (derive.NEVER_OPENED, ("Obscure Hobby",))])],
+        {"Attention": 10}, limit=4)
+    assert len(picks) == 4
     for pick in picks:
         assert set(pick["score_parts"]) <= {"aged_out", "topic_overlap", "abandonment"}
+        assert pick["score"] == pytest.approx(sum(pick["score_parts"].values()),
+                                              abs=1e-4)
+    # And the order really is that score, descending.
+    assert [p["score"] for p in picks] == sorted((p["score"] for p in picks),
+                                                 reverse=True)
 
 
 def test_the_shortlist_is_deterministic():

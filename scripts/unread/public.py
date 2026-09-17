@@ -78,9 +78,13 @@ def public_shape(records, shortlist_count=None, today=None):
     field is added; an allowlist fails loudly.
     """
     today = today or dt.date.today()
+    titles = corpus_titles(records)
     domains = analysis.by_domain(records)
     aging = analysis.aging_curve(records)
     bands = analysis.abandonment_bands(records)
+    topic_rows = [[topic, count] for topic, count
+                  in analysis.by_topic(records, limit=None).most_common()
+                  if topic.casefold() not in titles][:40]
 
     return {
         "record": "meant-to-read",
@@ -92,8 +96,7 @@ def public_shape(records, shortlist_count=None, today=None):
         "by_domain": [[domain, count] for domain, count in domains[:60]],
         "distinct_domains": len(domains),
         "domain_concentration": _concentration(domains),
-        "by_topic": [[topic, count]
-                     for topic, count in analysis.by_topic(records, limit=40).most_common(40)],
+        "by_topic": topic_rows,
 
         # how much of it still exists, which is the link rot finding
         "survival": analysis.survival(records),
@@ -106,7 +109,7 @@ def public_shape(records, shortlist_count=None, today=None):
         "abandonment_bands": {
             band: {"count": values["count"],
                    "median_words": values["median_words"],
-                   "top_topics": values["top_topics"]}
+                   "top_topics": drop_title_shaped(values["top_topics"], titles)}
             for band, values in bands.items()},
 
         # the inference, as counts only, carrying its label
@@ -136,35 +139,26 @@ def _concentration(domains):
 # the leak scan
 # ---------------------------------------------------------------------------
 
-def publishable_strings(records):
-    """Every string the record publishes verbatim: topics, concepts, hosts.
+def corpus_titles(records, min_len=MIN_NEEDLE):
+    """Every article title in the corpus, case-folded, at the needle floor."""
+    return {str(r.get("title") or "").strip().casefold() for r in records
+            if len(str(r.get("title") or "").strip()) >= min_len}
 
-    A needle identical to one of these cannot distinguish a leaked title from a
-    published topic, because the published topic is there on every build.
+
+def drop_title_shaped(values, titles):
+    """Remove any model-generated string that IS an article title.
+
+    This is the redaction that closes the laundering route, and it runs in the
+    direction that fails safe. The model reads whole articles now that the body
+    cap is off, so it can emit a headline as a "topic" - and a topic ships. The
+    first version of this fix dropped the colliding TITLE from the leak
+    needles, which is exactly backwards: it published the string and then
+    stopped looking for it.
+
+    A dropped topic costs one row of an aggregate. A laundered title costs the
+    record.
     """
-    out = set()
-    for record in records:
-        for field in ("ai_topics", "ai_concepts"):
-            for value in (record.get(field) or []):
-                text = str(value).strip()
-                if text:
-                    out.add(text.casefold())
-        host = str(record.get("domain") or "").strip()
-        if host:
-            out.add(host.casefold())
-    return out
-
-
-def publishable_collisions(records, min_len=MIN_NEEDLE):
-    """Titles dropped as needles because the record publishes that exact string.
-
-    Reported rather than silently discarded: an exclusion nobody can see is
-    indistinguishable from a scan that was quietly narrowed.
-    """
-    publishable = publishable_strings(records)
-    return {str(r.get("title") or "").strip() for r in records
-            if len(str(r.get("title") or "").strip()) >= min_len
-            and str(r.get("title") or "").strip().casefold() in publishable}
+    return [v for v in values if str(v).strip().casefold() not in titles]
 
 
 def private_needles(records, min_len=MIN_NEEDLE):
@@ -182,22 +176,16 @@ def private_needles(records, min_len=MIN_NEEDLE):
     publications by host on purpose, and a host is a fact about the archive
     while a path identifies one article in it.
 
-    A title that IS a string the record publishes - a topic, a concept, a host
-    - is not a needle. Found on the live corpus: one article is titled exactly
-    "Productivity", which is also an extracted topic, and topics ship. Such a
-    needle matches on every build and can never tell a leak from the topic.
-    `publishable_collisions` reports what was dropped this way.
+    EVERY title at the floor is a needle. Nothing is excluded for colliding
+    with a published value - a title that also appears as a topic is handled by
+    not publishing the topic (`drop_title_shaped`), never by not looking for
+    the title.
     """
-    publishable = publishable_strings(records)
     titles, paths = set(), set()
     for record in records:
         title = str(record.get("title") or "").strip()
         if len(title) >= min_len:
-            # The WHOLE title must equal a publishable string, not merely
-            # contain one: "Productivity" goes, "Productivity And The Modern
-            # Office" stays.
-            if title.casefold() not in publishable:
-                titles.add(title)
+            titles.add(title)
         url = record.get("url")
         if url:
             path = urlsplit(str(url)).path.rstrip("/")
@@ -306,13 +294,19 @@ public_data.json  sha256 {digest}
 
 
 def _collision_note(records):
-    dropped = sorted(publishable_collisions(records))
+    """How many model-generated strings were withheld for being article titles."""
+    titles = corpus_titles(records)
+    topics = set(analysis.by_topic(records, limit=None))
+    for band in analysis.abandonment_bands(records).values():
+        topics |= set(band["top_topics"])
+    dropped = [t for t in topics if str(t).strip().casefold() in titles]
     if not dropped:
-        return "No title collided with a string the record publishes."
-    return (f"{len(dropped)} title(s) were dropped as needles because the "
-            f"record publishes that exact string as a topic, concept or host, "
-            f"so they could never distinguish a leak from the published value. "
-            f"They are listed in the needle file rather than here.")
+        return ("No model-generated topic matched an article title, so nothing "
+                "was withheld on that ground.")
+    return (f"{len(dropped)} model-generated topic(s) were withheld from the "
+            f"payload because each IS an article title in this corpus. Every "
+            f"title remained a leak needle; the redaction runs on the "
+            f"published value, never on the scan.")
 
 
 def build(records, out_dir, needle_file=None, payload_hook=None,
@@ -325,16 +319,21 @@ def build(records, out_dir, needle_file=None, payload_hook=None,
     publish a record and then complain about it.
     """
     titles, paths = private_needles(records)
+    has_titles = any(str(r.get("title") or "").strip() for r in records)
+    if has_titles and not titles:
+        raise LeakTestError(
+            f"{len(records)} record(s) carry titles but none reached "
+            f"{MIN_NEEDLE} characters, so nothing would look for a title leak "
+            f"- which is the leak this record exists to prevent. Failing "
+            f"closed on the titles rather than on the union.")
     if not titles and not paths:
         # An absent list is not an empty one. This is the one branch where a
         # silent pass would be indistinguishable from a clean corpus.
         raise LeakTestError(
             f"No leak needles could be derived from {len(records)} record(s): "
-            f"no title or URL path reached {MIN_NEEDLE} characters, or every "
-            f"one collided with a string the record publishes "
-            f"({len(publishable_collisions(records))} dropped that way). This "
-            f"check fails closed, because with nothing to look for every tree "
-            f"passes. Refusing to publish.")
+            f"no title or URL path reached {MIN_NEEDLE} characters. This check "
+            f"fails closed, because with nothing to look for every tree passes. "
+            f"Refusing to publish.")
 
     out = Path(out_dir).resolve()
     _guard(out)
@@ -365,7 +364,8 @@ def build(records, out_dir, needle_file=None, payload_hook=None,
             commit=_commit(), built=(today or dt.date.today()).isoformat(),
             record=RECORD_URL, items=f"{len(records):,}",
             titles=f"{len(titles):,}", paths=f"{len(paths):,}", floor=MIN_NEEDLE,
-            findings="It found nothing.", collisions=_collision_note(records),
+            findings="It found nothing.",
+            collisions=_collision_note(records),
             digest=sha256(data_path)),
             encoding="utf-8")
 
@@ -385,8 +385,7 @@ def build(records, out_dir, needle_file=None, payload_hook=None,
             shutil.rmtree(tmp, ignore_errors=True)
 
     if needle_file is not None:
-        write_needle_file(needle_file, titles, paths,
-                          publishable_collisions(records))
+        write_needle_file(needle_file, titles, paths)
 
     return {"out": out, "items": len(records), "needles": len(titles) + len(paths),
             "titles": len(titles), "paths": len(paths), "leak_findings": 0}
@@ -406,15 +405,10 @@ NEEDLE_HEADER = """# Leak needles from the unread corpus, for data.adamthede.com
 """
 
 
-def write_needle_file(path, titles, paths, collisions=()):
+def write_needle_file(path, titles, paths):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     body = NEEDLE_HEADER.format(titles=len(titles), paths=len(paths), floor=MIN_NEEDLE)
     body += "\n".join(list(titles) + list(paths)) + "\n"
-    if collisions:
-        body += ("\n# Dropped as needles: the record publishes these exact\n"
-                 "# strings as a topic, concept or host, so they can never\n"
-                 "# distinguish a leak from the published value.\n")
-        body += "".join(f"# {c}\n" for c in sorted(collisions))
     path.write_text(body, encoding="utf-8")
     return path

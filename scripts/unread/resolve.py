@@ -296,6 +296,8 @@ def run(queue, *, instapaper, http, bodies_dir, sleeper=time.sleep,
     counts = {leg: 0 for leg in LEGS}
     counts[METADATA] = 0
     counts["total"] = 0
+    counts["stalled"] = 0
+    stalled = 0
 
     todo = queue.pending()
     if limit:
@@ -312,12 +314,26 @@ def run(queue, *, instapaper, http, bodies_dir, sleeper=time.sleep,
                     result = resolver(row, instapaper=instapaper, http=http,
                                       sleeper=sleeper)
             except ItemStalled as exc:
-                # One item's worth of data, not the pass. The stall is recorded
-                # as an attempt so the failure log carries it like any other.
+                # One item's worth of time, not the pass - and NOT a verdict. A
+                # stall is a bad connection, not a dead link, so the row stays
+                # pending and the next run retries it. Recording it as
+                # metadata_only would enter a live URL in the dead-link finding
+                # permanently, which is the hazard the plan names for the
+                # Wayback leg.
                 log.warning("item %s stalled: %s", row.get("url_sha256", "")[:12], exc)
-                result = Resolution(
-                    METADATA, "", "", False,
-                    [Attempt(METADATA, None, False, 0, f"deadline: {exc}")])
+                stalled += 1
+                queue.mark(
+                    row["url_sha256"],
+                    attempts=[Attempt(METADATA, None, False, 0,
+                                      f"deadline: {exc}").as_dict()],
+                    stalled_at=dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+                )
+                if handle:
+                    _log_failure(handle, row, Attempt(METADATA, None, False, 0,
+                                                      f"deadline: {exc}"))
+                    handle.flush()
+                counts["stalled"] = stalled
+                continue
 
             body_path = None
             if result.ok and result.text:

@@ -160,10 +160,21 @@ def test_the_shortlist_is_a_count_and_nothing_more():
     allowed and Adam can judge whether the ranking is any good. The public
     record gets a count.
     """
-    payload = public.public_shape(corpus(), shortlist_count=12)
+    rows = corpus()
+    payload = public.public_shape(rows, shortlist_count=12)
     assert payload["still_worth_your_time"] == 12
-    assert not any(isinstance(v, list) and v and isinstance(v[0], dict)
-                   and "title" in v[0] for v in payload.values())
+    assert isinstance(payload["still_worth_your_time"], int)
+
+    # Not a shape check on the container - the previous version asserted no
+    # list-of-dicts carried a "title" key, which a list of bare title STRINGS
+    # sails past, and its audit mutation had been shaped to match it.
+    # Adversarial review caught the pair. This runs the real scan over the real
+    # serialised payload.
+    titles, paths = public.private_needles(rows)
+    assert titles and paths
+    serialised = json.dumps(payload, ensure_ascii=False).casefold()
+    for needle in list(titles) + list(paths):
+        assert needle.casefold() not in serialised
 
 
 def test_a_low_confidence_inference_is_excluded_from_the_published_counts():
@@ -221,37 +232,61 @@ def test_a_needle_shorter_than_the_floor_is_not_used():
     assert "Hi" not in titles
 
 
-def test_a_title_that_is_also_a_published_topic_cannot_be_a_needle():
-    """Mutation: scanning for a needle the record publishes by design.
+def test_a_topic_that_is_an_article_title_is_dropped_from_the_payload():
+    """Mutation: dropping the TITLE from the needles instead of the topic from
+    the payload - which is how a title gets laundered into the public record.
 
-    Found on the live corpus. One article is titled exactly "Productivity",
-    twelve characters, and "Productivity" is also an extracted topic - and
-    topics ship. That needle matches the published topic on every build, so it
-    cannot tell a leaked title from a published topic, and a scan that is
-    permanently red is a scan somebody turns off.
+    Found by adversarial review of the first fix. One article is titled exactly
+    "Productivity", which is also an extracted topic, and topics ship. The
+    first fix dropped that title as a needle. But the model reads the whole
+    article now that the body cap is off, so it can and does emit a headline as
+    a topic - and then the scan is no longer looking for the one string that
+    would catch it.
 
-    The exclusion is narrow and it is recorded: the whole title must equal a
-    publishable string, not merely contain one.
+    The redaction goes the other way. The colliding TOPIC is not published; the
+    title stays a needle. A topic costs nothing to drop and a laundered title
+    costs the whole record.
     """
-    rows = [record(url_sha256="1" * 64, title="Productivity",
-                   topics=("Productivity", "Attention")),
-            record(url_sha256="2" * 64, title="Productivity And The Modern Office",
-                   topics=("Productivity",))]
+    rows = [record(url_sha256="1" * 64,
+                   title="The Crane Wife, And What I Learned About Wanting Less",
+                   topics=("The Crane Wife, And What I Learned About Wanting Less",
+                           "Attention"))]
+    payload = json.dumps(public.public_shape(rows))
+    assert "The Crane Wife" not in payload
+    assert "Attention" in payload
+
     titles, _ = public.private_needles(rows)
-    assert "Productivity" not in titles
-    assert "Productivity And The Modern Office" in titles
-    assert "Productivity" in public.publishable_collisions(rows)
+    assert "The Crane Wife, And What I Learned About Wanting Less" in titles
 
 
-def test_a_corpus_of_nothing_but_collisions_still_fails_closed(tmp_path):
-    """Mutation: excluding collisions until the needle list is empty, silently.
+def test_no_title_can_be_laundered_through_the_band_topic_lists(tmp_path):
+    """Mutation: filtering the topic table but not the per-band topic lists.
 
-    Dropping every needle leaves a scan with nothing to look for, which passes
-    on any tree. The build must refuse rather than publish unscanned, whatever
-    emptied the list.
+    `abandonment_bands[band]["top_topics"]` is a second, separate route for a
+    model-generated string to reach the page, and a band can be small enough
+    that a single article's headline makes its top eight.
     """
-    rows = [record(url_sha256="1" * 64, title="Productivity",
-                   topics=("Productivity",), url="https://x.io/a")]
+    rows = [record(url_sha256=f"{i:064d}", abandonment="nearly_finished",
+                   title=f"A Distinctive Headline Number {i} About Wanting Less",
+                   topics=(f"A Distinctive Headline Number {i} About Wanting Less",))
+            for i in range(3)]
+    out = tmp_path / "record"
+    public.build(rows, out)
+    text = published_text(out)
+    for row in rows:
+        assert row["title"] not in text
+
+
+def test_a_corpus_whose_titles_all_fall_below_the_floor_fails_closed(tmp_path):
+    """Mutation: publishing with zero title needles because only paths survived.
+
+    Failing closed on the UNION lets a build run with nothing looking for a
+    title at all, while PROVENANCE.md reports it walked the tree for 0 titles.
+    A corpus that has titles and produced no title needle cannot detect a title
+    leak, and that is the leak this record exists to prevent.
+    """
+    rows = [record(url_sha256="1" * 64, title="Hi",
+                   url="https://x.io/a-nice-long-path-here")]
     with pytest.raises(public.LeakTestError):
         public.build(rows, tmp_path / "record")
 

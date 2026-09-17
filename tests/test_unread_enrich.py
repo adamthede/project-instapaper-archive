@@ -275,6 +275,47 @@ def test_a_missing_aged_out_is_unknown_rather_than_false():
     assert enrich.parse_unread_response(without)["aged_out"] is None
 
 
+@pytest.mark.parametrize("answer", ["No idea", "None", "Not sure", "Nope, timeless",
+                                    "Unclear", "N/A"])
+def test_a_hedged_no_is_not_a_confident_no(answer):
+    """Mutation: `startswith("NO")`, which swallows every hedge as a verdict.
+
+    Found by adversarial review. "No idea" and "Not sure" both start with NO,
+    so the prefix test turned every hedge into aged_out=False - the exact
+    outcome the code above that branch says must never be defaulted to, and
+    the one that makes a row eligible for the shortlist.
+    """
+    parsed = enrich.parse_unread_response(
+        ANSWER.replace("AGED_OUT: NO", f"AGED_OUT: {answer}"))
+    assert parsed["aged_out"] is None
+
+
+@pytest.mark.parametrize("answer,expected", [("YES", True), ("Yes.", True),
+                                             ("NO", False), ("No.", False),
+                                             ("no", False)])
+def test_a_plain_yes_or_no_still_parses(answer, expected):
+    """Mutation: a check so strict it rejects the answers the prompt asks for."""
+    parsed = enrich.parse_unread_response(
+        ANSWER.replace("AGED_OUT: NO", f"AGED_OUT: {answer}"))
+    assert parsed["aged_out"] is expected
+
+
+def test_a_wrapped_why_saved_does_not_bleed_into_the_summary():
+    """Mutation: splitting only lines that START with a field prefix.
+
+    A model wrapping a long WHY_SAVED sentence emits a continuation line with
+    no prefix. The base parser treats any unprefixed line after SUMMARY as more
+    summary, so the tail of the inference lands in ai_summary - putting the
+    field the schema keeps separate back inside the one it ships.
+    """
+    wrapped = ANSWER.replace(
+        "WHY_SAVED: He was reading about attention in the year he stopped finishing things.",
+        "WHY_SAVED: He was reading about attention in the year\nhe stopped finishing things.")
+    parsed = enrich.parse_unread_response(wrapped)
+    assert parsed["ai_summary"] == "An argument that the web rewires how we read."
+    assert parsed["why_saved"].endswith("he stopped finishing things.")
+
+
 def test_content_valid_no_marks_the_record_corrupted():
     """Mutation: dropping the CONTENT_VALID guard on the direct-GET leg.
 

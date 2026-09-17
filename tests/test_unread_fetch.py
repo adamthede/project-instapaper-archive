@@ -666,11 +666,15 @@ def test_one_stalled_item_cannot_stop_the_pass(tmp_path):
 
     rows = {r["url"]: r for r in q.Queue(path).rows()}
     stalled = rows["https://example.com/the-one-that-hangs"]
-    assert stalled["outcome"] == "metadata_only"
+    # A stall is transient and stays retryable. Recording it as metadata_only
+    # would permanently enter a live URL in the dead-link finding on the
+    # strength of one bad connection - the exact hazard the plan names for the
+    # Wayback leg, and adversarial review caught it here.
+    assert stalled["outcome"] == "pending"
     assert any("deadline" in (a.get("note") or "") for a in stalled["attempts"])
     assert rows["https://example.com/the-one-after-it"]["outcome"] == "resolved"
-    assert counts["total"] == 2
-    assert q.Queue(path).pending() == []
+    assert counts["stalled"] == 1
+    assert len(q.Queue(path).pending()) == 1
 
 
 def test_a_resolved_body_is_written_and_the_row_points_at_it(tmp_path):

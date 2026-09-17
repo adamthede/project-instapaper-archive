@@ -30,6 +30,7 @@ import datetime as dt
 import json
 import logging
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -163,15 +164,35 @@ def _split_unread_lines(answer):
     separate from it.
     """
     kept, taken = [], {}
+    current = None
     for line in (answer or "").splitlines():
         stripped = line.strip()
+        matched = None
         for prefix in UNREAD_PREFIXES:
             if stripped.startswith(prefix):
-                taken[prefix] = stripped[len(prefix):].strip()
+                matched = prefix
                 break
-        else:
-            kept.append(line)
+        if matched:
+            taken[matched] = stripped[len(matched):].strip()
+            current = matched
+            continue
+        if current and stripped and not _looks_like_a_field(stripped):
+            # A wrapped value continues its own field. Without this the tail of
+            # a long WHY_SAVED falls through to the base parser, which treats
+            # any unprefixed line after SUMMARY as more summary - putting the
+            # inference back inside the field the schema keeps it out of.
+            taken[current] = (taken[current] + " " + stripped).strip()
+            continue
+        current = None
+        kept.append(line)
     return "\n".join(kept), taken
+
+
+FIELD_LINE = re.compile(r"^[A-Z][A-Z_]{2,}:")
+
+
+def _looks_like_a_field(line):
+    return bool(FIELD_LINE.match(line))
 
 
 def parse_unread_response(answer):
@@ -190,10 +211,17 @@ def parse_unread_response(answer):
     if confidence not in CONFIDENCE:
         confidence = DEFAULT_CONFIDENCE
 
-    aged = taken.get("AGED_OUT:", "").strip().upper()
-    if aged.startswith("YES"):
+    # The WHOLE answer, stripped of punctuation, must be exactly YES or NO.
+    # The prompt asks for one word, so anything longer is a model declining to
+    # answer rather than answering. `startswith("NO")` swallowed "No idea",
+    # "None", "Not sure" and "Nope, timeless" as a confident False - the one
+    # default the branch below exists to forbid, and the one that makes a row
+    # eligible for the shortlist. Strictness fails toward "unknown", which is
+    # excluded from the denominator and states the uncertainty honestly.
+    aged = taken.get("AGED_OUT:", "").strip().upper().strip(".,:;!?\"' ")
+    if aged == "YES":
         aged_out = True
-    elif aged.startswith("NO"):
+    elif aged == "NO":
         aged_out = False
     else:
         # Unknown, not False: defaulting would quietly move every unanswered
