@@ -56,6 +56,68 @@ exactly as that two-line commit would do it.
 2026-09-17). Anything round 4 still flags is recorded below with the reviewer's
 evidence linked; the PR stays open and Adam decides at his gate.
 
+## Round 4, and where this stopped
+
+Verification pass, and the lane stops here by decision rather than by verdict
+(team lead, 2026-09-17). Evidence:
+https://github.com/adamthede/project-instapaper-archive/pull/30#issuecomment-5714813406
+
+**What holds, each attacked rather than assumed.** All four round-3 blockers
+replay red on the real 492-record corpus, including the two-line
+self-declaration with its promised message. The depth claim is true at 4, 5, 6,
+7, 8 and 12 levels. The guard runs after `payload_hook`. No false positives on
+the untouched payload. No shadowed definitions across 99 files. 142/142 and
+143/143 mutation anchors resolve exactly once.
+
+**The hex floor answered a question neither of us asked.** A 6-hex prefix is
+already fully distinct across 492 items, so distinctness was never the binding
+constraint: 16 is a threshold, not a floor, and everything below is open.
+
+## Open items from round 4 - Adam's gate, not this lane's
+
+Ordered by how much of the corpus each would publish, not by effort.
+
+1. **The dashed digest. 492 of 492, complete and unmodified.** `_HEXISH`'s own
+   word boundaries mean any non-hex character resets the run, so a dash every
+   four characters turns a 64-character digest into sixteen 4-character runs.
+   Recoverable with one `.replace("-","")`. The reviewer would fix this first
+   and so would I.
+2. **Sub-threshold prefixes.** 15-hex and 12-hex both pass, both rejoin 492 of
+   492 uniquely, and a synthetic non-corpus probe returns False - a working
+   confirmable-guess oracle, which is the disclosure `five_ws.source_id` names.
+3. **Other encodings of the same hash:** a list of 8-character chunks, a float
+   whose mantissa carries 13 hex digits, two integers of 9 hex each, base32 of
+   ten digest bytes. None caught.
+4. **`float` has no branch in the walk.** `bool` was correctly ordered before
+   `int`, so the type lattice was thought about, and the one numeric type JSON
+   round-trips losslessly has no arm. An `else` closes it and closes the next
+   unknown type with it.
+5. **A join key made of honest small integers.** A per-day sorted list of
+   `body_words` reads as a legitimate length distribution; 492 of 492 pairs
+   rejoin and 487 resolve to exactly one row. `content_findings` cannot see
+   this by construction. A row-ordinal list is the same class.
+6. **`content_findings` never runs on the written TREE.** Both call sites take
+   the payload object. Digests added to the `PROVENANCE.md` template published
+   493 full 64-hex runs with `public_data.json` clean and the suite green.
+   `RECORD_FILES` already anticipates `index.html` and `thumb.jpg`, so the page
+   lane lands in the same blind spot.
+7. **Four single-edit neuters of the guard** that the suite does not catch.
+8. **Sub-floor titles.** `MIN_NEEDLE = 12` gates both the title set and the
+   needles, and 4 real corpus titles are non-empty and shorter than that, plus
+   11 URL paths. The record's rule is "no titles and no URLs, at all"; the
+   floor makes it "no titles over eleven characters."
+9. **No content-shape backstop downstream.** The record repo's only redaction
+   assertion on this payload is a key-name denylist over the rendered page,
+   which is the shape three rounds have been closing, one repository over.
+10. **The mutation audit is not in CI.** Stage 7 covers `content_findings`
+    well and nothing invokes it; the workflow runs pytest only, so every escape
+    above is invisible to the thing that actually runs.
+
+**The 142-mutation audit is recorded as done-enough rather than skipped.** The
+risk a full run addresses is a stale anchor, and that is retired by
+measurement: every anchor resolves exactly once at this head, and the
+20-mutation leak subset ran end to end, 20 of 20 caught, exit 0.
+
 ## Open items
 
 - The record's page is built in `adamthede/data-adamthede`, not here.
