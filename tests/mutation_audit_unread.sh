@@ -505,9 +505,12 @@ run_mutation "the per-year split files a folder item in the queue" \
 run_mutation "the index row count is guessed from the comparison" \
   scripts/unread/public.py '                             "index_rows": read_index_rows,' \
   '                             "index_rows": sum(read_by_year.values()),' "$PUBLIC"
-run_mutation "the whole index is counted as the comparison" \
+run_mutation "the index row count goes missing" \
   scripts/unread/analysis.py '    return int(len(frame)) if frame is not None else None' \
-  '    return None' "$PUBLIC"
+  '    return None' "$ANALYSIS $PUBLIC"
+run_mutation "the index row count IS the comparison's own total" \
+  scripts/unread/analysis.py '    return int(len(frame)) if frame is not None else None' \
+  '    return sum(read_corpus_by_year(frame).values()) if frame is not None else None' "$ANALYSIS"
 
 echo
 find . -name "__pycache__" -type d -not -path "./.git/*" -exec rm -rf {} + 2>/dev/null

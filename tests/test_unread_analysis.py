@@ -1043,3 +1043,24 @@ def test_the_rollup_declares_what_a_silo_import_still_needs():
     # The numbers are in the column Silo ingests, not the one it overwrites.
     assert "computed_stats" not in rollup["days"][0]
     assert rollup["days"][0]["raw_data"]["saves"] == 1
+
+
+def test_the_index_row_count_is_the_whole_frame_not_the_comparison():
+    """Mutation: returning None, or returning the read-it-later subset.
+
+    The record's plate-01 footnote is a sentence about the difference between
+    the two - "6,769 of the index's 17,320 rows; the other 10,551 are the
+    legacy document archive" - so a producer that returns the subset publishes
+    "6,769 of the index's 6,769 rows" and a producer that returns None leaves
+    the page with nothing to print.
+
+    This function had no direct test when it landed, and the mutation audit
+    caught that: the payload test passes the count in by hand, so the producer
+    could return anything at all and stay green.
+    """
+    frame = read_frame([read_row(source="instapaper"), read_row(source="matter"),
+                        read_row(source="legacy_pdf"), read_row(source="legacy_txt")])
+    assert analysis.read_corpus_rows(frame) == 4
+    assert analysis.read_corpus_rows(frame) > sum(
+        analysis.read_corpus_by_year(frame).values())
+    assert analysis.read_corpus_rows(None) is None
