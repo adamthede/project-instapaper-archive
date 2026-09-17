@@ -37,6 +37,25 @@ The publish CLI now refuses to build without the read corpus, because a payload
 silently missing that series publishes a record whose first two plates have no
 bars in them and prints success.
 
+## Adversarial review, and where it stopped
+
+Three full rounds by a non-author reviewer. The through-line named on round 3
+is the part worth carrying: rounds 1, 2 and 3 each closed the shape of the last
+escape - flat key names, keys one level down, then values, the level above, and
+finally the name itself - and a key-name allowlist cannot end that series,
+because the payload is published verbatim and the allowlist and the producer
+are edited by the same hand in the same commit.
+
+`public.content_findings()` is the answer. It asks what the content LOOKS like
+rather than what it is called - hex runs, integers too large to be counts,
+corpus titles, URL paths, at any depth, as keys or as values - and it cannot be
+satisfied by renaming a field. Verified with both key allowlists updated
+exactly as that two-line commit would do it.
+
+**One verification pass after this commit, and then we stop** (team lead,
+2026-09-17). Anything round 4 still flags is recorded below with the reviewer's
+evidence linked; the PR stays open and Adam decides at his gate.
+
 ## Open items
 
 - The record's page is built in `adamthede/data-adamthede`, not here.
