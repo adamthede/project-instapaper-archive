@@ -538,6 +538,42 @@ run_mutation "by_recovery is keyed on the item instead of the leg" \
                                 for r in rows},' "$PUBLIC"
 
 echo
+echo "STAGE 7 - what round 3 walked past, and the check that does not read names"
+run_mutation "the content check never runs on the built payload" \
+  scripts/unread/public.py "        shaped = content_findings(payload, records)" \
+  "        shaped = []" "$PUBLIC"
+run_mutation "the content check runs but its findings are dropped" \
+  scripts/unread/public.py "        if shaped:" "        if False:" "$PUBLIC"
+run_mutation "the hex floor rises past a usable join key" \
+  scripts/unread/public.py 'r"(?<![0-9a-fA-F])[0-9a-fA-F]{16,}(?![0-9a-fA-F])"' \
+  'r"(?<![0-9a-fA-F])[0-9a-fA-F]{96,}(?![0-9a-fA-F])"' "$PUBLIC"
+run_mutation "an integer of any size is an honest count" \
+  scripts/unread/public.py "_MAX_HONEST_INT = 10 ** 12" "_MAX_HONEST_INT = 10 ** 400" "$PUBLIC"
+run_mutation "the walk skips dict KEYS and reads only values" \
+  scripts/unread/public.py "                look(key, f\"{where}.{key}\", depth + 1)" \
+  "                pass" "$PUBLIC"
+run_mutation "the walk does not descend lists" \
+  scripts/unread/public.py "        elif isinstance(node, (list, tuple)):
+            for i, value in enumerate(node):
+                look(value, f\"{where}[{i}]\", depth + 1)" \
+  "        elif isinstance(node, (list, tuple)):
+            pass" "$PUBLIC"
+run_mutation "depth stops the walk instead of warning it" \
+  scripts/unread/public.py "            findings.append(f\"{where}: nested {depth} deep; the payload is \"
+                            f\"designed {_MAX_DEPTH} at most\")" \
+  "            return" "$PUBLIC"
+run_mutation "the payload's own top level has no allowlist" \
+  scripts/unread/public.py '        problems = [f"top-level key {k!r}" for k in sorted(set(payload) - PAYLOAD_KEYS)]' \
+  "        problems = []" "$PUBLIC"
+run_mutation "the rollup's own top level has no allowlist" \
+  scripts/unread/analysis.py "    (): DAILY_ROLLUP_KEYS," "    (): None," "$PUBLIC"
+run_mutation "a dict at an undesigned level is waved through" \
+  scripts/unread/analysis.py '        allowed = _DAILY_LEVELS.get(path, "undesigned")' \
+  '        allowed = _DAILY_LEVELS.get(path)' "$PUBLIC"
+run_mutation "a title in the payload is not a finding" \
+  scripts/unread/public.py "            if folded and folded in titles:" "            if False:" "$PUBLIC"
+
+echo
 find . -name "__pycache__" -type d -not -path "./.git/*" -exec rm -rf {} + 2>/dev/null
 echo "Mutations caught: $PASS   escaped or stale: $FAIL"
 

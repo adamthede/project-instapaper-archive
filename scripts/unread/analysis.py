@@ -581,30 +581,83 @@ DAILY_NESTED_KEYS = {
 }
 
 
+#: The rollup's own top level. It had no allowlist at all, which is the level
+#: adversarial review put 492 join keys on in round 3 - the guard walked
+#: `rollup["days"]` and nothing else, so the container of `days` was open.
+DAILY_ROLLUP_KEYS = frozenset({
+    "provider", "source", "imported_at", "timezone", "date_field", "days",
+    "undated", "reads_note", "silo_import",
+})
+
+#: Every key the rollup may carry, by level. The walk below is generic: it
+#: descends anything, and a level with no entry here is a level nothing
+#: designed, which is itself the finding.
+_DAILY_LEVELS = {
+    (): DAILY_ROLLUP_KEYS,
+    ("days",): DAILY_DAY_KEYS,
+    ("days", "raw_data"): DAILY_RAW_KEYS,
+    ("days", "raw_data", "by_abandonment"): None,   # its own allowlist below
+    ("days", "raw_data", "by_recovery"): None,
+    ("silo_import",): frozenset({"provider_accepted", "needs", "note"}),
+}
+
+
 def check_daily_shape(rollup):
-    """Every key in the rollup, at every level, against its allowlist.
+    """The rollup's keys, at every level, against the level's allowlist.
 
     Returns the offending paths, empty when clean. A function rather than a
     test-only loop because the BUILD calls it: a shape guard that lives only in
     the tests is a guard that protects the fixtures.
+
+    **This checks key NAMES and nothing else, and the limits are the point.**
+    Three rounds of review walked a join key past three versions of it: flat
+    names, then names one level down, then the level above, the values, and
+    finally the name itself - the natural "add one field" edit updates the
+    producer and this allowlist in the same commit, so both sides move
+    together and the check is a tautology.
+
+    A name-based check cannot close that. `public.content_findings()` is the
+    one that can, because it asks what the CONTENT looks like rather than what
+    it is called, and renaming a field does not satisfy it. This stays because
+    a stray key is worth naming precisely; it is no longer the last line.
     """
     problems = []
+
+    def walk(node, path, where):
+        allowed = _DAILY_LEVELS.get(path, "undesigned")
+        if isinstance(node, dict):
+            if allowed == "undesigned":
+                problems.append(
+                    f"{where}: a dict at a level nothing designed. Add it to "
+                    f"_DAILY_LEVELS deliberately or stop emitting it.")
+                return
+            if allowed is not None:
+                stray = set(node) - allowed
+                if stray:
+                    problems.append(f"{where}: {sorted(stray)}")
+            for key, value in node.items():
+                child = path if path and path[-1] == key else path + (key,)
+                if isinstance(value, (dict, list)):
+                    walk(value, path + (key,), f"{where}.{key}")
+        elif isinstance(node, list):
+            for i, value in enumerate(node):
+                if isinstance(value, (dict, list)):
+                    walk(value, path, f"{where}[{i}]")
+
+    # The two leaf dicts have their own vocabularies.
     for day in rollup.get("days", ()):
         where = day.get("date_of_summary", "?")
-        stray = set(day) - DAILY_DAY_KEYS
-        if stray:
-            problems.append(f"{where}: {sorted(stray)}")
         raw = day.get("raw_data", {})
-        stray = set(raw) - DAILY_RAW_KEYS
-        if stray:
-            problems.append(f"{where}.raw_data: {sorted(stray)}")
+        if not isinstance(raw, dict):
+            continue
         for key, allowed in DAILY_NESTED_KEYS.items():
             nested = raw.get(key)
-            if not isinstance(nested, dict):
-                continue
-            stray = set(nested) - allowed
-            if stray:
-                problems.append(f"{where}.raw_data.{key}: {sorted(stray)}")
+            if isinstance(nested, dict):
+                stray = set(nested) - allowed
+                if stray:
+                    problems.append(f"{where}.raw_data.{key}: {sorted(stray)}")
+
+    walk(rollup, (), "daily")
     return problems
 
 

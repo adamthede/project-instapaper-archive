@@ -836,9 +836,14 @@ def test_the_rollup_shape_is_checked_at_every_level_not_just_the_top(tmp_path):
     down. `by_recovery` was the one allowed key with no test naming its
     contents.
 
-    So the check is recursive, it names the offending path, and the BUILD runs
-    it - a shape guard that lives only in the tests is a guard that protects
-    the fixtures.
+    So the check walks every level, it names the offending path, and the BUILD
+    runs it - a shape guard that lives only in the tests is a guard that
+    protects the fixtures.
+
+    It is still a check on key NAMES, and round 3 showed what that cannot do:
+    the natural "add one field" edit moves the producer and this allowlist in
+    the same commit, so both sides agree and the check is a tautology.
+    `content_findings()` is the one that closes it.
     """
     rows = corpus(3)
     payload = public.public_shape(rows)
@@ -879,3 +884,157 @@ def _smuggle(payload):
     day = payload["daily"]["days"][0]
     day["raw_data"]["by_recovery"] = {"0" * 64: "instapaper"}
     return payload
+
+
+# ---------------------------------------------------------------------------
+# what the payload may contain, asked without reference to a key name
+# ---------------------------------------------------------------------------
+
+def _hashes(records, n=3, chars=64):
+    return [r["url_sha256"][:chars] for r in records[:n]]
+
+
+@pytest.mark.parametrize("label,hook", [
+    ("on the rollup's own top level, the level that CONTAINS days",
+     lambda p, h: p["daily"].update(by_item={k: "instapaper" for k in h}) or p),
+    ("on the payload's top level",
+     lambda p, h: dict(p, recovery_index={k: "instapaper" for k in h})),
+    ("inside an allowed key, as values",
+     lambda p, h: p["daily"]["days"][0]["raw_data"].update(
+         by_recovery={"instapaper": int("".join(h), 16)}) or p),
+    ("inside an allowed key, as a list of strings",
+     lambda p, h: p["daily"]["days"][0]["raw_data"].update(item_key=h) or p),
+    ("as a dict KEY rather than a value",
+     lambda p, h: p["daily"]["days"][0]["raw_data"].update(
+         by_recovery={k: 1 for k in h}) or p),
+    ("truncated to sixteen hex, still a join key across 492 items",
+     lambda p, h: dict(p, join={k[:16]: "x" for k in h})),
+    ("buried six levels down under innocuous names",
+     lambda p, h: dict(p, redaction={"a": {"b": {"c": {"d": {"e": h}}}}})),
+])
+def test_a_join_key_cannot_reach_the_payload_under_any_name(label, hook, tmp_path):
+    """Mutation: every shape three rounds of adversarial review used.
+
+    Round 1 put the join key on a flat allowlist's level. Round 2 put it one
+    level down, inside an allowed key. Round 3 put it on the level ABOVE, on
+    the payload's own top level, as integers inside an allowed key's values,
+    and finally under a renamed field with the allowlist updated in the same
+    edit - which is the one that ends the series, because a key-name allowlist
+    and the producer are written by the same hand in the same commit.
+
+    So this asks what the CONTENT looks like. A 64-hex run, a 16-hex run, an
+    integer too large to be a count, an article title, a URL path - at any
+    depth, under any key, as a key or as a value. Renaming the field does not
+    satisfy it.
+
+    `five_ws.source_id` calls this hash "a confirmable guess: anyone holding a
+    URL can hash it and test whether it is in this queue. That is the whole
+    disclosure this record refuses."
+    """
+    rows = corpus(4)
+    digests = _hashes(rows)
+    out = tmp_path / "record"
+    with pytest.raises(public.LeakTestError):
+        public.build(rows, out, payload_hook=lambda p: hook(p, digests))
+    assert not out.exists(), label
+
+    # Refused is not enough: several of these are ALSO caught by a key-name
+    # allowlist, and a key-name allowlist is what three rounds of review walked
+    # past. The claim under test is that the CONTENT check catches it on its
+    # own, so it is asked directly.
+    found = public.content_findings(hook(public.public_shape(rows), digests), rows)
+    assert found, f"the content check did not see it: {label}"
+    assert any("hex" in f or "integer" in f for f in found), (label, found[:2])
+
+
+def test_the_content_check_survives_the_allowlists_being_updated_too(tmp_path,
+                                                                     monkeypatch):
+    """Mutation: the two-line edit that moves producer and allowlist together.
+
+    This is the finding that ended the key-name approach. `check_daily_shape`
+    reads the same frozensets the producer's author edits, so adding a field
+    and adding its name is one commit and the check agrees with itself.
+
+    Here both allowlists are updated, exactly as that commit would - and the
+    content check, which reads neither, still refuses.
+    """
+    monkeypatch.setattr(analysis, "DAILY_RAW_KEYS",
+                        analysis.DAILY_RAW_KEYS | {"item_key"})
+    monkeypatch.setitem(analysis._DAILY_LEVELS, ("days", "raw_data"),
+                        analysis.DAILY_RAW_KEYS | {"item_key"})
+    rows = corpus(4)
+    digests = _hashes(rows)
+
+    def hook(payload):
+        for day in payload["daily"]["days"]:
+            day["raw_data"]["item_key"] = digests
+        return payload
+
+    assert analysis.check_daily_shape(
+        hook(public.public_shape(rows))["daily"]) == [], (
+        "the name check should be satisfied; that is the point")
+    with pytest.raises(public.LeakTestError) as exc:
+        public.build(rows, tmp_path / "record", payload_hook=hook)
+    assert "renaming the field will not satisfy it" in str(exc.value)
+
+
+def test_the_content_check_does_not_fire_on_the_real_payload():
+    """Mutation: a shape check so broad the real record cannot publish.
+
+    A guard that is red on correct output is a guard someone switches off, and
+    this one refuses a whole build. The live corpus carries word counts in the
+    millions, ISO dates, percentages and sixty host names, and none of those is
+    a digest.
+    """
+    assert public.content_findings(public.public_shape(corpus(6)), corpus(6)) == []
+
+
+def test_an_honest_count_is_not_mistaken_for_a_digest():
+    """Mutation: an integer bound low enough to catch the word total.
+
+    1,086,902 recovered words is the largest honest number this payload
+    carries, and a bound under it would make the record unpublishable while
+    looking like caution.
+    """
+    assert public.content_findings({"words": {"total": 1_086_902}}) == []
+    assert public.content_findings({"built": "2026-09-16"}) == []
+    assert public.content_findings({"by_domain": [["medium.freecodecamp.org", 6]]}) == []
+    assert public.content_findings({"digest": "a" * 16}) != []
+
+
+def test_the_payloads_own_top_level_is_an_allowlist(tmp_path):
+    """Mutation: the comment that claimed one existed.
+
+    `public_shape`'s docstring said "an allowlist fails loudly" and nothing
+    asserted the payload's top-level key set, so adversarial review added a key
+    beside `caveat` and every gate stayed green.
+    """
+    payload = public.public_shape(corpus())
+    assert set(payload) == public.PAYLOAD_KEYS
+    with pytest.raises(public.LeakTestError) as exc:
+        public.build(corpus(), tmp_path / "record",
+                     payload_hook=lambda p: dict(p, extra_column=[1, 2, 3]))
+    assert "extra_column" in str(exc.value)
+
+
+def test_the_rollups_own_top_level_is_an_allowlist():
+    """Mutation: walking `days` and leaving the level that contains it open.
+
+    Round 3's plainest escape: the guard entered `rollup["days"]` and nothing
+    else, so the container had no allowlist at all.
+    """
+    rollup = analysis.daily_rollup(corpus())
+    assert set(rollup) == analysis.DAILY_ROLLUP_KEYS
+    rollup["by_item"] = {"a" * 64: "instapaper"}
+    assert "by_item" in " ".join(analysis.check_daily_shape(rollup))
+
+
+def test_a_dict_at_an_undesigned_level_is_a_finding():
+    """Mutation: a walk that descends anywhere and checks only known levels.
+
+    A level nobody designed is a level nobody reviewed, and silently ignoring
+    it is how the level above `days` stayed open for three rounds.
+    """
+    rollup = analysis.daily_rollup(corpus())
+    rollup["days"][0]["raw_data"]["by_abandonment"] = {"never_opened": {"x": 1}}
+    assert analysis.check_daily_shape(rollup)

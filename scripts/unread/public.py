@@ -39,6 +39,7 @@ import datetime as dt
 import hashlib
 import html as html_mod
 import json
+import re
 import shutil
 import subprocess
 from collections import Counter
@@ -200,6 +201,114 @@ READ_COMPARISON_NOTE = (
 )
 
 
+#: Every key the published payload may carry. The comment in `public_shape`
+#: said "an allowlist fails loudly" and described a protection that did not
+#: exist: nothing asserted this set, and adversarial review added a top-level
+#: key carrying 492 join keys with every gate green.
+PAYLOAD_KEYS = frozenset({
+    "record", "built", "items", "pool", "starred", "words", "saved_span",
+    "by_saved_year", "by_domain", "distinct_domains", "domain_concentration",
+    "by_topic", "survival", "dead_fraction_by_year", "aging_curve",
+    "abandonment_bands", "why_saved", "still_worth_your_time",
+    "read_comparison", "topic_comparison", "daily", "five_ws", "caveat",
+    "redaction",
+})
+
+
+# ---------------------------------------------------------------------------
+# what the payload may contain, asked without reference to a key name
+# ---------------------------------------------------------------------------
+
+#: A run of hex long enough to be a digest. `url_sha256` is the one this record
+#: refuses by name; 32 catches an MD5 or a truncated SHA, and a 16-hex prefix
+#: of a SHA-256 is still a usable join key across 492 items, so the floor is
+#: low deliberately. A legitimate aggregate has no reason to carry one.
+_HEXISH = re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{16,}(?![0-9a-fA-F])")
+
+#: Above this, an integer is not a count. The largest honest number in this
+#: payload is a word total in the millions; a 2048-bit integer is a digest
+#: wearing an int's clothes, which is how adversarial review smuggled 492 join
+#: keys past a check that asserted `isinstance(v, int)`.
+_MAX_HONEST_INT = 10 ** 12
+
+#: How deep the payload is allowed to nest. Not a privacy rule - a tripwire. A
+#: payload that grew a level nobody designed is a payload nobody reviewed.
+_MAX_DEPTH = 6
+
+
+def content_findings(payload, records=()):
+    """Everything in the payload that has the SHAPE of something private.
+
+    This is the check that does not ask what a key is called.
+
+    Three rounds of adversarial review walked a join key into this payload
+    three times, and each fix closed the shape of the last escape: flat key
+    names, then keys one level down, then values and the level above and the
+    name itself. A key-name allowlist cannot close that, because the payload is
+    published verbatim and "things that are not a declared key name" is
+    unbounded - and because the allowlist and the producer are edited by the
+    same hand in the same commit, so a two-line change moves both sides at
+    once.
+
+    So this asks a different question, and deliberately one the producer's
+    author does not get to answer: does anything in here LOOK like a digest, an
+    identifier, an article title, an address, or a number too big to be a
+    count - at any depth, under any key, as a key or as a value?
+
+    It cannot be satisfied by renaming a field.
+    """
+    titles = {t for t in corpus_titles(records) if len(t) >= MIN_NEEDLE}
+    paths = set()
+    for record in records:
+        url = record.get("url")
+        if url:
+            path = urlsplit(str(url)).path.rstrip("/")
+            if len(path) >= MIN_NEEDLE:
+                paths.add(analysis.normalize(path))
+
+    findings = []
+
+    def look(node, where, depth):
+        if depth > _MAX_DEPTH:
+            # Reported and then KEPT WALKING. Returning here would make depth a
+            # way to stop the content check rather than a tripwire in front of
+            # it: bury the digests seven levels down and the only finding is
+            # "nested too deep", which reads like a style complaint.
+            findings.append(f"{where}: nested {depth} deep; the payload is "
+                            f"designed {_MAX_DEPTH} at most")
+        if isinstance(node, dict):
+            for key, value in node.items():
+                look(key, f"{where}.{key}", depth + 1)
+                look(value, f"{where}.{key}", depth + 1)
+        elif isinstance(node, (list, tuple)):
+            for i, value in enumerate(node):
+                look(value, f"{where}[{i}]", depth + 1)
+        elif isinstance(node, bool):
+            pass
+        elif isinstance(node, int):
+            if abs(node) > _MAX_HONEST_INT:
+                findings.append(
+                    f"{where}: the integer {str(abs(node))[:12]}... is too "
+                    f"large to be a count. A digest read as an integer is "
+                    f"still a digest.")
+        elif isinstance(node, str):
+            digest = _HEXISH.search(node)
+            if digest:
+                findings.append(
+                    f"{where}: a {len(digest.group(0))}-character hex run. "
+                    f"This record publishes no identifier.")
+            folded = analysis.normalize(node)
+            if folded and folded in titles:
+                findings.append(f"{where}: an article title from this corpus.")
+            for path in paths:
+                if path in folded:
+                    findings.append(f"{where}: a URL path from this corpus.")
+                    break
+
+    look(payload, "payload", 0)
+    return findings
+
+
 def _checked_rollup(records, today):
     """The rollup, refused if any level of it grew a key nobody allowed.
 
@@ -211,6 +320,7 @@ def _checked_rollup(records, today):
     """
     rollup = analysis.daily_rollup(records, built=today.isoformat())
     problems = analysis.check_daily_shape(rollup)
+    problems += content_findings(rollup, records)
     if problems:
         raise LeakTestError(
             "The per-day rollup grew keys nothing allowed, and this payload is "
@@ -591,14 +701,31 @@ def build(records, out_dir, needle_file=None, payload_hook=None,
                                read_index_rows=read_index_rows)
         if payload_hook:
             payload = payload_hook(payload)
+
         # After the hook, not only inside public_shape(). The hook is the
         # shape of every "just add one field" change this payload will ever
         # get, and a guard that runs before it guards the wrong thing.
-        problems = analysis.check_daily_shape(payload.get("daily") or {})
+        #
+        # THREE checks, and the order is from weakest to strongest. The first
+        # two ask what a key is CALLED and are therefore editable by the same
+        # hand that adds the key. The third asks what the content LOOKS like
+        # and is not.
+        problems = [f"top-level key {k!r}" for k in sorted(set(payload) - PAYLOAD_KEYS)]
+        problems += analysis.check_daily_shape(payload.get("daily") or {})
         if problems:
             raise LeakTestError(
-                "The per-day rollup grew keys nothing allowed, and this "
-                "payload is published:\n  " + "\n  ".join(problems[:10]))
+                "The payload grew keys nothing allowed, and this payload is "
+                "published:\n  " + "\n  ".join(problems[:10])
+                + "\nAdd them to PAYLOAD_KEYS / DAILY_* deliberately, or stop "
+                  "emitting them. Nothing was published.")
+
+        shaped = content_findings(payload, records)
+        if shaped:
+            raise LeakTestError(
+                "The payload carries something shaped like a private value, "
+                "whatever it is called:\n  " + "\n  ".join(shaped[:10])
+                + "\nThis check does not read key names, so renaming the "
+                  "field will not satisfy it. Nothing was published.")
         data_path = tmp / "public_data.json"
         data_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True),
                              encoding="utf-8")

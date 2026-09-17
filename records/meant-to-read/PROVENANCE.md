@@ -1,6 +1,6 @@
 # What I Meant To Read - provenance
 
-Source repository: Article Archive (`scripts/unread/`), commit b0d8089.
+Source repository: Article Archive (`scripts/unread/`), commit 7e18474.
 Built: 2026-09-17
 Record: https://data.adamthede.com/meant-to-read/
 
