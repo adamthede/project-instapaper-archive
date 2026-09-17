@@ -73,7 +73,7 @@ the untouched payload. No shadowed definitions across 99 files. 142/142 and
 already fully distinct across 492 items, so distinctness was never the binding
 constraint: 16 is a threshold, not a floor, and everything below is open.
 
-## Open items from round 4 - Adam's gate, not this lane's
+## Round 4, unresolved
 
 Ordered by how much of the corpus each would publish, not by effort.
 
@@ -112,6 +112,17 @@ Ordered by how much of the corpus each would publish, not by effort.
 10. **The mutation audit is not in CI.** Stage 7 covers `content_findings`
     well and nothing invokes it; the workflow runs pytest only, so every escape
     above is invisible to the thing that actually runs.
+
+**The discovery rate did not decay.** Round 1 found 5 blocking, round 2 five,
+round 3 four, round 4 seven fresh content-guard escapes plus five
+guard-fragility items. That is not a reviewer improving; it is what an
+unbounded search space looks like. The design note in the record repository's
+plan file - `docs/plans-to-do/2026-09-16-record-what-i-meant-to-read.md`,
+"construct, do not scan" - proposes the change that ends the series: produce
+the payload from a typed schema of aggregate fields so a join key has no field
+that can hold it, rather than adding a check downstream of a producer free to
+emit anything. 10 to 14 hours, and the recommendation is to do it before the
+second record is built on this pattern rather than before this one merges.
 
 **The 142-mutation audit is recorded as done-enough rather than skipped.** The
 risk a full run addresses is a stale anchor, and that is retired by
