@@ -275,7 +275,7 @@ run_mutation "the band topic lists skip the title-shaped redaction" \
   '"top_topics": values["top_topics"]}' "$PUBLIC"
 run_mutation "the topic table skips the title-shaped redaction" \
   scripts/unread/public.py \
-  "                  if topic.casefold() not in titles][:40]" \
+  "                  if analysis.normalize(topic) not in titles][:40]" \
   "                  ][:40]" "$PUBLIC"
 run_mutation "a corpus with titles but no title needles publishes" \
   scripts/unread/public.py "    if has_titles and not titles:" "    if False:" "$PUBLIC"
