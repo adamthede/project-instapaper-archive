@@ -256,7 +256,9 @@ run_mutation "drift goes back to a Jaccard against the whole vocabulary" \
   "        mentions = [t for r in grouped[year] for t in _topics(r)]" \
   "        mentions = list({t for r in grouped[year] for t in _topics(r)} | baseline_set)" "$ANALYSIS"
 run_mutation "the comparison ships without its caveat" \
-  scripts/unread/analysis.py '        "caveat": COMPARISON_CAVEAT,' '        "caveat": "",' "$ANALYSIS"
+  scripts/unread/analysis.py '        "read_but_not_saved": read_only,
+        "caveat": COMPARISON_CAVEAT,' '        "read_but_not_saved": read_only,
+        "caveat": "",' "$ANALYSIS"
 run_mutation "a corrupted row joins the topic aggregates" \
   scripts/unread/analysis.py 'return [r for r in records if not r.get("content_corrupted")]' \
   "return list(records)" "$ANALYSIS"
@@ -265,7 +267,7 @@ echo
 echo "STAGE 4 - the public shape and the leak scan"
 run_mutation "a topic that is an article title is published anyway" \
   scripts/unread/public.py \
-  '    return [v for v in values if str(v).strip().casefold() not in titles]' \
+  '    return [v for v in values if analysis.normalize(v) not in titles]' \
   "    return list(values)" "$PUBLIC"
 run_mutation "the band topic lists skip the title-shaped redaction" \
   scripts/unread/public.py \
@@ -273,7 +275,7 @@ run_mutation "the band topic lists skip the title-shaped redaction" \
   '"top_topics": values["top_topics"]}' "$PUBLIC"
 run_mutation "the topic table skips the title-shaped redaction" \
   scripts/unread/public.py \
-  "                  if topic.casefold() not in titles][:40]" \
+  "                  if analysis.normalize(topic) not in titles][:40]" \
   "                  ][:40]" "$PUBLIC"
 run_mutation "a corpus with titles but no title needles publishes" \
   scripts/unread/public.py "    if has_titles and not titles:" "    if False:" "$PUBLIC"
@@ -282,8 +284,8 @@ run_mutation "the needle floor comes off" \
 run_mutation "a corpus with no needles publishes anyway" \
   scripts/unread/public.py "    if not titles and not paths:" "    if False:" "$PUBLIC"
 run_mutation "the scan reads raw bytes only" \
-  scripts/unread/public.py 'haystack = (text + "\n" + html_mod.unescape(text)).casefold()' \
-  "haystack = text.casefold()" "$PUBLIC"
+  scripts/unread/public.py '        unescaped = html_mod.unescape(text)' \
+  "        unescaped = text" "$PUBLIC"
 run_mutation "URL paths are not scanned for" \
   scripts/unread/public.py '               + [(p, "url path") for p in paths if len(p) >= min_len])' \
   "               )" "$PUBLIC"
@@ -307,8 +309,10 @@ run_mutation "the record publishes the shortlist itself" \
   '        "still_worth_your_time": shortlist_count,
         "picks": [{"title": r.get("title")} for r in records],' "$PUBLIC"
 run_mutation "the inference count ships without its label" \
-  scripts/unread/public.py '"why_saved": dict(analysis.why_saved_summary(records), kind="inference"),' \
-  '"why_saved": analysis.why_saved_summary(records),' "$PUBLIC"
+  scripts/unread/public.py '"why_saved": dict(analysis.why_saved_summary(records), kind="inference",
+                          by_confidence=analysis.confidence_split(records)),' \
+  '"why_saved": dict(analysis.why_saved_summary(records),
+                          by_confidence=analysis.confidence_split(records)),' "$PUBLIC"
 run_mutation "a leak publishes and then reports itself" \
   scripts/unread/public.py "        found = leak_scan(tmp, titles, paths)
         if found:" "        found = leak_scan(tmp, titles, paths)
@@ -316,6 +320,257 @@ run_mutation "a leak publishes and then reports itself" \
 run_mutation "the build clears an --out it did not write" \
   scripts/unread/public.py "    strays = [p.name for p in out.iterdir() if p.name not in RECORD_FILES]" \
   "    strays = []" "$PUBLIC"
+
+echo
+echo "STAGE 5 - the cover aggregates, the paired series and the rollup"
+run_mutation "the word median counts the rows that have no text" \
+  scripts/unread/analysis.py '    words = [int(r.get("body_words") or 0) for r in records if r.get("body_words")]' \
+  '    words = [int(r.get("body_words") or 0) for r in records]' "$ANALYSIS"
+run_mutation "a corpus with no text reports a median of zero" \
+  scripts/unread/analysis.py '        "median": int(statistics.median(words)) if words else None,' \
+  '        "median": int(statistics.median(words)) if words else 0,' "$ANALYSIS"
+run_mutation "the span is taken from the year, losing the day" \
+  scripts/unread/analysis.py \
+  '    dates = sorted(str(r.get("saved_date")).strip() for r in records
+                   if str(r.get("saved_date") or "").strip())' \
+  '    dates = sorted(str(r.get("saved_year")).strip() for r in records
+                   if str(r.get("saved_year") or "").strip())' "$ANALYSIS"
+run_mutation "the confidence split drops the grades it does not know" \
+  scripts/unread/analysis.py '    split["unset"] = len(records) - sum(split.values())' \
+  '    split["unset"] = 0' "$ANALYSIS"
+run_mutation "the confidence split runs over the answered rows only" \
+  scripts/unread/analysis.py \
+  '    counts = Counter(str(r.get("why_saved_confidence") or "").strip().lower()
+                     for r in records)' \
+  '    records = [r for r in records if (r.get("why_saved") or "").strip()]
+    counts = Counter(str(r.get("why_saved_confidence") or "").strip().lower()
+                     for r in records)' "$ANALYSIS"
+run_mutation "a missing starred field counts as starred" \
+  scripts/unread/analysis.py '    return sum(1 for r in records if r.get("starred") is True)' \
+  '    return sum(1 for r in records if r.get("starred") is not False)' "$ANALYSIS"
+run_mutation "the pool is one number" \
+  scripts/unread/analysis.py \
+  '    filed = sum(1 for r in records if str(r.get("folder") or "").strip())' \
+  '    filed = 0' "$ANALYSIS"
+run_mutation "the legacy archive joins the read year series" \
+  scripts/unread/analysis.py \
+  '    if "source" in rows.columns:
+        rows = rows[rows["source"].isin(READ_IT_LATER_SOURCES)]
+    dates = pd.to_datetime(rows["date_saved"], errors="coerce", format="mixed")' \
+  '    dates = pd.to_datetime(rows["date_saved"], errors="coerce", format="mixed")' "$ANALYSIS"
+run_mutation "an unparseable read date is coerced to a year anyway" \
+  scripts/unread/analysis.py \
+  '    counts = Counter(int(d.year) for d in dates if d is not None and not pd.isna(d))' \
+  '    counts = Counter(int(d.year) if (d is not None and not pd.isna(d)) else 2026
+                     for d in dates)' "$ANALYSIS"
+run_mutation "the read year series inherits the clean-rows filter" \
+  scripts/unread/analysis.py \
+  '    if "source" in rows.columns:
+        rows = rows[rows["source"].isin(READ_IT_LATER_SOURCES)]
+    dates' \
+  '    if "source" in rows.columns:
+        rows = rows[rows["source"].isin(READ_IT_LATER_SOURCES)]
+    if "content_corrupted" in rows.columns:
+        rows = rows[rows["content_corrupted"] != True]  # noqa: E712
+    dates' "$ANALYSIS"
+run_mutation "the comparison ranks on the saved side only" \
+  scripts/unread/analysis.py \
+  '        if len(chosen) >= limit + read_extra:' '        if True:' "$ANALYSIS"
+run_mutation "a title-shaped string survives in the read column" \
+  scripts/unread/analysis.py \
+  '    keep = lambda name: normalize(name) not in titles  # noqa: E731' \
+  '    keep = lambda name: True  # noqa: E731' "$ANALYSIS"
+run_mutation "the paired topic table ships without its caveat" \
+  scripts/unread/analysis.py '        "unread_corpus": len(records),
+        "caveat": COMPARISON_CAVEAT,' '        "unread_corpus": len(records),
+        "caveat": "",' "$PUBLIC"
+run_mutation "a topic the read corpus never carried gets a zero ratio" \
+  scripts/unread/analysis.py \
+  '            "ratio": (round(unread_share / read_share, 4)
+                      if (unread_share and read_share) else None),' \
+  '            "ratio": (round(unread_share / read_share, 4)
+                      if (unread_share and read_share) else 0.0),' "$ANALYSIS"
+run_mutation "the rollup emits one row per item" \
+  scripts/unread/analysis.py '        grouped[day].append(record)' \
+  '        grouped[day + str(len(grouped))].append(record)' "$ANALYSIS"
+run_mutation "the rollup is in fetch order rather than by day" \
+  scripts/unread/analysis.py '    for day in sorted(grouped):' '    for day in grouped:' "$ANALYSIS"
+run_mutation "a day reports zero reads instead of no observation" \
+  scripts/unread/analysis.py '                "reads": None,' '                "reads": 0,' "$ANALYSIS"
+run_mutation "the day carries the inference sentences" \
+  scripts/unread/analysis.py \
+  '                "why_saved_present": with_reason,' \
+  '                "why_saved_present": with_reason,
+                "why": [r.get("why_saved") for r in rows],' "$ANALYSIS"
+run_mutation "an undated row is filed under a guessed day" \
+  scripts/unread/analysis.py \
+  '        if not day:
+            undated += 1
+            continue' \
+  '        if not day:
+            day = "2026-09-16"' "$ANALYSIS"
+run_mutation "the rollup ships without its provider key" \
+  scripts/unread/analysis.py '        "provider": DAILY_PROVIDER,' '        "provider": None,' "$ANALYSIS"
+run_mutation "the paired series ships as an empty container" \
+  scripts/unread/public.py \
+  '                            if read_by_year else None),' \
+  '                            if read_by_year else {}),' "$PUBLIC"
+run_mutation "the read column skips the title-shaped redaction" \
+  scripts/unread/public.py \
+  '    all_titles = titles | {analysis.normalize(t) for t in (read_titles or ())}' \
+  '    all_titles = set()' "$PUBLIC"
+run_mutation "the confidence split never reaches the payload" \
+  scripts/unread/public.py \
+  '        "why_saved": dict(analysis.why_saved_summary(records), kind="inference",
+                          by_confidence=analysis.confidence_split(records)),' \
+  '        "why_saved": dict(analysis.why_saved_summary(records), kind="inference"),' "$PUBLIC"
+run_mutation "the cover aggregates never reach the payload" \
+  scripts/unread/public.py '        "starred": analysis.starred_count(records),' \
+  '        "starred": None,' "$PUBLIC"
+run_mutation "the record publishes its per-day titles" \
+  scripts/unread/public.py '        "daily": _checked_rollup(records, today),' \
+  '        "daily": dict(_checked_rollup(records, today),
+                      titles=[r.get("title") for r in records]),' "$PUBLIC"
+run_mutation "the 5Ws declaration hides the halves that do not ship" \
+  scripts/unread/public.py '            "held": True, "published": False, "public_shape": None,
+            "note": "People, organisations and locations are extracted per "' \
+  '            "held": True, "published": True, "public_shape": None,
+            "note": "People, organisations and locations are extracted per "' "$PUBLIC"
+run_mutation "the 5Ws declaration points at fields the payload does not carry" \
+  scripts/unread/public.py '            "fields": ["saved_span", "by_saved_year", "daily"],' \
+  '            "fields": ["saved_timestamps"],' "$PUBLIC"
+run_mutation "the publish CLI warns instead of refusing the unpaired build" \
+  scripts/core/publish_unread_record.py '        if not Path(args.index).exists():' \
+  '        if False:' "$PUBLIC"
+run_mutation "the unpaired build says nothing about being unpaired" \
+  scripts/core/publish_unread_record.py \
+  '        print("Built WITHOUT the read series: plates 01 and 02 cannot be drawn.")' \
+  '        pass' "$PUBLIC"
+
+echo
+echo "STAGE 6 - what adversarial review found on 2026-09-16"
+run_mutation "the redaction goes back to exact match" \
+  scripts/unread/analysis.py \
+  '    folded = unicodedata.normalize("NFKC", str(value)).translate(_CONFUSABLES)
+    return _SPACES.sub(" ", folded).strip().casefold()' \
+  '    return str(value).strip().casefold()' "$ANALYSIS $PUBLIC"
+run_mutation "the confusable punctuation table is emptied" \
+  scripts/unread/analysis.py '.translate(_CONFUSABLES)' '' "$ANALYSIS"
+run_mutation "internal whitespace stops being collapsed" \
+  scripts/unread/analysis.py '    return _SPACES.sub(" ", folded).strip().casefold()' \
+  '    return folded.strip().casefold()' "$ANALYSIS"
+run_mutation "the normalizer collapses two different titles" \
+  scripts/unread/analysis.py \
+  '    return _SPACES.sub(" ", folded).strip().casefold()' \
+  '    return _SPACES.sub("", folded).strip().casefold()[:12]' "$ANALYSIS"
+run_mutation "the read column goes back to exact match" \
+  scripts/unread/analysis.py '    keep = lambda name: normalize(name) not in titles  # noqa: E731' \
+  '    keep = lambda name: str(name).strip().casefold() not in titles  # noqa: E731' "$ANALYSIS"
+run_mutation "the read titles are not normalized" \
+  scripts/unread/analysis.py '    return {normalize(t) for t in frame["title"].dropna()' \
+  '    return {str(t).strip().casefold() for t in frame["title"].dropna()' "$ANALYSIS"
+run_mutation "the read title floor comes off" \
+  scripts/unread/analysis.py 'def read_corpus_titles(frame, min_len=12):' \
+  'def read_corpus_titles(frame, min_len=0):' "$ANALYSIS"
+run_mutation "the rollup carries the day's join key" \
+  scripts/unread/analysis.py '                "why_saved_present": with_reason,' \
+  '                "url_sha256": [r.get("url_sha256") for r in rows],
+                "why_saved_present": with_reason,' "$ANALYSIS $PUBLIC"
+run_mutation "the rollup carries the day's titles" \
+  scripts/unread/analysis.py '                "starred": sum(1 for r in rows if r.get("starred") is True),' \
+  '                "titles": [r.get("title") for r in rows],
+                "starred": sum(1 for r in rows if r.get("starred") is True),' "$ANALYSIS $PUBLIC"
+run_mutation "the numbers go back into the column Silo overwrites" \
+  scripts/unread/analysis.py '            "raw_data": {' '            "computed_stats": {' "$ANALYSIS $PUBLIC"
+run_mutation "the provenance sits beside the column instead of inside it" \
+  scripts/unread/analysis.py '                "source": DAILY_SOURCE,
+                "imported_at": stamp,' '' "$ANALYSIS $PUBLIC"
+run_mutation "imported_at loses its time and zone" \
+  scripts/unread/analysis.py \
+  '    stamp = f"{built}T00:00:00Z" if built and "T" not in str(built) else built' \
+  '    stamp = built' "$ANALYSIS"
+run_mutation "the payload claims Silo already accepts the provider" \
+  scripts/unread/analysis.py '    "provider_accepted": False,' '    "provider_accepted": True,' "$ANALYSIS"
+run_mutation "the Silo note stops naming the recompute that erases the import" \
+  scripts/unread/analysis.py '        "add Analytics::StatsService#compute_record_stats, or the first "' \
+  '        "nothing, it just works, "  # ' "$ANALYSIS"
+run_mutation "the per-year pool split goes" \
+  scripts/unread/analysis.py '            "by_year": {y: by_year[y] for y in sorted(by_year)}}' \
+  '            "by_year": {}}' "$ANALYSIS $PUBLIC"
+run_mutation "the per-year split files a folder item in the queue" \
+  scripts/unread/analysis.py \
+  '        side = ("filed_in_folders" if str(record.get("folder") or "").strip()
+                else "unread_queue")' \
+  '        side = "unread_queue"' "$ANALYSIS"
+run_mutation "the index row count is guessed from the comparison" \
+  scripts/unread/public.py '                             "index_rows": read_index_rows,' \
+  '                             "index_rows": sum(read_by_year.values()),' "$PUBLIC"
+run_mutation "the index row count goes missing" \
+  scripts/unread/analysis.py '    return int(len(frame)) if frame is not None else None' \
+  '    return None' "$ANALYSIS $PUBLIC"
+run_mutation "the index row count IS the comparison's own total" \
+  scripts/unread/analysis.py '    return int(len(frame)) if frame is not None else None' \
+  '    return sum(read_corpus_by_year(frame).values()) if frame is not None else None' "$ANALYSIS"
+run_mutation "the topic table compares on casefold against normalized titles" \
+  scripts/unread/public.py '                  if analysis.normalize(topic) not in titles][:40]' \
+  '                  if topic.casefold() not in titles][:40]' "$PUBLIC"
+run_mutation "the topic dedupe uses a different key from the redaction" \
+  scripts/unread/analysis.py '        if keep(topic) and normalize(topic) not in seen:' \
+  '        if keep(topic) and topic.casefold() not in seen:' "$ANALYSIS"
+run_mutation "the build scan goes back to exact substring" \
+  scripts/unread/public.py \
+  '            if needle.casefold() in haystack or analysis.normalize(needle) in haystack:' \
+  "            if needle.casefold() in haystack:" "$PUBLIC"
+run_mutation "the rollup shape is checked at the top level only" \
+  scripts/unread/analysis.py \
+  '        for key, allowed in DAILY_NESTED_KEYS.items():' "        for key, allowed in {}.items():" "$PUBLIC"
+run_mutation "the build does not check the shape it publishes" \
+  scripts/unread/public.py "        problems += analysis.check_daily_shape(payload.get(\"daily\") or {})" \
+  "        problems += []" "$PUBLIC"
+run_mutation "by_recovery is keyed on the item instead of the leg" \
+  scripts/unread/analysis.py \
+  '                "by_recovery": {leg: count for leg, count
+                                in sorted(Counter(r.get("resolve_path")
+                                                  for r in rows).items())
+                                if leg},' \
+  '                "by_recovery": {r.get("url_sha256"): r.get("resolve_path")
+                                for r in rows},' "$PUBLIC"
+
+echo
+echo "STAGE 7 - what round 3 walked past, and the check that does not read names"
+run_mutation "the content check never runs on the built payload" \
+  scripts/unread/public.py "        shaped = content_findings(payload, records)" \
+  "        shaped = []" "$PUBLIC"
+run_mutation "the content check runs but its findings are dropped" \
+  scripts/unread/public.py "        if shaped:" "        if False:" "$PUBLIC"
+run_mutation "the hex floor rises past a usable join key" \
+  scripts/unread/public.py 'r"(?<![0-9a-fA-F])[0-9a-fA-F]{16,}(?![0-9a-fA-F])"' \
+  'r"(?<![0-9a-fA-F])[0-9a-fA-F]{96,}(?![0-9a-fA-F])"' "$PUBLIC"
+run_mutation "an integer of any size is an honest count" \
+  scripts/unread/public.py "_MAX_HONEST_INT = 10 ** 12" "_MAX_HONEST_INT = 10 ** 400" "$PUBLIC"
+run_mutation "the walk skips dict KEYS and reads only values" \
+  scripts/unread/public.py "                look(key, f\"{where}.{key}\", depth + 1)" \
+  "                pass" "$PUBLIC"
+run_mutation "the walk does not descend lists" \
+  scripts/unread/public.py "        elif isinstance(node, (list, tuple)):
+            for i, value in enumerate(node):
+                look(value, f\"{where}[{i}]\", depth + 1)" \
+  "        elif isinstance(node, (list, tuple)):
+            pass" "$PUBLIC"
+run_mutation "depth stops the walk instead of warning it" \
+  scripts/unread/public.py "            findings.append(f\"{where}: nested {depth} deep; the payload is \"
+                            f\"designed {_MAX_DEPTH} at most\")" \
+  "            return" "$PUBLIC"
+run_mutation "the payload's own top level has no allowlist" \
+  scripts/unread/public.py '        problems = [f"top-level key {k!r}" for k in sorted(set(payload) - PAYLOAD_KEYS)]' \
+  "        problems = []" "$PUBLIC"
+run_mutation "the rollup's own top level has no allowlist" \
+  scripts/unread/analysis.py "    (): DAILY_ROLLUP_KEYS," "    (): None," "$PUBLIC"
+run_mutation "a dict at an undesigned level is waved through" \
+  scripts/unread/analysis.py '        allowed = _DAILY_LEVELS.get(path, "undesigned")' \
+  '        allowed = _DAILY_LEVELS.get(path)' "$PUBLIC"
+run_mutation "a title in the payload is not a finding" \
+  scripts/unread/public.py "            if folded and folded in titles:" "            if False:" "$PUBLIC"
 
 echo
 find . -name "__pycache__" -type d -not -path "./.git/*" -exec rm -rf {} + 2>/dev/null
@@ -328,5 +583,27 @@ if [ -n "$(git status --porcelain scripts/ tests/)" ]; then
 fi
 
 echo "Worktree clean. Re-running the four suites to confirm they are green:"
+#
+# The exit code, kept. Piping pytest into `tail` hands the PIPELINE's status to
+# the shell, which is tail's, which is always 0 - so this step printed "to
+# confirm they are green", printed "1 failed, 206 passed", and exited 0.
+# Adversarial review proved it twice, on two different shapes of the same bug.
+#
+# The output still goes through `tail` because the full run is 200 lines; the
+# status comes from PIPESTATUS, which is the half that was being thrown away.
 "$PY" -m pytest $FETCH $ENRICH $ANALYSIS $PUBLIC -q -p no:cacheprovider 2>&1 | tail -3
-[ "$FAIL" -eq 0 ] || exit 1
+SUITE=${PIPESTATUS[0]}
+
+if [ "$SUITE" -ne 0 ]; then
+  echo "THE SUITE IS RED after the audit (pytest exit $SUITE). The mutation"
+  echo "counts above describe a suite that does not pass, so they mean nothing."
+  exit 1
+fi
+
+if [ "$FAIL" -ne 0 ]; then
+  echo "$FAIL mutation(s) escaped or went stale. Both are failures: a mutation"
+  echo "nobody ran is reported beside the ones that did."
+  exit 1
+fi
+
+echo "Suite green (pytest exit 0), $PASS mutations caught, 0 escaped or stale."

@@ -584,3 +584,506 @@ def test_the_analysis_cli_runs_end_to_end(tmp_path, capsys):
     assert report["items"] == 5
     printed = capsys.readouterr().out
     assert "5 items enriched" in printed
+
+
+# ---------------------------------------------------------------------------
+# the cover aggregates: words, span, stars, pool, confidence
+# ---------------------------------------------------------------------------
+
+def test_the_word_total_is_measured_over_the_rows_that_have_words():
+    """Mutation: dividing the total by len(records) instead of by the rows that
+    carried text.
+
+    26 of the 492 resolved nowhere and have no body at all. Counting them in
+    the denominator would report a median and a mean for a population a quarter
+    of which has no measurement, and the cover states the denominator out loud
+    ("across the 466 whose text came back").
+    """
+    rows = many(3, words=1000) + [record(url_sha256="z" * 64, words=None)]
+    totals = analysis.word_totals(rows)
+    assert totals["total"] == 3000
+    assert totals["measured_over"] == 3
+    assert totals["corpus"] == 4
+    assert totals["median"] == 1000
+
+
+def test_a_corpus_with_no_recovered_text_reports_no_median_rather_than_zero():
+    """Mutation: a median of 0 where nothing was measured.
+
+    0 reads as "the typical article was empty". None reads as "there is no
+    typical article here", which is the true statement.
+    """
+    totals = analysis.word_totals([record(words=None)])
+    assert totals["median"] is None
+    assert totals["mean"] is None
+    assert totals["total"] == 0
+    assert totals["measured_over"] == 0
+
+
+def test_the_saved_span_is_the_oldest_and_newest_save_date():
+    """Mutation: reporting the span from saved_year, which loses the day.
+
+    The cover says "27 January 2011", not "2011". A year is the wrong
+    precision for a sentence whose whole force is how long one particular
+    intention has been sitting there.
+    """
+    rows = [record(url_sha256="1" * 64, saved_date="2011-01-27", year=2011),
+            record(url_sha256="2" * 64, saved_date="2026-04-12", year=2026),
+            record(url_sha256="3" * 64, saved_date="2018-06-01", year=2018)]
+    span = analysis.saved_span(rows)
+    assert span["oldest"] == "2011-01-27"
+    assert span["newest"] == "2026-04-12"
+    assert span["years_spanned"] == 16
+    assert span["dated"] == 3
+
+
+def test_a_corpus_with_no_dates_has_no_span_rather_than_a_fabricated_one():
+    """Mutation: min() on an empty sequence, or a today() default standing in
+    for a date nothing recorded."""
+    span = analysis.saved_span([record(saved_date=None)])
+    assert span["oldest"] is None and span["newest"] is None
+    assert span["years_spanned"] is None
+    assert span["dated"] == 0
+
+
+def test_the_confidence_split_counts_every_row_including_the_declined_ones():
+    """Mutation: splitting only the rows that carried a sentence.
+
+    The grade and the sentence are different fields. The model can grade a row
+    low and decline to say anything, and it did so ten times in the live
+    corpus: the three grades sum to the whole corpus, while `counted` and
+    `excluded_low_confidence` in why_saved_summary() sum only over the rows
+    with a sentence. A split that quietly used the second population would
+    publish a bar chart whose total is not the corpus.
+    """
+    rows = [record(url_sha256="1" * 64, confidence="high"),
+            record(url_sha256="2" * 64, confidence="medium"),
+            record(url_sha256="3" * 64, confidence="low"),
+            record(url_sha256="4" * 64, confidence="low", why="")]
+    split = analysis.confidence_split(rows)
+    assert split == {"high": 1, "medium": 1, "low": 2, "unset": 0, "total": 4}
+    assert sum(split[k] for k in ("high", "medium", "low", "unset")) == len(rows)
+
+
+def test_a_row_with_an_unrecognised_confidence_is_counted_as_unset():
+    """Mutation: dropping it, so the split stops summing to the corpus.
+
+    A grade the model invents is a fact about the run. Silently discarding it
+    makes the bar chart's total smaller than the corpus with nothing on the
+    page saying why.
+    """
+    split = analysis.confidence_split([record(confidence="very high")])
+    assert split["unset"] == 1
+    assert split["total"] == 1
+
+
+def test_the_star_count_is_a_count_and_ignores_a_missing_field():
+    """Mutation: counting a row whose `starred` key is absent as starred.
+
+    `starred` is an independent field from read progress - only one of the
+    eight partially-read folder items carries it - so a truthiness bug here
+    would put a number on the cover that means nothing.
+    """
+    rows = [record(url_sha256="1" * 64, starred=True),
+            record(url_sha256="2" * 64, starred=False),
+            record(url_sha256="3" * 64)]
+    assert analysis.starred_count(rows) == 1
+
+
+def test_the_pool_splits_the_queue_from_the_folders():
+    """Mutation: reporting one number for the pool.
+
+    These are two different acts wearing the same label. The queue is where
+    things were dropped; the folders are where things were sorted, named and
+    shelved, and every item saved before 2014 that survived is in a folder. The
+    cover says 395 and 97, so the payload has to carry both.
+    """
+    rows = [record(url_sha256="1" * 64, folder=None),
+            record(url_sha256="2" * 64, folder=""),
+            record(url_sha256="3" * 64, folder="Steve Jobs")]
+    pool = analysis.pool_split(rows)
+    assert {k: v for k, v in pool.items() if k != "by_year"} == {
+        "unread_queue": 2, "filed_in_folders": 1, "total": 3}
+
+
+# ---------------------------------------------------------------------------
+# the paired series: the read corpus, by year and by topic
+# ---------------------------------------------------------------------------
+
+def test_the_read_year_series_is_read_it_later_only():
+    """Mutation: counting the legacy document archive into the comparison.
+
+    10,551 of the index's 17,320 rows are scanned PDFs, Word files and text
+    dumps that were never saved with an intention to read later. Comparing a
+    reading queue against a corpus that is 62 percent scanned documents
+    compares two different acts.
+    """
+    frame = read_frame([read_row(source="instapaper", date_saved="2018-03-01"),
+                        read_row(source="matter", date_saved="2018-07-01"),
+                        read_row(source="legacy_pdf", date_saved="2018-09-01")])
+    assert analysis.read_corpus_by_year(frame) == {2018: 2}
+
+
+def test_the_read_year_series_keeps_the_rows_the_topic_series_drops():
+    """Mutation: reusing read_corpus_topics()'s clean-rows filter here.
+
+    The two series have different denominators on purpose. A row the content
+    guard rejected still went through the save-then-read loop, so it counts as
+    a read; it simply carries no usable topics. Filtering it out of the year
+    series would make plate 01's total 5,905 where the record says 6,769.
+    """
+    frame = read_frame([read_row(date_saved="2018-03-01"),
+                        read_row(date_saved="2018-05-01", corrupted=True)])
+    assert analysis.read_corpus_by_year(frame) == {2018: 2}
+
+
+def test_a_read_row_with_no_parseable_save_date_is_not_given_a_year():
+    """Mutation: coercing an unparseable date to this year, which would pile
+    every undated legacy row onto 2026."""
+    frame = read_frame([read_row(date_saved="not a date"),
+                        read_row(date_saved="2018-03-01")])
+    assert analysis.read_corpus_by_year(frame) == {2018: 1}
+
+
+def test_the_topic_comparison_pairs_each_topic_with_its_read_share():
+    """Mutation: publishing the two distributions separately and leaving the
+    page to pair them.
+
+    The pairing IS the record's finding, and a page that pairs two lists by
+    position rather than by key will silently mismatch the moment one list
+    drops a title-shaped string and the other does not.
+    """
+    rows = ([record(url_sha256=f"{i:064d}", topics=("Ruby on Rails",)) for i in range(3)]
+            + [record(url_sha256="f" * 64, topics=("Technology",))])
+    read_topics = {2018: {"Ruby on Rails": 1, "Technology": 9}}
+    table = analysis.topic_comparison(rows, read_topics, limit=2, read_extra=0)
+    by_topic = {r["topic"]: r for r in table["topics"]}
+    assert by_topic["Ruby on Rails"]["unread"] == 3
+    assert by_topic["Ruby on Rails"]["read"] == 1
+    assert table["unread_mentions"] == 4
+    assert table["read_mentions"] == 10
+    # 0.75 of the unread mentions against 0.10 of the read ones.
+    assert by_topic["Ruby on Rails"]["ratio"] == 7.5
+
+
+def test_the_comparison_reaches_for_subjects_he_read_and_did_not_save():
+    """Mutation: ranking on the unread side only.
+
+    "Technology is the one subject he read more than he saved" is a finding
+    that cannot appear in a table built from the top of the saved pile. The
+    read-only rows are the other half of the pairing, and they are what make
+    the plate a comparison rather than a ranking.
+    """
+    rows = [record(url_sha256=f"{i:064d}", topics=("Ruby on Rails",)) for i in range(3)]
+    read_topics = {2018: {"Ruby on Rails": 1, "Social Media": 40}}
+    table = analysis.topic_comparison(rows, read_topics, limit=1, read_extra=1)
+    names = [r["topic"] for r in table["topics"]]
+    assert names == ["Ruby on Rails", "Social Media"]
+    assert dict(zip(names, (r["unread"] for r in table["topics"])))["Social Media"] == 0
+
+
+def test_a_topic_that_is_an_article_title_is_dropped_from_both_sides():
+    """Mutation: filtering the unread topics and trusting the read ones.
+
+    The read corpus's topics are model-generated strings too, out of a corpus
+    of 17,320 articles, and the record ships them. One of them colliding with
+    an UNREAD title would launder that title onto the page through the read
+    column, where nothing was looking for it.
+    """
+    title = "A Very Distinctive Headline About Wanting Less"
+    rows = [record(url_sha256="1" * 64, title=title, topics=(title, "Attention"))]
+    read_topics = {2018: {title: 99, "Attention": 5}}
+    table = analysis.topic_comparison(rows, read_topics, limit=5, read_extra=5,
+                                      titles={title.casefold()})
+    assert title not in [r["topic"] for r in table["topics"]]
+    assert "Attention" in [r["topic"] for r in table["topics"]]
+
+
+def test_a_topic_the_read_corpus_never_carried_has_no_ratio():
+    """Mutation: a ratio of infinity, or of 0, where the denominator is zero.
+
+    Both are claims. "Infinitely heavier in the unread pile" is not something
+    four mentions against nothing can support, and 0.0 says the opposite of
+    what happened.
+    """
+    rows = [record(topics=("Ruby on Rails",))]
+    table = analysis.topic_comparison(rows, {2018: {"Technology": 5}},
+                                      limit=1, read_extra=0)
+    assert table["topics"][0]["ratio"] is None
+
+
+# ---------------------------------------------------------------------------
+# the per-day rollup, in the shape Silo's provider daily summary takes
+# ---------------------------------------------------------------------------
+
+def test_the_daily_rollup_is_one_row_per_day_with_its_counts():
+    """Mutation: emitting one row per item, which is the corpus again.
+
+    The rollup is what makes the record import-eligible, and Silo's provider
+    daily summary is unique on (provider, date_of_summary). One row per item
+    would be 492 rows claiming the same key.
+    """
+    rows = [record(url_sha256="1" * 64, saved_date="2018-06-01"),
+            record(url_sha256="2" * 64, saved_date="2018-06-01"),
+            record(url_sha256="3" * 64, saved_date="2019-01-05")]
+    rollup = analysis.daily_rollup(rows)
+    days = {d["date_of_summary"]: d for d in rollup["days"]}
+    assert len(rollup["days"]) == 2
+    assert days["2018-06-01"]["raw_data"]["saves"] == 2
+    assert days["2019-01-05"]["raw_data"]["saves"] == 1
+
+
+def test_the_daily_rollup_is_ordered_by_day():
+    """Mutation: dict ordering, which is insertion order, which is the order
+    the queue happened to be fetched in. A series drawn from that is noise."""
+    rows = [record(url_sha256="1" * 64, saved_date="2019-01-05"),
+            record(url_sha256="2" * 64, saved_date="2011-01-27")]
+    dates = [d["date_of_summary"] for d in analysis.daily_rollup(rows)["days"]]
+    assert dates == sorted(dates)
+
+
+def test_a_day_carries_category_counts_and_never_an_item():
+    """Mutation: carrying the day's titles so the importer "has something to
+    key on".
+
+    The rollup is published. Every rule the rest of this record follows applies
+    to it, and a per-day list of what was saved that day is the most
+    identifying shape the data has: one title plus one date is an article.
+    """
+    rows = [record(url_sha256="1" * 64, saved_date="2018-06-01",
+                   abandonment="nearly_finished", starred=True, words=900),
+            record(url_sha256="2" * 64, saved_date="2018-06-01",
+                   abandonment="never_opened", words=100)]
+    day = analysis.daily_rollup(rows)["days"][0]
+    stats = day["raw_data"]
+    assert stats["by_abandonment"] == {"never_opened": 1, "started": 0,
+                                       "nearly_finished": 1}
+    assert stats["starred"] == 1
+    assert stats["words"] == 1000
+    assert day["word_count"] == 1000
+    serialised = repr(day)
+    assert "An article title long enough to be a needle" not in serialised
+    assert "https://" not in serialised
+
+    # The allowlist, asserted rather than assumed. Adversarial review walked
+    # `url_sha256` into this dict - the join key `five_ws.source_id` calls the
+    # one disclosure this record refuses - and every guard missed it, because
+    # they all constrained the DAY's keys and then greped the inside for the
+    # fixture's own strings. A key this set does not name is a key nobody chose.
+    assert set(day) == analysis.DAILY_DAY_KEYS
+    assert set(stats) == analysis.DAILY_RAW_KEYS
+
+
+def test_a_day_reports_reads_as_unknown_rather_than_zero():
+    """Mutation: `"reads": 0`.
+
+    Every item in this corpus is unread by definition, so the record has no
+    reading events at all - not zero of them on a given day, but no
+    observation. A Silo import that read 0 would draw a flat line at the
+    bottom of a chart and call it measurement.
+    """
+    day = analysis.daily_rollup([record(saved_date="2018-06-01")])["days"][0]
+    assert day["raw_data"]["reads"] is None
+    assert "unread" in analysis.DAILY_READS_NOTE.casefold()
+
+
+def test_the_day_carries_the_inferred_reason_presence_rate_not_the_reason():
+    """Mutation: rolling the why_saved sentences up "because a day is an
+    aggregate".
+
+    A day with one save is not an aggregate. Concatenating a single item's
+    inference under a date publishes both the sentence and the date it belongs
+    to, which is more identifying than the title would have been.
+    """
+    rows = [record(url_sha256="1" * 64, saved_date="2018-06-01",
+                   why="He was thinking about attention.", confidence="high"),
+            record(url_sha256="2" * 64, saved_date="2018-06-01", why="",
+                   confidence="low")]
+    stats = analysis.daily_rollup(rows)["days"][0]["raw_data"]
+    assert stats["why_saved_present"] == 1
+    assert stats["why_saved_rate"] == 0.5
+    assert "thinking about attention" not in repr(stats)
+
+
+def test_the_rollup_declares_its_provider_source_and_provenance():
+    """Mutation: a bare list of days.
+
+    Silo keys a daily summary on (provider, date_of_summary) and carries its
+    provenance inside the payload rather than in a column, so a series arriving
+    without those is a series nothing can file.
+    """
+    rollup = analysis.daily_rollup([record(saved_date="2018-06-01")],
+                                   built="2026-09-16")
+    assert rollup["provider"] == "record"
+    assert rollup["source"] == "meant-to-read"
+    assert rollup["imported_at"] == "2026-09-16T00:00:00Z"
+    assert rollup["timezone"] == "UTC"
+    # The precedent nests provenance inside the column Silo ingests, because
+    # nothing in Silo can see a sibling of it.
+    inner = rollup["days"][0]["raw_data"]
+    assert inner["source"] == "meant-to-read"
+    assert inner["imported_at"] == "2026-09-16T00:00:00Z"
+
+
+def test_an_undated_row_is_reported_rather_than_filed_under_a_guessed_day():
+    """Mutation: dropping it silently, or bucketing it under today.
+
+    Either one makes the series disagree with `items` with nothing saying so.
+    """
+    rollup = analysis.daily_rollup([record(url_sha256="1" * 64, saved_date=None),
+                                    record(url_sha256="2" * 64, saved_date="2018-06-01")])
+    assert rollup["undated"] == 1
+    assert sum(d["raw_data"]["saves"] for d in rollup["days"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# what adversarial review found on 2026-09-16
+# ---------------------------------------------------------------------------
+
+def test_a_near_copy_of_a_title_normalizes_onto_the_title():
+    """Mutation: comparing on `.strip().casefold()`.
+
+    The hole, found by adversarial review: a model reads an article, emits the
+    headline as a "topic" with one curly apostrophe turned straight, and the
+    exact-match redaction publishes it. The leak scan downstream is
+    exact-substring too, so nothing then looks for it - two gates, one blind
+    spot, failing in the same direction. 26 percent of this corpus's titles
+    change under ordinary punctuation folding.
+    """
+    import unicodedata
+    base = "The Crane Wife, and What I Learned About Wanting Less"
+    for variant in (base.replace("'", "’"),
+                    base.replace(",", "—"),  # not a variant: must differ
+                    unicodedata.normalize("NFD", base),
+                    base.replace(" ", "  "),
+                    base.replace(" ", " "),
+                    base.upper()):
+        same = analysis.normalize(variant) == analysis.normalize(base)
+        assert same is (variant != base.replace(",", "—"))
+
+
+def test_normalization_does_not_collapse_two_different_titles():
+    """Mutation: a normalizer so aggressive it merges distinct titles.
+
+    A redaction that drops everything is a record with no topics on it, which
+    is the other way this fails. Two headlines that differ by a word stay two.
+    """
+    assert analysis.normalize("A Very Long Headline About Farming") != \
+        analysis.normalize("A Very Long Headline About Fishing")
+
+
+def test_the_pool_splits_by_year_as_well_as_overall():
+    """Mutation: an overall split only.
+
+    The finding is not the split, it is where it falls. The queue holds nothing
+    from before 2014, so every item that survived fifteen years unread survived
+    in a folder, and the record says that in prose. Prose with a typed number
+    in it is what the payload exists to remove.
+    """
+    rows = [record(url_sha256="1" * 64, year=2011, folder="Steve Jobs"),
+            record(url_sha256="2" * 64, year=2011, folder="Steve Jobs"),
+            record(url_sha256="3" * 64, year=2018, folder=None)]
+    by_year = analysis.pool_split(rows)["by_year"]
+    assert by_year["2011"] == {"unread_queue": 0, "filed_in_folders": 2}
+    assert by_year["2018"] == {"unread_queue": 1, "filed_in_folders": 0}
+
+
+def test_the_read_titles_are_normalized_and_respect_the_floor():
+    """Mutation: an untested producer of the read-column redaction set.
+
+    `read_corpus_titles()` had zero references in any test file. It builds the
+    set the READ column is redacted against, and that column has no leak-scan
+    backstop at all - the needles are this corpus's titles, and the index
+    repository's word list is a hundred hand-kept strings, not 17,320.
+    """
+    frame = read_frame([
+        {"title": "A Read Article Title’s Long Enough", "source": "instapaper",
+         "date_saved": "2018-03-01", "topics": ["X"], "content_corrupted": False,
+         "url": "https://x.example/y"},
+        {"title": "Short", "source": "instapaper", "date_saved": "2018-03-01",
+         "topics": ["X"], "content_corrupted": False, "url": "https://x.example/z"}])
+    titles = analysis.read_corpus_titles(frame)
+    assert analysis.normalize("A Read Article Title's Long Enough") in titles
+    assert analysis.normalize("Short") not in titles
+
+
+def test_the_read_column_drops_a_near_copy_of_an_unread_title():
+    """Mutation: normalizing the unread column and not the read one.
+
+    The read corpus's topics are model-generated out of 17,320 articles and
+    this record publishes them beside the saved ones. A near-copy of an unread
+    title arriving through that column has no scan behind it at all.
+    """
+    title = "A Very Distinctive Headline About Wanting Less"
+    near = title.replace("About", "About ")
+    rows = [record(url_sha256="1" * 64, title=title, topics=("Attention",))]
+    table = analysis.topic_comparison(rows, {2018: {near: 99, "Attention": 5}},
+                                      limit=5, read_extra=5,
+                                      titles={analysis.normalize(title)})
+    assert near not in [r["topic"] for r in table["topics"]]
+
+
+def test_the_rollup_declares_what_a_silo_import_still_needs():
+    """Mutation: a shape that only LOOKS like Silo's.
+
+    Executed against Silo by adversarial review: both "meant-to-read" and the
+    house rule's own "record" fail `ProviderDailySummary#valid?`, and Silo
+    recomputes `computed_stats` from `raw_data`, returning {} for a provider it
+    has no method for - so numbers shipped in `computed_stats` are erased by the
+    first `rake provider_analytics:compute_all` with nothing left to rebuild
+    from. A payload that imports and silently self-destructs is worse than one
+    that says what is missing.
+    """
+    rollup = analysis.daily_rollup([record(saved_date="2018-06-01")])
+    assert rollup["silo_import"]["provider_accepted"] is False
+    needs = " ".join(rollup["silo_import"]["needs"]).casefold()
+    assert "supported_providers" in needs
+    assert "compute_record_stats" in needs
+    assert "word_count" in needs
+    # The numbers are in the column Silo ingests, not the one it overwrites.
+    assert "computed_stats" not in rollup["days"][0]
+    assert rollup["days"][0]["raw_data"]["saves"] == 1
+
+
+def test_the_index_row_count_is_the_whole_frame_not_the_comparison():
+    """Mutation: returning None, or returning the read-it-later subset.
+
+    The record's plate-01 footnote is a sentence about the difference between
+    the two - "6,769 of the index's 17,320 rows; the other 10,551 are the
+    legacy document archive" - so a producer that returns the subset publishes
+    "6,769 of the index's 6,769 rows" and a producer that returns None leaves
+    the page with nothing to print.
+
+    This function had no direct test when it landed, and the mutation audit
+    caught that: the payload test passes the count in by hand, so the producer
+    could return anything at all and stay green.
+    """
+    frame = read_frame([read_row(source="instapaper"), read_row(source="matter"),
+                        read_row(source="legacy_pdf"), read_row(source="legacy_txt")])
+    assert analysis.read_corpus_rows(frame) == 4
+    assert analysis.read_corpus_rows(frame) > sum(
+        analysis.read_corpus_by_year(frame).values())
+    assert analysis.read_corpus_rows(None) is None
+
+
+def test_the_read_side_does_not_add_a_second_row_for_the_same_subject():
+    """Mutation: deduping the paired table on a different key from the filter.
+
+    `topic_comparison` picks the top of the saved pile, then reaches down the
+    read side for subjects that are not already there. "Already there" was
+    decided on casefold while the redaction beside it was decided on normalize,
+    so a read topic differing from a chosen one by one curly apostrophe would
+    be appended as a SECOND row for the same subject - two bars, two
+    percentages, one thing.
+
+    Escaped the audit until this test existed, because every other fixture in
+    this file is plain ASCII and on ASCII the two keys agree exactly.
+    """
+    rows = [record(url_sha256=f"{i:064d}", topics=("Children's Health",))
+            for i in range(3)]
+    read_topics = {2018: {"Children’s Health": 400, "Technology": 9}}
+    table = analysis.topic_comparison(rows, read_topics, limit=1, read_extra=2)
+    names = [r["topic"] for r in table["topics"]]
+    assert names.count("Children's Health") == 1
+    assert "Children’s Health" not in names
+    assert "Technology" in names

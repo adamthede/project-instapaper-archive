@@ -1,0 +1,6829 @@
+{
+  "abandonment_bands": {
+    "nearly_finished": {
+      "count": 20,
+      "median_words": 4468,
+      "top_topics": [
+        "Technology",
+        "Personal Growth",
+        "Philosophy",
+        "Psychology",
+        "Self-Improvement",
+        "API Development",
+        "Activism",
+        "Aging"
+      ]
+    },
+    "never_opened": {
+      "count": 373,
+      "median_words": 1428,
+      "top_topics": [
+        "Software Development",
+        "Ruby on Rails",
+        "Artificial Intelligence",
+        "Entrepreneurship",
+        "Innovation",
+        "Web Development",
+        "Personal Development"
+      ]
+    },
+    "started": {
+      "count": 99,
+      "median_words": 1413,
+      "top_topics": [
+        "Personal Development",
+        "Innovation",
+        "Business Strategy",
+        "Education",
+        "Mindfulness",
+        "Retail Technology",
+        "Artificial Intelligence"
+      ]
+    }
+  },
+  "aging_curve": {
+    "2011": {
+      "aged_out": 20,
+      "fraction": 0.4167,
+      "judged": 48,
+      "total": 52,
+      "unknown": 4
+    },
+    "2012": {
+      "aged_out": 0,
+      "fraction": 0.0,
+      "judged": 6,
+      "total": 7,
+      "unknown": 1
+    },
+    "2013": {
+      "aged_out": 0,
+      "fraction": 0.0,
+      "judged": 14,
+      "total": 14,
+      "unknown": 0
+    },
+    "2014": {
+      "aged_out": 5,
+      "fraction": 0.1613,
+      "judged": 31,
+      "total": 31,
+      "unknown": 0
+    },
+    "2015": {
+      "aged_out": 1,
+      "fraction": 0.0909,
+      "judged": 11,
+      "total": 12,
+      "unknown": 1
+    },
+    "2016": {
+      "aged_out": 10,
+      "fraction": 0.1961,
+      "judged": 51,
+      "total": 53,
+      "unknown": 2
+    },
+    "2017": {
+      "aged_out": 5,
+      "fraction": 0.0943,
+      "judged": 53,
+      "total": 57,
+      "unknown": 4
+    },
+    "2018": {
+      "aged_out": 18,
+      "fraction": 0.1818,
+      "judged": 99,
+      "total": 101,
+      "unknown": 2
+    },
+    "2019": {
+      "aged_out": 3,
+      "fraction": 0.06,
+      "judged": 50,
+      "total": 51,
+      "unknown": 1
+    },
+    "2020": {
+      "aged_out": 6,
+      "fraction": 0.4615,
+      "judged": 13,
+      "total": 15,
+      "unknown": 2
+    },
+    "2022": {
+      "aged_out": 0,
+      "fraction": 0.0,
+      "judged": 1,
+      "total": 1,
+      "unknown": 0
+    },
+    "2023": {
+      "aged_out": 1,
+      "fraction": 0.0526,
+      "judged": 19,
+      "total": 19,
+      "unknown": 0
+    },
+    "2024": {
+      "aged_out": 0,
+      "fraction": 0.0,
+      "judged": 5,
+      "total": 7,
+      "unknown": 2
+    },
+    "2025": {
+      "aged_out": 6,
+      "fraction": 0.24,
+      "judged": 25,
+      "total": 32,
+      "unknown": 7
+    },
+    "2026": {
+      "aged_out": 7,
+      "fraction": 0.1842,
+      "judged": 38,
+      "total": 40,
+      "unknown": 2
+    }
+  },
+  "built": "2026-09-17",
+  "by_domain": [
+    [
+      "nytimes.com",
+      84
+    ],
+    [
+      "medium.com",
+      50
+    ],
+    [
+      "x.com",
+      16
+    ],
+    [
+      "blakemasters.com",
+      14
+    ],
+    [
+      "businessinsider.com",
+      14
+    ],
+    [
+      "brainpickings.org",
+      12
+    ],
+    [
+      "theatlantic.com",
+      8
+    ],
+    [
+      "theguardian.com",
+      8
+    ],
+    [
+      "newyorker.com",
+      7
+    ],
+    [
+      "fastcodesign.com",
+      6
+    ],
+    [
+      "medium.freecodecamp.org",
+      6
+    ],
+    [
+      "en.wikipedia.org",
+      5
+    ],
+    [
+      "tennessean.com",
+      5
+    ],
+    [
+      "getpocket.com",
+      4
+    ],
+    [
+      "techcrunch.com",
+      4
+    ],
+    [
+      "washingtonpost.com",
+      4
+    ],
+    [
+      "anthropic.com",
+      3
+    ],
+    [
+      "blog.bulletproof.com",
+      3
+    ],
+    [
+      "hackernoon.com",
+      3
+    ],
+    [
+      "loc.gov",
+      3
+    ],
+    [
+      "mashable.com",
+      3
+    ],
+    [
+      "nationalgeographic.com",
+      3
+    ],
+    [
+      "nautil.us",
+      3
+    ],
+    [
+      "nymag.com",
+      3
+    ],
+    [
+      "rollingstone.com",
+      3
+    ],
+    [
+      "sitepoint.com",
+      3
+    ],
+    [
+      "wsj.com",
+      3
+    ],
+    [
+      "backchannel.com",
+      2
+    ],
+    [
+      "betterhumans.coach.me",
+      2
+    ],
+    [
+      "blog.codeship.com",
+      2
+    ],
+    [
+      "blog.gyrosco.pe",
+      2
+    ],
+    [
+      "blog.samaltman.com",
+      2
+    ],
+    [
+      "citusdata.com",
+      2
+    ],
+    [
+      "codewithjason.com",
+      2
+    ],
+    [
+      "dlis.dos.state.fl.us",
+      2
+    ],
+    [
+      "eand.co",
+      2
+    ],
+    [
+      "fastcompany.com",
+      2
+    ],
+    [
+      "ft.com",
+      2
+    ],
+    [
+      "gigaom.com",
+      2
+    ],
+    [
+      "indeed.com",
+      2
+    ],
+    [
+      "kurzweilai.net",
+      2
+    ],
+    [
+      "quantifiedself.com",
+      2
+    ],
+    [
+      "scoutapm.com",
+      2
+    ],
+    [
+      "social.techcrunch.com",
+      2
+    ],
+    [
+      "technologyreview.com",
+      2
+    ],
+    [
+      "thehill.com",
+      2
+    ],
+    [
+      "theprepared.com",
+      2
+    ],
+    [
+      "wired.com",
+      2
+    ],
+    [
+      "amazon.com",
+      1
+    ],
+    [
+      "ankane.org",
+      1
+    ],
+    [
+      "apple.news",
+      1
+    ],
+    [
+      "aprilzero.com",
+      1
+    ],
+    [
+      "archive.is",
+      1
+    ],
+    [
+      "archive.jamesaltucher.com",
+      1
+    ],
+    [
+      "archive.ph",
+      1
+    ],
+    [
+      "arcprize.org",
+      1
+    ],
+    [
+      "arstechnica.com",
+      1
+    ],
+    [
+      "babycenter.com",
+      1
+    ],
+    [
+      "bbc.com",
+      1
+    ],
+    [
+      "bhphotovideo.com",
+      1
+    ]
+  ],
+  "by_saved_year": {
+    "2011": 52,
+    "2012": 7,
+    "2013": 14,
+    "2014": 31,
+    "2015": 12,
+    "2016": 53,
+    "2017": 57,
+    "2018": 101,
+    "2019": 51,
+    "2020": 15,
+    "2022": 1,
+    "2023": 19,
+    "2024": 7,
+    "2025": 32,
+    "2026": 40
+  },
+  "by_topic": [
+    [
+      "Software Development",
+      29
+    ],
+    [
+      "Ruby on Rails",
+      22
+    ],
+    [
+      "Personal Development",
+      20
+    ],
+    [
+      "Artificial Intelligence",
+      18
+    ],
+    [
+      "Innovation",
+      18
+    ],
+    [
+      "Entrepreneurship",
+      16
+    ],
+    [
+      "Web Development",
+      15
+    ],
+    [
+      "Technology",
+      12
+    ],
+    [
+      "Self-Improvement",
+      12
+    ],
+    [
+      "Business Strategy",
+      11
+    ],
+    [
+      "Personal Growth",
+      9
+    ],
+    [
+      "Parenting",
+      8
+    ],
+    [
+      "Geopolitics",
+      7
+    ],
+    [
+      "Cybersecurity",
+      7
+    ],
+    [
+      "Philosophy",
+      7
+    ],
+    [
+      "Psychology",
+      7
+    ],
+    [
+      "Climate Change",
+      7
+    ],
+    [
+      "Career Development",
+      6
+    ],
+    [
+      "Future of Work",
+      6
+    ],
+    [
+      "Software Engineering",
+      6
+    ],
+    [
+      "Education",
+      6
+    ],
+    [
+      "Encryption",
+      5
+    ],
+    [
+      "Memory",
+      5
+    ],
+    [
+      "Economic Inequality",
+      5
+    ],
+    [
+      "Politics",
+      5
+    ],
+    [
+      "Leadership",
+      5
+    ],
+    [
+      "Architecture",
+      5
+    ],
+    [
+      "Data Security",
+      5
+    ],
+    [
+      "Social Justice",
+      5
+    ],
+    [
+      "Retail Technology",
+      5
+    ],
+    [
+      "Privacy",
+      4
+    ],
+    [
+      "Government Surveillance",
+      4
+    ],
+    [
+      "Knowledge Management",
+      4
+    ],
+    [
+      "Digital Privacy",
+      4
+    ],
+    [
+      "AI Agents",
+      4
+    ],
+    [
+      "Creativity",
+      4
+    ],
+    [
+      "Goal Setting",
+      4
+    ],
+    [
+      "Communication",
+      4
+    ],
+    [
+      "Venture Capital",
+      4
+    ],
+    [
+      "Child Development",
+      4
+    ]
+  ],
+  "caveat": "The unread summaries were generated from full article bodies; the read corpus's were generated under a 10,000-character cap, which 28 of 79 sampled bodies exceed. The unread side therefore saw more of each article than the read side did, and a topic present on one and absent on the other may be a difference in how much text the model read rather than a difference in what was saved.",
+  "daily": {
+    "date_field": "date_of_summary",
+    "days": [
+      {
+        "date_of_summary": "2011-01-27",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 12,
+            "started": 0
+          },
+          "by_recovery": {
+            "direct": 1,
+            "instapaper": 6,
+            "metadata": 3,
+            "wayback": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 12,
+          "source": "meant-to-read",
+          "starred": 11,
+          "why_saved_present": 10,
+          "why_saved_rate": 0.8333,
+          "words": 6956
+        },
+        "word_count": 6956
+      },
+      {
+        "date_of_summary": "2011-03-10",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 1,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 774
+        },
+        "word_count": 774
+      },
+      {
+        "date_of_summary": "2011-03-22",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 7,
+            "started": 0
+          },
+          "by_recovery": {
+            "direct": 1,
+            "instapaper": 2,
+            "wayback": 4
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 7,
+          "source": "meant-to-read",
+          "starred": 7,
+          "why_saved_present": 7,
+          "why_saved_rate": 1.0,
+          "words": 23800
+        },
+        "word_count": 23800
+      },
+      {
+        "date_of_summary": "2011-10-09",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 29,
+            "started": 0
+          },
+          "by_recovery": {
+            "direct": 2,
+            "instapaper": 20,
+            "metadata": 1,
+            "wayback": 6
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 29,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 26,
+          "why_saved_rate": 0.8966,
+          "words": 51160
+        },
+        "word_count": 51160
+      },
+      {
+        "date_of_summary": "2011-10-10",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 3,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 3
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 3,
+          "why_saved_rate": 1.0,
+          "words": 2346
+        },
+        "word_count": 2346
+      },
+      {
+        "date_of_summary": "2012-03-29",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 7,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 3,
+            "metadata": 1,
+            "wayback": 3
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 7,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 6,
+          "why_saved_rate": 0.8571,
+          "words": 11273
+        },
+        "word_count": 11273
+      },
+      {
+        "date_of_summary": "2013-06-19",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 14,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 14
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 14,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 14,
+          "why_saved_rate": 1.0,
+          "words": 87656
+        },
+        "word_count": 87656
+      },
+      {
+        "date_of_summary": "2014-01-10",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 5712
+        },
+        "word_count": 5712
+      },
+      {
+        "date_of_summary": "2014-02-02",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 3151
+        },
+        "word_count": 3151
+      },
+      {
+        "date_of_summary": "2014-03-10",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 362
+        },
+        "word_count": 362
+      },
+      {
+        "date_of_summary": "2014-04-29",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 4176
+        },
+        "word_count": 4176
+      },
+      {
+        "date_of_summary": "2014-05-04",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1776
+        },
+        "word_count": 1776
+      },
+      {
+        "date_of_summary": "2014-05-18",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2041
+        },
+        "word_count": 2041
+      },
+      {
+        "date_of_summary": "2014-07-01",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1978
+        },
+        "word_count": 1978
+      },
+      {
+        "date_of_summary": "2014-07-12",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2451
+        },
+        "word_count": 2451
+      },
+      {
+        "date_of_summary": "2014-07-18",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 6,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 5,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 6,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 6,
+          "why_saved_rate": 1.0,
+          "words": 7916
+        },
+        "word_count": 7916
+      },
+      {
+        "date_of_summary": "2014-07-24",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1740
+        },
+        "word_count": 1740
+      },
+      {
+        "date_of_summary": "2014-08-03",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 5490
+        },
+        "word_count": 5490
+      },
+      {
+        "date_of_summary": "2014-08-08",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 0.5,
+          "words": 5679
+        },
+        "word_count": 5679
+      },
+      {
+        "date_of_summary": "2014-08-12",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 4992
+        },
+        "word_count": 4992
+      },
+      {
+        "date_of_summary": "2014-08-20",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 4064
+        },
+        "word_count": 4064
+      },
+      {
+        "date_of_summary": "2014-09-12",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 598
+        },
+        "word_count": 598
+      },
+      {
+        "date_of_summary": "2014-09-20",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 14227
+        },
+        "word_count": 14227
+      },
+      {
+        "date_of_summary": "2014-09-25",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 12274
+        },
+        "word_count": 12274
+      },
+      {
+        "date_of_summary": "2014-10-20",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 4326
+        },
+        "word_count": 4326
+      },
+      {
+        "date_of_summary": "2014-10-23",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 714
+        },
+        "word_count": 714
+      },
+      {
+        "date_of_summary": "2014-10-24",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 3484
+        },
+        "word_count": 3484
+      },
+      {
+        "date_of_summary": "2014-11-01",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 4785
+        },
+        "word_count": 4785
+      },
+      {
+        "date_of_summary": "2014-12-03",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 598
+        },
+        "word_count": 598
+      },
+      {
+        "date_of_summary": "2014-12-08",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 10544
+        },
+        "word_count": 10544
+      },
+      {
+        "date_of_summary": "2014-12-18",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1758
+        },
+        "word_count": 1758
+      },
+      {
+        "date_of_summary": "2015-01-01",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1304
+        },
+        "word_count": 1304
+      },
+      {
+        "date_of_summary": "2015-01-17",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 301
+        },
+        "word_count": 301
+      },
+      {
+        "date_of_summary": "2015-01-20",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2568
+        },
+        "word_count": 2568
+      },
+      {
+        "date_of_summary": "2015-01-21",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1780
+        },
+        "word_count": 1780
+      },
+      {
+        "date_of_summary": "2015-01-28",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 598
+        },
+        "word_count": 598
+      },
+      {
+        "date_of_summary": "2015-02-01",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 2893
+        },
+        "word_count": 2893
+      },
+      {
+        "date_of_summary": "2015-02-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 503
+        },
+        "word_count": 503
+      },
+      {
+        "date_of_summary": "2015-02-08",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 0
+        },
+        "word_count": 0
+      },
+      {
+        "date_of_summary": "2015-02-13",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1191
+        },
+        "word_count": 1191
+      },
+      {
+        "date_of_summary": "2015-06-02",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1938
+        },
+        "word_count": 1938
+      },
+      {
+        "date_of_summary": "2015-06-26",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 4025
+        },
+        "word_count": 4025
+      },
+      {
+        "date_of_summary": "2016-02-09",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 417
+        },
+        "word_count": 417
+      },
+      {
+        "date_of_summary": "2016-02-18",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2367
+        },
+        "word_count": 2367
+      },
+      {
+        "date_of_summary": "2016-03-24",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 3,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "wayback": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 3,
+          "why_saved_rate": 1.0,
+          "words": 5869
+        },
+        "word_count": 5869
+      },
+      {
+        "date_of_summary": "2016-04-14",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 7,
+            "started": 0
+          },
+          "by_recovery": {
+            "direct": 1,
+            "instapaper": 6
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 7,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 7,
+          "why_saved_rate": 1.0,
+          "words": 9275
+        },
+        "word_count": 9275
+      },
+      {
+        "date_of_summary": "2016-04-15",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 176
+        },
+        "word_count": 176
+      },
+      {
+        "date_of_summary": "2016-04-21",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 7,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 4,
+            "wayback": 3
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 7,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 7,
+          "why_saved_rate": 1.0,
+          "words": 10629
+        },
+        "word_count": 10629
+      },
+      {
+        "date_of_summary": "2016-04-28",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 6591
+        },
+        "word_count": 6591
+      },
+      {
+        "date_of_summary": "2016-05-09",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 10982
+        },
+        "word_count": 10982
+      },
+      {
+        "date_of_summary": "2016-07-14",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 5421
+        },
+        "word_count": 5421
+      },
+      {
+        "date_of_summary": "2016-09-18",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 3
+          },
+          "by_recovery": {
+            "instapaper": 3
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 3,
+          "why_saved_rate": 1.0,
+          "words": 2082
+        },
+        "word_count": 2082
+      },
+      {
+        "date_of_summary": "2016-10-10",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2463
+        },
+        "word_count": 2463
+      },
+      {
+        "date_of_summary": "2016-10-26",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 2
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 746
+        },
+        "word_count": 746
+      },
+      {
+        "date_of_summary": "2016-11-01",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1061
+        },
+        "word_count": 1061
+      },
+      {
+        "date_of_summary": "2016-11-04",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1413
+        },
+        "word_count": 1413
+      },
+      {
+        "date_of_summary": "2016-11-05",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 3888
+        },
+        "word_count": 3888
+      },
+      {
+        "date_of_summary": "2016-11-10",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 4,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2,
+            "metadata": 1,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 4,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 4,
+          "why_saved_rate": 1.0,
+          "words": 3296
+        },
+        "word_count": 3296
+      },
+      {
+        "date_of_summary": "2016-11-11",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2814
+        },
+        "word_count": 2814
+      },
+      {
+        "date_of_summary": "2016-11-12",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 3
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 3,
+          "why_saved_rate": 1.0,
+          "words": 3285
+        },
+        "word_count": 3285
+      },
+      {
+        "date_of_summary": "2016-11-17",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 220
+        },
+        "word_count": 220
+      },
+      {
+        "date_of_summary": "2016-11-22",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 3453
+        },
+        "word_count": 3453
+      },
+      {
+        "date_of_summary": "2016-11-29",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 2
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 2722
+        },
+        "word_count": 2722
+      },
+      {
+        "date_of_summary": "2016-12-01",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 3,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "wayback": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 3,
+          "why_saved_rate": 1.0,
+          "words": 5601
+        },
+        "word_count": 5601
+      },
+      {
+        "date_of_summary": "2016-12-03",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2673
+        },
+        "word_count": 2673
+      },
+      {
+        "date_of_summary": "2016-12-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 4020
+        },
+        "word_count": 4020
+      },
+      {
+        "date_of_summary": "2016-12-08",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 7697
+        },
+        "word_count": 7697
+      },
+      {
+        "date_of_summary": "2016-12-24",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 327
+        },
+        "word_count": 327
+      },
+      {
+        "date_of_summary": "2016-12-30",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 538
+        },
+        "word_count": 538
+      },
+      {
+        "date_of_summary": "2017-01-02",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 0
+        },
+        "word_count": 0
+      },
+      {
+        "date_of_summary": "2017-01-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 261
+        },
+        "word_count": 261
+      },
+      {
+        "date_of_summary": "2017-01-14",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1016
+        },
+        "word_count": 1016
+      },
+      {
+        "date_of_summary": "2017-01-26",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 0
+        },
+        "word_count": 0
+      },
+      {
+        "date_of_summary": "2017-01-27",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "direct": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 339
+        },
+        "word_count": 339
+      },
+      {
+        "date_of_summary": "2017-01-30",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 2,
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 3,
+          "why_saved_rate": 1.0,
+          "words": 9904
+        },
+        "word_count": 9904
+      },
+      {
+        "date_of_summary": "2017-02-13",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 3
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 3,
+          "why_saved_rate": 1.0,
+          "words": 5598
+        },
+        "word_count": 5598
+      },
+      {
+        "date_of_summary": "2017-02-15",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 309
+        },
+        "word_count": 309
+      },
+      {
+        "date_of_summary": "2017-02-21",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 2898
+        },
+        "word_count": 2898
+      },
+      {
+        "date_of_summary": "2017-03-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1294
+        },
+        "word_count": 1294
+      },
+      {
+        "date_of_summary": "2017-03-17",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 542
+        },
+        "word_count": 542
+      },
+      {
+        "date_of_summary": "2017-04-01",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 0.5,
+          "words": 935
+        },
+        "word_count": 935
+      },
+      {
+        "date_of_summary": "2017-06-14",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 641
+        },
+        "word_count": 641
+      },
+      {
+        "date_of_summary": "2017-06-19",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 5,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 5
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 5,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 5,
+          "why_saved_rate": 1.0,
+          "words": 2661
+        },
+        "word_count": 2661
+      },
+      {
+        "date_of_summary": "2017-08-31",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2474
+        },
+        "word_count": 2474
+      },
+      {
+        "date_of_summary": "2017-09-01",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 669
+        },
+        "word_count": 669
+      },
+      {
+        "date_of_summary": "2017-09-02",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1769
+        },
+        "word_count": 1769
+      },
+      {
+        "date_of_summary": "2017-09-11",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 320
+        },
+        "word_count": 320
+      },
+      {
+        "date_of_summary": "2017-09-20",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 372
+        },
+        "word_count": 372
+      },
+      {
+        "date_of_summary": "2017-09-28",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 559
+        },
+        "word_count": 559
+      },
+      {
+        "date_of_summary": "2017-09-29",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 13603
+        },
+        "word_count": 13603
+      },
+      {
+        "date_of_summary": "2017-10-03",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1095
+        },
+        "word_count": 1095
+      },
+      {
+        "date_of_summary": "2017-10-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 1711
+        },
+        "word_count": 1711
+      },
+      {
+        "date_of_summary": "2017-10-07",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 4,
+            "started": 2
+          },
+          "by_recovery": {
+            "instapaper": 5,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 6,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 6,
+          "why_saved_rate": 1.0,
+          "words": 10013
+        },
+        "word_count": 10013
+      },
+      {
+        "date_of_summary": "2017-10-08",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 2
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 5183
+        },
+        "word_count": 5183
+      },
+      {
+        "date_of_summary": "2017-10-25",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 0.5,
+          "words": 1773
+        },
+        "word_count": 1773
+      },
+      {
+        "date_of_summary": "2017-11-03",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 3
+          },
+          "by_recovery": {
+            "instapaper": 3
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 3,
+          "why_saved_rate": 1.0,
+          "words": 1563
+        },
+        "word_count": 1563
+      },
+      {
+        "date_of_summary": "2017-11-14",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2186
+        },
+        "word_count": 2186
+      },
+      {
+        "date_of_summary": "2017-11-15",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2530
+        },
+        "word_count": 2530
+      },
+      {
+        "date_of_summary": "2017-11-19",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2177
+        },
+        "word_count": 2177
+      },
+      {
+        "date_of_summary": "2017-11-22",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 260
+        },
+        "word_count": 260
+      },
+      {
+        "date_of_summary": "2017-11-27",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 4623
+        },
+        "word_count": 4623
+      },
+      {
+        "date_of_summary": "2017-12-29",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1177
+        },
+        "word_count": 1177
+      },
+      {
+        "date_of_summary": "2018-01-04",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 405
+        },
+        "word_count": 405
+      },
+      {
+        "date_of_summary": "2018-01-18",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1644
+        },
+        "word_count": 1644
+      },
+      {
+        "date_of_summary": "2018-01-26",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 464
+        },
+        "word_count": 464
+      },
+      {
+        "date_of_summary": "2018-02-04",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 233
+        },
+        "word_count": 233
+      },
+      {
+        "date_of_summary": "2018-02-21",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 18201
+        },
+        "word_count": 18201
+      },
+      {
+        "date_of_summary": "2018-03-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 788
+        },
+        "word_count": 788
+      },
+      {
+        "date_of_summary": "2018-04-05",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 565
+        },
+        "word_count": 565
+      },
+      {
+        "date_of_summary": "2018-04-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 3,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 3
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 0.6667,
+          "words": 7050
+        },
+        "word_count": 7050
+      },
+      {
+        "date_of_summary": "2018-04-09",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 0
+        },
+        "word_count": 0
+      },
+      {
+        "date_of_summary": "2018-04-27",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 248
+        },
+        "word_count": 248
+      },
+      {
+        "date_of_summary": "2018-05-03",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 3494
+        },
+        "word_count": 3494
+      },
+      {
+        "date_of_summary": "2018-05-08",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2170
+        },
+        "word_count": 2170
+      },
+      {
+        "date_of_summary": "2018-05-21",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 759
+        },
+        "word_count": 759
+      },
+      {
+        "date_of_summary": "2018-05-22",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 6801
+        },
+        "word_count": 6801
+      },
+      {
+        "date_of_summary": "2018-06-11",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2340
+        },
+        "word_count": 2340
+      },
+      {
+        "date_of_summary": "2018-06-12",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 277
+        },
+        "word_count": 277
+      },
+      {
+        "date_of_summary": "2018-06-15",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 4061
+        },
+        "word_count": 4061
+      },
+      {
+        "date_of_summary": "2018-06-18",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1587
+        },
+        "word_count": 1587
+      },
+      {
+        "date_of_summary": "2018-06-19",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1074
+        },
+        "word_count": 1074
+      },
+      {
+        "date_of_summary": "2018-06-20",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 328
+        },
+        "word_count": 328
+      },
+      {
+        "date_of_summary": "2018-06-23",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 9989
+        },
+        "word_count": 9989
+      },
+      {
+        "date_of_summary": "2018-06-29",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1232
+        },
+        "word_count": 1232
+      },
+      {
+        "date_of_summary": "2018-07-11",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 237
+        },
+        "word_count": 237
+      },
+      {
+        "date_of_summary": "2018-07-17",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 348
+        },
+        "word_count": 348
+      },
+      {
+        "date_of_summary": "2018-07-19",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 772
+        },
+        "word_count": 772
+      },
+      {
+        "date_of_summary": "2018-07-24",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 286
+        },
+        "word_count": 286
+      },
+      {
+        "date_of_summary": "2018-07-25",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 242
+        },
+        "word_count": 242
+      },
+      {
+        "date_of_summary": "2018-08-02",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 30214
+        },
+        "word_count": 30214
+      },
+      {
+        "date_of_summary": "2018-08-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 491
+        },
+        "word_count": 491
+      },
+      {
+        "date_of_summary": "2018-08-08",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2300
+        },
+        "word_count": 2300
+      },
+      {
+        "date_of_summary": "2018-08-09",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1494
+        },
+        "word_count": 1494
+      },
+      {
+        "date_of_summary": "2018-08-15",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 2742
+        },
+        "word_count": 2742
+      },
+      {
+        "date_of_summary": "2018-08-16",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 3,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 3
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 3,
+          "why_saved_rate": 1.0,
+          "words": 1788
+        },
+        "word_count": 1788
+      },
+      {
+        "date_of_summary": "2018-08-20",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 4747
+        },
+        "word_count": 4747
+      },
+      {
+        "date_of_summary": "2018-08-30",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 3589
+        },
+        "word_count": 3589
+      },
+      {
+        "date_of_summary": "2018-08-31",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 5514
+        },
+        "word_count": 5514
+      },
+      {
+        "date_of_summary": "2018-09-05",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 1315
+        },
+        "word_count": 1315
+      },
+      {
+        "date_of_summary": "2018-09-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 664
+        },
+        "word_count": 664
+      },
+      {
+        "date_of_summary": "2018-09-08",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 323
+        },
+        "word_count": 323
+      },
+      {
+        "date_of_summary": "2018-09-10",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1612
+        },
+        "word_count": 1612
+      },
+      {
+        "date_of_summary": "2018-09-13",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 14249
+        },
+        "word_count": 14249
+      },
+      {
+        "date_of_summary": "2018-09-18",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2607
+        },
+        "word_count": 2607
+      },
+      {
+        "date_of_summary": "2018-09-22",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 247
+        },
+        "word_count": 247
+      },
+      {
+        "date_of_summary": "2018-09-27",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1151
+        },
+        "word_count": 1151
+      },
+      {
+        "date_of_summary": "2018-10-01",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 2491
+        },
+        "word_count": 2491
+      },
+      {
+        "date_of_summary": "2018-10-02",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 3
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "wayback": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 3,
+          "why_saved_rate": 1.0,
+          "words": 5705
+        },
+        "word_count": 5705
+      },
+      {
+        "date_of_summary": "2018-10-03",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 941
+        },
+        "word_count": 941
+      },
+      {
+        "date_of_summary": "2018-10-08",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 220
+        },
+        "word_count": 220
+      },
+      {
+        "date_of_summary": "2018-10-09",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 3519
+        },
+        "word_count": 3519
+      },
+      {
+        "date_of_summary": "2018-10-10",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 2407
+        },
+        "word_count": 2407
+      },
+      {
+        "date_of_summary": "2018-10-12",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 679
+        },
+        "word_count": 679
+      },
+      {
+        "date_of_summary": "2018-10-15",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 624
+        },
+        "word_count": 624
+      },
+      {
+        "date_of_summary": "2018-10-22",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 803
+        },
+        "word_count": 803
+      },
+      {
+        "date_of_summary": "2018-10-26",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 344
+        },
+        "word_count": 344
+      },
+      {
+        "date_of_summary": "2018-10-30",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1194
+        },
+        "word_count": 1194
+      },
+      {
+        "date_of_summary": "2018-11-01",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 6532
+        },
+        "word_count": 6532
+      },
+      {
+        "date_of_summary": "2018-11-02",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2543
+        },
+        "word_count": 2543
+      },
+      {
+        "date_of_summary": "2018-11-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 2641
+        },
+        "word_count": 2641
+      },
+      {
+        "date_of_summary": "2018-11-07",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 368
+        },
+        "word_count": 368
+      },
+      {
+        "date_of_summary": "2018-11-08",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 815
+        },
+        "word_count": 815
+      },
+      {
+        "date_of_summary": "2018-11-11",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 534
+        },
+        "word_count": 534
+      },
+      {
+        "date_of_summary": "2018-11-12",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 938
+        },
+        "word_count": 938
+      },
+      {
+        "date_of_summary": "2018-11-15",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 23497
+        },
+        "word_count": 23497
+      },
+      {
+        "date_of_summary": "2018-11-16",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 548
+        },
+        "word_count": 548
+      },
+      {
+        "date_of_summary": "2018-11-17",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 6448
+        },
+        "word_count": 6448
+      },
+      {
+        "date_of_summary": "2018-11-18",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 464
+        },
+        "word_count": 464
+      },
+      {
+        "date_of_summary": "2018-11-23",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 2469
+        },
+        "word_count": 2469
+      },
+      {
+        "date_of_summary": "2018-11-24",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2331
+        },
+        "word_count": 2331
+      },
+      {
+        "date_of_summary": "2018-11-26",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1676
+        },
+        "word_count": 1676
+      },
+      {
+        "date_of_summary": "2018-12-02",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 5,
+            "started": 1
+          },
+          "by_recovery": {
+            "direct": 1,
+            "instapaper": 5
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 6,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 6,
+          "why_saved_rate": 1.0,
+          "words": 6634
+        },
+        "word_count": 6634
+      },
+      {
+        "date_of_summary": "2018-12-22",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 7531
+        },
+        "word_count": 7531
+      },
+      {
+        "date_of_summary": "2018-12-28",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 414
+        },
+        "word_count": 414
+      },
+      {
+        "date_of_summary": "2019-01-03",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 2162
+        },
+        "word_count": 2162
+      },
+      {
+        "date_of_summary": "2019-01-05",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 4560
+        },
+        "word_count": 4560
+      },
+      {
+        "date_of_summary": "2019-01-09",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 4903
+        },
+        "word_count": 4903
+      },
+      {
+        "date_of_summary": "2019-01-25",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2743
+        },
+        "word_count": 2743
+      },
+      {
+        "date_of_summary": "2019-02-02",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 4,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2,
+            "wayback": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 4,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 4,
+          "why_saved_rate": 1.0,
+          "words": 8286
+        },
+        "word_count": 8286
+      },
+      {
+        "date_of_summary": "2019-02-04",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 875
+        },
+        "word_count": 875
+      },
+      {
+        "date_of_summary": "2019-02-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 690
+        },
+        "word_count": 690
+      },
+      {
+        "date_of_summary": "2019-02-07",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 236
+        },
+        "word_count": 236
+      },
+      {
+        "date_of_summary": "2019-02-12",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1866
+        },
+        "word_count": 1866
+      },
+      {
+        "date_of_summary": "2019-02-13",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2853
+        },
+        "word_count": 2853
+      },
+      {
+        "date_of_summary": "2019-02-14",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1097
+        },
+        "word_count": 1097
+      },
+      {
+        "date_of_summary": "2019-02-28",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 3508
+        },
+        "word_count": 3508
+      },
+      {
+        "date_of_summary": "2019-03-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 3784
+        },
+        "word_count": 3784
+      },
+      {
+        "date_of_summary": "2019-03-10",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1415
+        },
+        "word_count": 1415
+      },
+      {
+        "date_of_summary": "2019-03-11",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 16649
+        },
+        "word_count": 16649
+      },
+      {
+        "date_of_summary": "2019-03-14",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 0.5,
+          "words": 4283
+        },
+        "word_count": 4283
+      },
+      {
+        "date_of_summary": "2019-03-23",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1077
+        },
+        "word_count": 1077
+      },
+      {
+        "date_of_summary": "2019-03-24",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 23413
+        },
+        "word_count": 23413
+      },
+      {
+        "date_of_summary": "2019-03-27",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2471
+        },
+        "word_count": 2471
+      },
+      {
+        "date_of_summary": "2019-03-31",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 364
+        },
+        "word_count": 364
+      },
+      {
+        "date_of_summary": "2019-04-11",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 1509
+        },
+        "word_count": 1509
+      },
+      {
+        "date_of_summary": "2019-04-14",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1740
+        },
+        "word_count": 1740
+      },
+      {
+        "date_of_summary": "2019-04-15",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 360
+        },
+        "word_count": 360
+      },
+      {
+        "date_of_summary": "2019-04-17",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 991
+        },
+        "word_count": 991
+      },
+      {
+        "date_of_summary": "2019-04-19",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1863
+        },
+        "word_count": 1863
+      },
+      {
+        "date_of_summary": "2019-05-05",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 364
+        },
+        "word_count": 364
+      },
+      {
+        "date_of_summary": "2019-05-08",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 426
+        },
+        "word_count": 426
+      },
+      {
+        "date_of_summary": "2019-05-09",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 327
+        },
+        "word_count": 327
+      },
+      {
+        "date_of_summary": "2019-05-14",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 3227
+        },
+        "word_count": 3227
+      },
+      {
+        "date_of_summary": "2019-05-15",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2659
+        },
+        "word_count": 2659
+      },
+      {
+        "date_of_summary": "2019-06-12",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 985
+        },
+        "word_count": 985
+      },
+      {
+        "date_of_summary": "2019-06-21",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 5442
+        },
+        "word_count": 5442
+      },
+      {
+        "date_of_summary": "2019-07-16",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1556
+        },
+        "word_count": 1556
+      },
+      {
+        "date_of_summary": "2019-07-17",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2317
+        },
+        "word_count": 2317
+      },
+      {
+        "date_of_summary": "2019-07-24",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 477
+        },
+        "word_count": 477
+      },
+      {
+        "date_of_summary": "2019-09-11",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1360
+        },
+        "word_count": 1360
+      },
+      {
+        "date_of_summary": "2019-10-02",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 3905
+        },
+        "word_count": 3905
+      },
+      {
+        "date_of_summary": "2019-10-04",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 8028
+        },
+        "word_count": 8028
+      },
+      {
+        "date_of_summary": "2019-10-30",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 3719
+        },
+        "word_count": 3719
+      },
+      {
+        "date_of_summary": "2019-11-15",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 762
+        },
+        "word_count": 762
+      },
+      {
+        "date_of_summary": "2019-11-17",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1688
+        },
+        "word_count": 1688
+      },
+      {
+        "date_of_summary": "2019-12-04",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 6645
+        },
+        "word_count": 6645
+      },
+      {
+        "date_of_summary": "2020-02-03",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 7,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 6,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 7,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 7,
+          "why_saved_rate": 1.0,
+          "words": 14122
+        },
+        "word_count": 14122
+      },
+      {
+        "date_of_summary": "2020-03-19",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 584
+        },
+        "word_count": 584
+      },
+      {
+        "date_of_summary": "2020-03-20",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 376
+        },
+        "word_count": 376
+      },
+      {
+        "date_of_summary": "2020-03-22",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 376
+        },
+        "word_count": 376
+      },
+      {
+        "date_of_summary": "2020-03-26",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 1979
+        },
+        "word_count": 1979
+      },
+      {
+        "date_of_summary": "2020-03-30",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 444
+        },
+        "word_count": 444
+      },
+      {
+        "date_of_summary": "2020-04-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 1090
+        },
+        "word_count": 1090
+      },
+      {
+        "date_of_summary": "2022-09-03",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 1,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 6722
+        },
+        "word_count": 6722
+      },
+      {
+        "date_of_summary": "2023-05-09",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 1030
+        },
+        "word_count": 1030
+      },
+      {
+        "date_of_summary": "2023-06-10",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 1,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 3
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 3,
+          "why_saved_rate": 1.0,
+          "words": 24533
+        },
+        "word_count": 24533
+      },
+      {
+        "date_of_summary": "2023-06-11",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 5,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 3,
+            "wayback": 3
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 6,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 5,
+          "why_saved_rate": 0.8333,
+          "words": 14098
+        },
+        "word_count": 14098
+      },
+      {
+        "date_of_summary": "2023-06-13",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 4540
+        },
+        "word_count": 4540
+      },
+      {
+        "date_of_summary": "2023-07-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 247
+        },
+        "word_count": 247
+      },
+      {
+        "date_of_summary": "2023-11-09",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 3,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 4
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 4,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 4,
+          "why_saved_rate": 1.0,
+          "words": 7793
+        },
+        "word_count": 7793
+      },
+      {
+        "date_of_summary": "2023-12-14",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 254
+        },
+        "word_count": 254
+      },
+      {
+        "date_of_summary": "2023-12-17",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2402
+        },
+        "word_count": 2402
+      },
+      {
+        "date_of_summary": "2024-02-23",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 4158
+        },
+        "word_count": 4158
+      },
+      {
+        "date_of_summary": "2024-04-18",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 3,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1,
+            "metadata": 1,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 0.3333,
+          "words": 1729
+        },
+        "word_count": 1729
+      },
+      {
+        "date_of_summary": "2024-05-02",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 6301
+        },
+        "word_count": 6301
+      },
+      {
+        "date_of_summary": "2024-12-08",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 0
+        },
+        "word_count": 0
+      },
+      {
+        "date_of_summary": "2025-03-22",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 385
+        },
+        "word_count": 385
+      },
+      {
+        "date_of_summary": "2025-04-06",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 0
+        },
+        "word_count": 0
+      },
+      {
+        "date_of_summary": "2025-04-20",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "direct": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 3354
+        },
+        "word_count": 3354
+      },
+      {
+        "date_of_summary": "2025-04-23",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "direct": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1724
+        },
+        "word_count": 1724
+      },
+      {
+        "date_of_summary": "2025-05-18",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 3
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 3,
+          "why_saved_rate": 1.0,
+          "words": 10781
+        },
+        "word_count": 10781
+      },
+      {
+        "date_of_summary": "2025-05-22",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 0
+        },
+        "word_count": 0
+      },
+      {
+        "date_of_summary": "2025-06-18",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 0
+        },
+        "word_count": 0
+      },
+      {
+        "date_of_summary": "2025-06-20",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 2,
+            "started": 0
+          },
+          "by_recovery": {
+            "direct": 1,
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 2,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 2,
+          "why_saved_rate": 1.0,
+          "words": 2765
+        },
+        "word_count": 2765
+      },
+      {
+        "date_of_summary": "2025-06-23",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 9,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 10
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 10,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 10,
+          "why_saved_rate": 1.0,
+          "words": 25635
+        },
+        "word_count": 25635
+      },
+      {
+        "date_of_summary": "2025-08-07",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 268
+        },
+        "word_count": 268
+      },
+      {
+        "date_of_summary": "2025-08-29",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2099
+        },
+        "word_count": 2099
+      },
+      {
+        "date_of_summary": "2025-09-05",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 4112
+        },
+        "word_count": 4112
+      },
+      {
+        "date_of_summary": "2025-09-22",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1591
+        },
+        "word_count": 1591
+      },
+      {
+        "date_of_summary": "2025-09-25",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 0
+        },
+        "word_count": 0
+      },
+      {
+        "date_of_summary": "2025-10-15",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 0
+        },
+        "word_count": 0
+      },
+      {
+        "date_of_summary": "2025-10-16",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 0
+        },
+        "word_count": 0
+      },
+      {
+        "date_of_summary": "2025-11-14",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "direct": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 358
+        },
+        "word_count": 358
+      },
+      {
+        "date_of_summary": "2025-11-20",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 0,
+            "started": 1
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 3588
+        },
+        "word_count": 3588
+      },
+      {
+        "date_of_summary": "2025-12-11",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "metadata": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 0,
+          "why_saved_rate": 0.0,
+          "words": 0
+        },
+        "word_count": 0
+      },
+      {
+        "date_of_summary": "2025-12-20",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1040
+        },
+        "word_count": 1040
+      },
+      {
+        "date_of_summary": "2026-02-19",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 1905
+        },
+        "word_count": 1905
+      },
+      {
+        "date_of_summary": "2026-03-18",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 16,
+            "started": 2
+          },
+          "by_recovery": {
+            "direct": 10,
+            "instapaper": 8
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 18,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 18,
+          "why_saved_rate": 1.0,
+          "words": 44216
+        },
+        "word_count": 44216
+      },
+      {
+        "date_of_summary": "2026-03-19",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 1,
+            "never_opened": 0,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 5579
+        },
+        "word_count": 5579
+      },
+      {
+        "date_of_summary": "2026-03-20",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 2196
+        },
+        "word_count": 2196
+      },
+      {
+        "date_of_summary": "2026-03-24",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 14,
+            "started": 1
+          },
+          "by_recovery": {
+            "direct": 1,
+            "instapaper": 11,
+            "metadata": 2,
+            "wayback": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 15,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 13,
+          "why_saved_rate": 0.8667,
+          "words": 22107
+        },
+        "word_count": 22107
+      },
+      {
+        "date_of_summary": "2026-04-08",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 3,
+            "started": 0
+          },
+          "by_recovery": {
+            "direct": 1,
+            "instapaper": 2
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 3,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 3,
+          "why_saved_rate": 1.0,
+          "words": 10346
+        },
+        "word_count": 10346
+      },
+      {
+        "date_of_summary": "2026-04-12",
+        "raw_data": {
+          "by_abandonment": {
+            "nearly_finished": 0,
+            "never_opened": 1,
+            "started": 0
+          },
+          "by_recovery": {
+            "instapaper": 1
+          },
+          "imported_at": "2026-09-17T00:00:00Z",
+          "reads": null,
+          "saves": 1,
+          "source": "meant-to-read",
+          "starred": 0,
+          "why_saved_present": 1,
+          "why_saved_rate": 1.0,
+          "words": 155
+        },
+        "word_count": 155
+      }
+    ],
+    "imported_at": "2026-09-17T00:00:00Z",
+    "provider": "record",
+    "reads_note": "Reads are null rather than 0 on every day. Every item in this corpus is unread by definition, so the record holds no reading events at all - not zero of them on a given day, but no observation. A 0 here would draw a flat line along the bottom of a chart and call it a measurement.",
+    "silo_import": {
+      "needs": [
+        "add the provider to ProviderDailySummary::SUPPORTED_PROVIDERS, and to the four other copies of that allowlist (BulkImport, ProviderDataAvailability, ProviderDataService, DailySummariesController)",
+        "add Analytics::StatsService#compute_record_stats, or the first `rake provider_analytics:compute_all` erases every imported day's computed_stats and nils word_count and total_seconds",
+        "map each day's `word_count` onto the column of that name; StatsService lifts word_count for limitless and omi only",
+        "assert `timezone` against `user.time_zone`; there is no timezone column on provider_daily_summaries"
+      ],
+      "note": "Nothing in Silo mentions this record today. The import is not this repository's job and does not gate the record shipping; what this field exists to prevent is the import looking ready when it is not.",
+      "provider_accepted": false
+    },
+    "source": "meant-to-read",
+    "timezone": "UTC",
+    "undated": 0
+  },
+  "dead_fraction_by_year": {
+    "2011": {
+      "dead": 4,
+      "fraction": 0.0769,
+      "total": 52
+    },
+    "2012": {
+      "dead": 1,
+      "fraction": 0.1429,
+      "total": 7
+    },
+    "2013": {
+      "dead": 0,
+      "fraction": 0.0,
+      "total": 14
+    },
+    "2014": {
+      "dead": 0,
+      "fraction": 0.0,
+      "total": 31
+    },
+    "2015": {
+      "dead": 1,
+      "fraction": 0.0833,
+      "total": 12
+    },
+    "2016": {
+      "dead": 2,
+      "fraction": 0.0377,
+      "total": 53
+    },
+    "2017": {
+      "dead": 4,
+      "fraction": 0.0702,
+      "total": 57
+    },
+    "2018": {
+      "dead": 2,
+      "fraction": 0.0198,
+      "total": 101
+    },
+    "2019": {
+      "dead": 1,
+      "fraction": 0.0196,
+      "total": 51
+    },
+    "2020": {
+      "dead": 0,
+      "fraction": 0.0,
+      "total": 15
+    },
+    "2022": {
+      "dead": 0,
+      "fraction": 0.0,
+      "total": 1
+    },
+    "2023": {
+      "dead": 0,
+      "fraction": 0.0,
+      "total": 19
+    },
+    "2024": {
+      "dead": 2,
+      "fraction": 0.2857,
+      "total": 7
+    },
+    "2025": {
+      "dead": 7,
+      "fraction": 0.2188,
+      "total": 32
+    },
+    "2026": {
+      "dead": 2,
+      "fraction": 0.05,
+      "total": 40
+    }
+  },
+  "distinct_domains": 218,
+  "domain_concentration": {
+    "singletons": 170,
+    "top_10_share": 0.4451,
+    "top_1_share": 0.1707
+  },
+  "five_ws": {
+    "provenance": {
+      "corpus": "data/unread_enriched.jsonl",
+      "enrichment": "gemini-2.5-flash-lite, whole bodies, one pass",
+      "function": "public_shape",
+      "module": "scripts/unread/public.py",
+      "note": "The public shape is derived from the same rows the private record is built from, never assembled separately. Two builders drift; one builder with an allowlist does not.",
+      "repo": "adamthede/project-instapaper-archive"
+    },
+    "source": "instapaper",
+    "source_id": {
+      "field": "url_sha256",
+      "held": true,
+      "note": "A SHA-256 of the article URL. It is a stable join key and it is also a confirmable guess: anyone holding a URL can hash it and test whether it is in this queue. That is the whole disclosure this record refuses, so the id stays on the private side and an importer is handed the aggregates. Adversarial review walked exactly this field into the per-day rollup on 2026-09-16 and every guard missed it, because they all constrained the day's keys and stopped at the door of the dict inside. Both key sets are allowlists now, and both are asserted.",
+      "published": false
+    },
+    "what": {
+      "categories": [
+        "topic",
+        "source host",
+        "abandonment band",
+        "recovery leg"
+      ],
+      "entity": "one saved article",
+      "fields": [
+        "by_topic",
+        "by_domain",
+        "topic_comparison",
+        "abandonment_bands",
+        "survival",
+        "daily"
+      ],
+      "held": true,
+      "note": "The entity itself - the title, the address, the text - never ships. What ships is which categories it fell into and how many fell into each.",
+      "public_shape": "category counts",
+      "published": true
+    },
+    "when": {
+      "fields": [
+        "saved_span",
+        "by_saved_year",
+        "daily"
+      ],
+      "held": true,
+      "note": "The save date as Instapaper reports it: a calendar date with no zone on it. UTC is declared so a day boundary has one meaning rather than the importer's. There is no read timestamp anywhere in this record, because nothing in it was read.",
+      "precision": "day",
+      "public_shape": "date",
+      "published": true,
+      "timezone": "UTC"
+    },
+    "where": {
+      "held": false,
+      "note": "A saved article has no place. The source host is a publisher, not a location, and it is filed under what rather than where. No home flag, because there is no place to flag.",
+      "public_shape": null,
+      "published": false
+    },
+    "who": {
+      "held": true,
+      "note": "People, organisations and locations are extracted per item and none of them ships. An entity pulled out of an article nobody read still says what he was looking into, and the allowlist that would gate them does not exist yet. Not even a count: the count is over articles that are identifiable from their entities.",
+      "public_shape": null,
+      "published": false
+    },
+    "why": {
+      "fields": [
+        "why_saved",
+        "daily"
+      ],
+      "held": true,
+      "kind": "inference",
+      "note": "The user-applied annotation this slot wants does not exist: he saved these without writing down why. What stands in is a model's one-sentence guess, and it is labelled inference wherever it appears. The sentences are item level and do not ship. What ships is how often it answered, how sure it said it was, and the per-day rate.",
+      "per_day": "daily.days[].raw_data.why_saved_rate",
+      "public_shape": "the inferred-reason presence rate",
+      "published": true
+    }
+  },
+  "items": 492,
+  "pool": {
+    "by_year": {
+      "2011": {
+        "filed_in_folders": 52,
+        "unread_queue": 0
+      },
+      "2012": {
+        "filed_in_folders": 7,
+        "unread_queue": 0
+      },
+      "2013": {
+        "filed_in_folders": 14,
+        "unread_queue": 0
+      },
+      "2014": {
+        "filed_in_folders": 0,
+        "unread_queue": 31
+      },
+      "2015": {
+        "filed_in_folders": 0,
+        "unread_queue": 12
+      },
+      "2016": {
+        "filed_in_folders": 17,
+        "unread_queue": 36
+      },
+      "2017": {
+        "filed_in_folders": 0,
+        "unread_queue": 57
+      },
+      "2018": {
+        "filed_in_folders": 0,
+        "unread_queue": 101
+      },
+      "2019": {
+        "filed_in_folders": 0,
+        "unread_queue": 51
+      },
+      "2020": {
+        "filed_in_folders": 7,
+        "unread_queue": 8
+      },
+      "2022": {
+        "filed_in_folders": 0,
+        "unread_queue": 1
+      },
+      "2023": {
+        "filed_in_folders": 0,
+        "unread_queue": 19
+      },
+      "2024": {
+        "filed_in_folders": 0,
+        "unread_queue": 7
+      },
+      "2025": {
+        "filed_in_folders": 0,
+        "unread_queue": 32
+      },
+      "2026": {
+        "filed_in_folders": 0,
+        "unread_queue": 40
+      }
+    },
+    "filed_in_folders": 97,
+    "total": 492,
+    "unread_queue": 395
+  },
+  "read_comparison": {
+    "by_year": {
+      "2010": 269,
+      "2011": 360,
+      "2012": 1502,
+      "2013": 854,
+      "2014": 1096,
+      "2015": 372,
+      "2016": 237,
+      "2017": 133,
+      "2018": 237,
+      "2019": 205,
+      "2020": 194,
+      "2021": 13,
+      "2022": 150,
+      "2023": 378,
+      "2024": 215,
+      "2025": 391,
+      "2026": 163
+    },
+    "index_rows": 17320,
+    "note": "Read-it-later articles only, counted by the year they were saved. The legacy document archive - scanned PDFs, Word files and text dumps, the larger half of the index - was never saved with an intention to read later, so it is not the comparison. Its denominator also differs from the topic comparison's on purpose: a row the content guard rejected still went through the save-then-read loop and counts as a read, it simply carries no usable topics.",
+    "other_rows": 10551,
+    "sources": [
+      "instapaper",
+      "matter"
+    ],
+    "total": 6769
+  },
+  "record": "meant-to-read",
+  "redaction": "Counts, years, topics, and source hosts only. No titles, no URLs, no article text, no people, organisations or locations.",
+  "saved_span": {
+    "dated": 492,
+    "newest": "2026-04-12",
+    "oldest": "2011-01-27",
+    "years_spanned": 16
+  },
+  "starred": 20,
+  "still_worth_your_time": 382,
+  "survival": {
+    "direct_fetch_after_instapaper_failed": 23,
+    "instapaper_stored_copy": 353,
+    "liveness_measured": false,
+    "no_text_anywhere": 26,
+    "note": "This is which leg of the fetch chain produced the text, NOT whether the URL is still live. The chain short-circuits: the direct fetch runs only where Instapaper held no stored text, so every item Instapaper resolved was never probed against its own URL at all. A live-web survival figure needs a separate probe of all of them and is not reported here. For scale, the plan's 100-item sample measured 51 URLs still serving their own article; this chain cannot reproduce that number and does not try.",
+    "text_recovered": 466,
+    "total": 492,
+    "wayback_snapshot": 90
+  },
+  "topic_comparison": {
+    "caveat": "The unread summaries were generated from full article bodies; the read corpus's were generated under a 10,000-character cap, which 28 of 79 sampled bodies exceed. The unread side therefore saw more of each article than the read side did, and a topic present on one and absent on the other may be a difference in how much text the model read rather than a difference in what was saved.",
+    "read_mentions": 26912,
+    "topics": [
+      {
+        "ratio": 6.0629,
+        "read": 62,
+        "read_share": 0.002304,
+        "topic": "Software Development",
+        "unread": 29,
+        "unread_share": 0.013969
+      },
+      {
+        "ratio": 10.1894,
+        "read": 28,
+        "read_share": 0.00104,
+        "topic": "Ruby on Rails",
+        "unread": 22,
+        "unread_share": 0.010597
+      },
+      {
+        "ratio": 2.5174,
+        "read": 103,
+        "read_share": 0.003827,
+        "topic": "Personal Development",
+        "unread": 20,
+        "unread_share": 0.009634
+      },
+      {
+        "ratio": 1.4316,
+        "read": 163,
+        "read_share": 0.006057,
+        "topic": "Artificial Intelligence",
+        "unread": 18,
+        "unread_share": 0.008671
+      },
+      {
+        "ratio": 2.141,
+        "read": 109,
+        "read_share": 0.00405,
+        "topic": "Innovation",
+        "unread": 18,
+        "unread_share": 0.008671
+      },
+      {
+        "ratio": 0.8752,
+        "read": 237,
+        "read_share": 0.008806,
+        "topic": "Entrepreneurship",
+        "unread": 16,
+        "unread_share": 0.007707
+      },
+      {
+        "ratio": 8.8433,
+        "read": 22,
+        "read_share": 0.000817,
+        "topic": "Web Development",
+        "unread": 15,
+        "unread_share": 0.007225
+      },
+      {
+        "ratio": 4.5764,
+        "read": 34,
+        "read_share": 0.001263,
+        "topic": "Self-Improvement",
+        "unread": 12,
+        "unread_share": 0.00578
+      },
+      {
+        "ratio": 0.5826,
+        "read": 267,
+        "read_share": 0.009921,
+        "topic": "Technology",
+        "unread": 12,
+        "unread_share": 0.00578
+      },
+      {
+        "ratio": 1.0409,
+        "read": 137,
+        "read_share": 0.005091,
+        "topic": "Business Strategy",
+        "unread": 11,
+        "unread_share": 0.005299
+      },
+      {
+        "ratio": 0.1763,
+        "read": 147,
+        "read_share": 0.005462,
+        "topic": "Social Media",
+        "unread": 2,
+        "unread_share": 0.000963
+      },
+      {
+        "ratio": 0.4395,
+        "read": 118,
+        "read_share": 0.004385,
+        "topic": "Venture Capital",
+        "unread": 4,
+        "unread_share": 0.001927
+      }
+    ],
+    "unread_articles": 464,
+    "unread_corpus": 492,
+    "unread_mentions": 2076
+  },
+  "why_saved": {
+    "by_confidence": {
+      "high": 371,
+      "low": 31,
+      "medium": 90,
+      "total": 492,
+      "unset": 0
+    },
+    "counted": 461,
+    "excluded_low_confidence": 21,
+    "kind": "inference",
+    "no_inference": 10,
+    "total": 492
+  },
+  "words": {
+    "corpus": 492,
+    "mean": 2332,
+    "measured_over": 466,
+    "median": 1479,
+    "total": 1086902
+  }
+}

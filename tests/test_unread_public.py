@@ -24,6 +24,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "scripts"))
 
+from unread import analysis  # noqa: E402
 from unread import public  # noqa: E402
 
 
@@ -68,7 +69,12 @@ def record(url_sha256="a" * 64, year=2018, domain="nytimes.com",
 def corpus(n=6):
     titles = [
         "Is Google Making Us Stupid, The Atlantic Cover Story",
-        "The Machine Stops And Nobody Notices It Happening",
+        # Curly apostrophe and an en dash on purpose. Every fixture in this
+        # file was plain ASCII until adversarial review, which is why a
+        # regression that swapped the normalized comparison key for a
+        # case-folded one could not be caught by any of them: on ASCII the two
+        # agree exactly.
+        "The Machine Stops \u2013 And Nobody\u2019s Noticing It Happening",
         "Why We Sleep And What Happens When We Do Not",
         "A Very Long And Distinctive Headline About Farming",
         "Notes On The Collapse Of The Attention Commons",
@@ -453,3 +459,667 @@ def test_the_needle_file_is_written_for_the_index_repo(tmp_path):
     lines = [l for l in needles.read_text().splitlines() if l.strip()
              and not l.startswith("#")]
     assert any("Is Google Making Us Stupid" in l for l in lines)
+
+
+# ---------------------------------------------------------------------------
+# the cover aggregates the page reads, and the leak scan over them
+# ---------------------------------------------------------------------------
+
+def test_the_cover_aggregates_are_in_the_payload():
+    """Mutation: the built page computing them from the enriched file.
+
+    The record ships as one self-contained page on a host that holds no corpus.
+    Every figure it prints has to come out of `public_data.json`, or it comes
+    out of a number somebody typed, and a typed number is the thing this whole
+    pipeline exists to not have.
+    """
+    payload = public.public_shape(corpus())
+    assert payload["words"]["total"] > 0
+    assert payload["words"]["measured_over"] == 6
+    assert payload["saved_span"]["oldest"] == "2014-06-01"
+    assert payload["saved_span"]["newest"] == "2019-06-01"
+    assert payload["saved_span"]["years_spanned"] == 6
+    assert payload["starred"] == 0
+    assert {k: v for k, v in payload["pool"].items() if k != "by_year"} == {
+        "unread_queue": 6, "filed_in_folders": 0, "total": 6}
+    assert payload["pool"]["by_year"]["2014"] == {"unread_queue": 1,
+                                                  "filed_in_folders": 0}
+    assert payload["why_saved"]["by_confidence"]["high"] == 6
+
+
+def test_the_confidence_split_is_over_the_corpus_and_the_counts_are_over_the_answers():
+    """Mutation: publishing one population under both names.
+
+    `by_confidence` splits all 492 rows by the grade the model set.
+    `counted` / `excluded_low_confidence` / `no_inference` split only the rows
+    that carried a sentence. A page that adds a bar from one to a bar from the
+    other is adding two different denominators, and the two disagree by exactly
+    the rows the model graded and then declined to answer.
+    """
+    rows = corpus(3) + [record(url_sha256="l" * 64, confidence="low"),
+                        record(url_sha256="d" * 64, confidence="low", why="")]
+    payload = public.public_shape(rows)
+    why = payload["why_saved"]
+    assert why["by_confidence"]["low"] == 2
+    assert why["excluded_low_confidence"] == 1
+    assert why["no_inference"] == 1
+    assert sum(why["by_confidence"][g] for g in ("high", "medium", "low", "unset")) == 5
+    assert why["counted"] + why["excluded_low_confidence"] + why["no_inference"] == 5
+
+
+def test_the_star_count_is_a_number_and_not_a_list_of_what_was_starred():
+    """Mutation: publishing `starred: [...]` because "it is only twenty".
+
+    Twenty is worse, not better. A starred unread article is the strongest
+    statement of intent in the corpus, and twenty of them named is twenty
+    unexecuted intentions with his name on them.
+    """
+    rows = [record(url_sha256=f"{i:064d}", starred=(i == 0),
+                   title=f"A Distinctive Starred Headline Number {i}",
+                   url=f"https://x.example/2018/the-distinctive-slug-{i}")
+            for i in range(4)]
+    payload = public.public_shape(rows)
+    assert payload["starred"] == 1
+    serialised = json.dumps(payload, ensure_ascii=False).casefold()
+    for row in rows:
+        assert row["title"].casefold() not in serialised
+
+
+def test_no_needle_reaches_any_of_the_new_payload_fields(tmp_path):
+    """Mutation: a new field added to the payload after the scan was written.
+
+    This is the failure the allowlist exists to prevent and the one a test
+    suite most easily misses: the redaction is correct for the fields it knew
+    about on the day it was written. So the scan here runs over the WHOLE
+    serialised payload with the whole corpus's needles, and every field added
+    later is inside it by construction.
+    """
+    rows = corpus(6)
+    read_topics = {2018: {"Attention": 40, "Technology": 9}}
+    payload = public.public_shape(
+        rows, read_by_year={2018: 237}, read_topics=read_topics,
+        read_titles={"A Read Article Title Long Enough To Be A Needle"})
+    titles, paths = public.private_needles(rows)
+    assert titles and paths
+    serialised = json.dumps(payload, ensure_ascii=False).casefold()
+    for needle in list(titles) + list(paths):
+        assert needle.casefold() not in serialised
+    # and the scan the build runs, over the real written tree
+    out = tmp_path / "record"
+    public.build(rows, out, payload_hook=lambda p: dict(
+        p, read_comparison=payload["read_comparison"],
+        topic_comparison=payload["topic_comparison"]))
+    assert public.leak_scan(out, titles, paths) == []
+
+
+# ---------------------------------------------------------------------------
+# the paired series
+# ---------------------------------------------------------------------------
+
+def test_the_read_comparison_is_counts_by_year_and_nothing_else():
+    """Mutation: carrying the read corpus's rows so the page "can filter".
+
+    The read corpus is 17,320 articles with titles, URLs, authors and
+    summaries. The paired plate needs seventeen integers.
+    """
+    payload = public.public_shape(corpus(), read_by_year={2017: 133, 2018: 237})
+    comparison = payload["read_comparison"]
+    assert comparison["by_year"] == {"2017": 133, "2018": 237}
+    assert comparison["total"] == 370
+    assert all(isinstance(v, int) for v in comparison["by_year"].values())
+
+
+def test_the_read_comparison_is_absent_rather_than_empty_when_the_index_is_not_read():
+    """Mutation: emitting `{}`, which a page renders as a plate with no bars
+    and no explanation.
+
+    None says "this build did not read the index". An empty dict says "he read
+    nothing", which is a claim about a corpus of 17,320 articles.
+    """
+    payload = public.public_shape(corpus())
+    assert payload["read_comparison"] is None
+    assert payload["topic_comparison"] is None
+
+
+def test_an_unread_title_cannot_be_laundered_through_the_read_topic_column(tmp_path):
+    """Mutation: filtering the unread topics and trusting the read ones.
+
+    A third route onto the page, after the topic table and the band lists. The
+    read corpus's topics are model-generated strings out of 17,320 articles and
+    this record publishes them beside the saved ones; one colliding with an
+    unread title would print that title in a column nothing was scanning.
+    """
+    title = "Is Google Making Us Stupid, The Atlantic Cover Story"
+    rows = corpus()
+    payload = public.public_shape(
+        rows, read_topics={2018: {title: 900, "Technology": 9}})
+    assert title not in json.dumps(payload, ensure_ascii=False)
+    out = tmp_path / "record"
+    public.build(rows, out, payload_hook=lambda p: dict(
+        p, topic_comparison=payload["topic_comparison"]))
+    assert title not in published_text(out)
+
+
+def test_a_read_corpus_title_is_dropped_from_the_read_topic_column_too():
+    """Mutation: scanning only against this corpus's titles.
+
+    This record's needles are its own titles, correctly - the read index does
+    not contain them. But that leaves the read corpus's own titles unguarded on
+    a page that publishes read-corpus topics, and the index repo's word list is
+    120 hand-kept strings, not 16,467 titles. The redaction runs at the data
+    layer with both title sets, because there is no backstop for this one.
+    """
+    read_title = "A Read Article Title Long Enough To Be A Needle"
+    payload = public.public_shape(
+        corpus(), read_topics={2018: {read_title: 900, "Technology": 9}},
+        read_titles={read_title})
+    assert read_title not in json.dumps(payload, ensure_ascii=False)
+
+
+# ---------------------------------------------------------------------------
+# the per-day rollup and the 5Ws declaration
+# ---------------------------------------------------------------------------
+
+def test_the_payload_carries_a_per_day_rollup_and_it_holds_no_item(tmp_path):
+    """Mutation: a rollup carrying the day's titles "so the importer has a key".
+
+    Every record is built import-eligible, and the rollup is the shape Silo
+    imports. It is published like everything else here, so one date plus one
+    title - which is exactly what a one-save day would carry - is the most
+    identifying pair in the corpus.
+    """
+    rows = corpus(6)
+    payload = public.public_shape(rows)
+    days = payload["daily"]["days"]
+    assert days
+    # Both key sets, the day's and the one inside it. Constraining only the
+    # outer one is what let a per-day join key through adversarial review: the
+    # top-level payload allowlist stops at the door of `raw_data`.
+    assert all(set(d) == analysis.DAILY_DAY_KEYS for d in days)
+    assert all(set(d["raw_data"]) == analysis.DAILY_RAW_KEYS for d in days)
+    assert payload["daily"]["provider"] == "record"
+    serialised = json.dumps(payload["daily"], ensure_ascii=False).casefold()
+    for row in rows:
+        assert row["title"].casefold() not in serialised
+        assert row["url"].casefold() not in serialised
+    assert "rewires how we read" not in serialised
+    assert "thinking about attention" not in serialised
+
+
+def test_the_rollup_reports_reads_as_unknown():
+    """Mutation: `reads: 0`, which imports as a measurement of nothing read."""
+    payload = public.public_shape(corpus())
+    assert all(d["raw_data"]["reads"] is None
+               for d in payload["daily"]["days"])
+
+
+def test_the_payload_declares_its_five_ws_and_says_which_are_not_published():
+    """Mutation: declaring only the Ws that ship.
+
+    The declaration is what a later importer reads to know what it is getting.
+    A who it does not mention is a who somebody assumes is coming, and the
+    whole point of this record is that the who never ships.
+    """
+    five = public.public_shape(corpus())["five_ws"]
+    assert set(five) >= {"who", "what", "when", "where", "why",
+                         "source", "source_id", "provenance"}
+    assert five["who"]["published"] is False
+    assert five["where"]["published"] is False
+    assert five["what"]["published"] is True
+    assert five["when"]["published"] is True
+    assert five["when"]["precision"] == "day"
+    assert five["why"]["published"] is True
+    assert five["why"]["kind"] == "inference"
+    assert five["source_id"]["published"] is False
+
+
+def test_the_five_ws_declaration_agrees_with_the_payload_it_describes():
+    """Mutation: a declaration that drifts from the payload.
+
+    A declaration nothing checks is a comment. Every field name it points at
+    has to be a field the payload actually carries, or the importer written
+    against it breaks on the first import and the record gets blamed.
+    """
+    payload = public.public_shape(corpus())
+    for which in ("what", "when", "why"):
+        fields = payload["five_ws"][which]["fields"]
+        assert fields
+        for name in fields:
+            assert name.split(".")[0].split("[")[0] in payload, (which, name)
+
+
+# ---------------------------------------------------------------------------
+# the command line
+# ---------------------------------------------------------------------------
+
+def _cli():
+    import sys as sys_mod
+    sys_mod.path.insert(0, str(REPO / "scripts" / "core"))
+    import publish_unread_record
+    return publish_unread_record
+
+
+def test_the_publish_cli_refuses_to_build_without_the_read_corpus(tmp_path, capsys):
+    """Mutation: warning and carrying on.
+
+    A payload silently missing the read series publishes a record whose first
+    two plates have no bars in them, and the build that made it printed
+    success. Two of six plates is not a warning-sized hole.
+    """
+    enriched = tmp_path / "enriched.jsonl"
+    enriched.write_text("\n".join(json.dumps(r) for r in corpus()), encoding="utf-8")
+    code = _cli().main(["--enriched", str(enriched), "--out", str(tmp_path / "rec"),
+                        "--index", str(tmp_path / "absent.parquet")])
+    assert code == 2
+    assert not (tmp_path / "rec").exists()
+    assert "--no-comparison" in capsys.readouterr().err
+
+
+def test_the_publish_cli_builds_the_unpaired_half_when_asked(tmp_path, capsys):
+    """Mutation: an escape hatch that quietly produces the same payload.
+
+    The unpaired build is a legitimate thing to want and it has to say what it
+    is, on the terminal and in the payload, or it becomes the thing that ships
+    by accident.
+    """
+    enriched = tmp_path / "enriched.jsonl"
+    enriched.write_text("\n".join(json.dumps(r) for r in corpus()), encoding="utf-8")
+    out = tmp_path / "rec"
+    code = _cli().main(["--enriched", str(enriched), "--out", str(out),
+                        "--no-comparison"])
+    assert code == 0
+    payload = json.loads((out / "public_data.json").read_text())
+    assert payload["read_comparison"] is None
+    assert "plates 01 and 02 cannot be drawn" in capsys.readouterr().out
+
+
+def test_the_paired_topic_table_carries_the_comparison_caveat():
+    """Mutation: publishing the paired plate stripped of its qualification.
+
+    The record already publishes the caveat once at the top level, and that was
+    enough while the comparison lived in a private report. It is not enough on
+    a plate: the two bars sit side by side, and the reason they are not quite
+    comparable has to travel with the figure rather than with the document.
+    """
+    payload = public.public_shape(corpus(), read_topics={2018: {"Attention": 5}})
+    assert "10,000" in payload["topic_comparison"]["caveat"]
+
+
+def test_the_comparison_carries_the_whole_index_and_the_part_it_is_not():
+    """Mutation: the record's page typing "17,320" and "10,551".
+
+    Plate 01's footnote says which slice of the index the comparison is, and
+    both halves of that sentence were authored figures until adversarial review
+    swept for them. Unlike the May 2025 export's counts, this is a live
+    measurement the build already holds the frame for, so there is no reason
+    for it to be typed.
+    """
+    payload = public.public_shape(corpus(), read_by_year={2018: 237},
+                                 read_index_rows=1000)
+    comparison = payload["read_comparison"]
+    assert comparison["index_rows"] == 1000
+    assert comparison["other_rows"] == 1000 - 237
+    assert comparison["total"] + comparison["other_rows"] == comparison["index_rows"]
+
+
+def test_the_index_row_count_is_absent_rather_than_guessed():
+    """Mutation: defaulting it to the comparison's own total.
+
+    That would publish "6,769 of the index's 6,769 rows", a sentence whose
+    whole point is the difference between the two.
+    """
+    payload = public.public_shape(corpus(), read_by_year={2018: 237})
+    assert payload["read_comparison"]["index_rows"] is None
+    assert payload["read_comparison"]["other_rows"] is None
+
+
+def test_a_title_with_its_own_punctuation_is_dropped_from_the_topic_table():
+    """Mutation: comparing a topic on `.casefold()` against normalized titles.
+
+    The regression adversarial review found on 2026-09-17, and the reason it
+    matters more than the hole it came from: the two sides of the comparison
+    spoke different languages, and the failure ran BACKWARDS. A near-copy of a
+    title was dropped and the BYTE-EXACT title was published - which is the one
+    case this record's provenance note records as having actually happened on
+    this corpus.
+
+    Both sides normalize. This test carries a curly apostrophe for the same
+    reason: on plain ASCII, casefold and normalize agree, so an ASCII fixture
+    cannot fail.
+    """
+    title = "The Crane Wife’s Long — Awaited Return"
+    rows = [record(url_sha256="1" * 64, title=title,
+                   topics=(title, "Attention"))]
+    payload = json.dumps(public.public_shape(rows), ensure_ascii=False)
+    assert "The Crane Wife" not in payload
+    assert "Attention" in payload
+
+
+def test_the_topic_table_and_the_band_lists_use_one_comparison_key():
+    """Mutation: one of the two redaction call sites left on the old key.
+
+    There are two routes a model-generated string takes to the page and they
+    were fixed on different days. A test that only exercises one of them is how
+    the second went stale, so this one asserts both drop the same string.
+    """
+    title = "A Distinctive Headline – About Wanting Less"
+    rows = [record(url_sha256=f"{i:064d}", title=title, abandonment="nearly_finished",
+                   topics=(title,)) for i in range(3)]
+    payload = public.public_shape(rows)
+    assert all(title not in json.dumps(payload[key], ensure_ascii=False)
+               for key in ("by_topic", "abandonment_bands"))
+
+
+def test_the_records_own_scan_finds_a_normalized_near_copy(tmp_path):
+    """Mutation: a build scan that is exact-substring while the filter is not.
+
+    The same two-gates-one-blind-spot shape, one level down. `leak_scan` is the
+    scan the BUILD runs before it publishes anything, so a near-copy the filter
+    somehow passed would reach the tree with nothing looking for it.
+    """
+    rows = [record(title="Tractors ’n Silos — And Other Long Titles")]
+    root = tmp_path / "out"
+    root.mkdir()
+    (root / "page.html").write_text(
+        "<p>Tractors 'n Silos - And Other Long Titles</p>", encoding="utf-8")
+    titles, paths = public.private_needles(rows)
+    assert public.leak_scan(root, titles, paths)
+
+
+def test_the_rollup_shape_is_checked_at_every_level_not_just_the_top(tmp_path):
+    """Mutation: a join key inside an ALLOWED key's values.
+
+    The second time this happened. The first allowlist landed after review
+    walked `url_sha256` into `computed_stats`; review then walked it back in as
+    `by_recovery: {url_sha256: resolve_path}` and all 1,095 tests stayed green,
+    because two flat `set()` comparisons are a fence with a gate one level
+    down. `by_recovery` was the one allowed key with no test naming its
+    contents.
+
+    So the check walks every level, it names the offending path, and the BUILD
+    runs it - a shape guard that lives only in the tests is a guard that
+    protects the fixtures.
+
+    It is still a check on key NAMES, and round 3 showed what that cannot do:
+    the natural "add one field" edit moves the producer and this allowlist in
+    the same commit, so both sides agree and the check is a tautology.
+    `content_findings()` is the one that closes it.
+    """
+    rows = corpus(3)
+    payload = public.public_shape(rows)
+    for day in payload["daily"]["days"]:
+        recovery = day["raw_data"]["by_recovery"]
+        assert set(recovery) <= analysis.DAILY_NESTED_KEYS["by_recovery"]
+        assert all(isinstance(v, int) for v in recovery.values())
+        bands = day["raw_data"]["by_abandonment"]
+        assert set(bands) == set(analysis.DAILY_NESTED_KEYS["by_abandonment"])
+
+    # and the check itself goes red on exactly the shape review used
+    leaky = json.loads(json.dumps(payload["daily"]))
+    leaky["days"][0]["raw_data"]["by_recovery"] = {"a" * 64: "instapaper"}
+    problems = analysis.check_daily_shape(leaky)
+    assert problems and "by_recovery" in problems[0]
+
+
+def test_a_rollup_that_grew_a_key_refuses_to_publish(tmp_path):
+    """Mutation: reporting the stray key instead of refusing.
+
+    The payload is vendored into a public repository. A build that writes it
+    and then complains is a build that published.
+    """
+    rows = corpus(3)
+    out = tmp_path / "record"
+    with pytest.raises(public.LeakTestError) as exc:
+        public.build(rows, out, payload_hook=_smuggle)
+    assert not out.exists()
+
+    # and the refusal has to come from the SHAPE check, not from the scan
+    rollup = analysis.daily_rollup(rows)
+    rollup["days"][0]["raw_data"]["url_sha256"] = ["nothing private here"]
+    assert "url_sha256" in " ".join(analysis.check_daily_shape(rollup))
+
+
+def _smuggle(payload):
+    """A payload hook that adds a key nothing allowed, carrying no needle."""
+    day = payload["daily"]["days"][0]
+    day["raw_data"]["by_recovery"] = {"0" * 64: "instapaper"}
+    return payload
+
+
+# ---------------------------------------------------------------------------
+# what the payload may contain, asked without reference to a key name
+# ---------------------------------------------------------------------------
+
+def _hashes(records, n=3, chars=64):
+    return [r["url_sha256"][:chars] for r in records[:n]]
+
+
+@pytest.mark.parametrize("label,hook", [
+    ("on the rollup's own top level, the level that CONTAINS days",
+     lambda p, h: p["daily"].update(by_item={k: "instapaper" for k in h}) or p),
+    ("on the payload's top level",
+     lambda p, h: dict(p, recovery_index={k: "instapaper" for k in h})),
+    ("inside an allowed key, as values",
+     lambda p, h: p["daily"]["days"][0]["raw_data"].update(
+         by_recovery={"instapaper": int("".join(h), 16)}) or p),
+    ("inside an allowed key, as a list of strings",
+     lambda p, h: p["daily"]["days"][0]["raw_data"].update(item_key=h) or p),
+    ("as a dict KEY rather than a value",
+     lambda p, h: p["daily"]["days"][0]["raw_data"].update(
+         by_recovery={k: 1 for k in h}) or p),
+    ("truncated to sixteen hex, still a join key across 492 items",
+     lambda p, h: dict(p, join={k[:16]: "x" for k in h})),
+    ("buried six levels down under innocuous names",
+     lambda p, h: dict(p, redaction={"a": {"b": {"c": {"d": {"e": h}}}}})),
+])
+def test_a_join_key_cannot_reach_the_payload_under_any_name(label, hook, tmp_path):
+    """Mutation: every shape three rounds of adversarial review used.
+
+    Round 1 put the join key on a flat allowlist's level. Round 2 put it one
+    level down, inside an allowed key. Round 3 put it on the level ABOVE, on
+    the payload's own top level, as integers inside an allowed key's values,
+    and finally under a renamed field with the allowlist updated in the same
+    edit - which is the one that ends the series, because a key-name allowlist
+    and the producer are written by the same hand in the same commit.
+
+    So this asks what the CONTENT looks like. A 64-hex run, a 16-hex run, an
+    integer too large to be a count, an article title, a URL path - at any
+    depth, under any key, as a key or as a value. Renaming the field does not
+    satisfy it.
+
+    `five_ws.source_id` calls this hash "a confirmable guess: anyone holding a
+    URL can hash it and test whether it is in this queue. That is the whole
+    disclosure this record refuses."
+    """
+    rows = corpus(4)
+    digests = _hashes(rows)
+    out = tmp_path / "record"
+    with pytest.raises(public.LeakTestError):
+        public.build(rows, out, payload_hook=lambda p: hook(p, digests))
+    assert not out.exists(), label
+
+    # Refused is not enough: several of these are ALSO caught by a key-name
+    # allowlist, and a key-name allowlist is what three rounds of review walked
+    # past. The claim under test is that the CONTENT check catches it on its
+    # own, so it is asked directly.
+    found = public.content_findings(hook(public.public_shape(rows), digests), rows)
+    assert found, f"the content check did not see it: {label}"
+    assert any("hex" in f or "integer" in f for f in found), (label, found[:2])
+
+
+def test_the_content_check_survives_the_allowlists_being_updated_too(tmp_path,
+                                                                     monkeypatch):
+    """Mutation: the two-line edit that moves producer and allowlist together.
+
+    This is the finding that ended the key-name approach. `check_daily_shape`
+    reads the same frozensets the producer's author edits, so adding a field
+    and adding its name is one commit and the check agrees with itself.
+
+    Here both allowlists are updated, exactly as that commit would - and the
+    content check, which reads neither, still refuses.
+    """
+    monkeypatch.setattr(analysis, "DAILY_RAW_KEYS",
+                        analysis.DAILY_RAW_KEYS | {"item_key"})
+    monkeypatch.setitem(analysis._DAILY_LEVELS, ("days", "raw_data"),
+                        analysis.DAILY_RAW_KEYS | {"item_key"})
+    rows = corpus(4)
+    digests = _hashes(rows)
+
+    def hook(payload):
+        for day in payload["daily"]["days"]:
+            day["raw_data"]["item_key"] = digests
+        return payload
+
+    assert analysis.check_daily_shape(
+        hook(public.public_shape(rows))["daily"]) == [], (
+        "the name check should be satisfied; that is the point")
+    with pytest.raises(public.LeakTestError) as exc:
+        public.build(rows, tmp_path / "record", payload_hook=hook)
+    assert "renaming the field will not satisfy it" in str(exc.value)
+
+
+def test_the_content_check_does_not_fire_on_the_real_payload():
+    """Mutation: a shape check so broad the real record cannot publish.
+
+    A guard that is red on correct output is a guard someone switches off, and
+    this one refuses a whole build. The live corpus carries word counts in the
+    millions, ISO dates, percentages and sixty host names, and none of those is
+    a digest.
+    """
+    assert public.content_findings(public.public_shape(corpus(6)), corpus(6)) == []
+
+
+def test_an_honest_count_is_not_mistaken_for_a_digest():
+    """Mutation: an integer bound low enough to catch the word total.
+
+    1,086,902 recovered words is the largest honest number this payload
+    carries, and a bound under it would make the record unpublishable while
+    looking like caution.
+    """
+    assert public.content_findings({"words": {"total": 1_086_902}}) == []
+    assert public.content_findings({"built": "2026-09-16"}) == []
+    assert public.content_findings({"by_domain": [["medium.freecodecamp.org", 6]]}) == []
+    assert public.content_findings({"digest": "a" * 16}) != []
+
+
+def test_the_payloads_own_top_level_is_an_allowlist(tmp_path):
+    """Mutation: the comment that claimed one existed.
+
+    `public_shape`'s docstring said "an allowlist fails loudly" and nothing
+    asserted the payload's top-level key set, so adversarial review added a key
+    beside `caveat` and every gate stayed green.
+    """
+    payload = public.public_shape(corpus())
+    assert set(payload) == public.PAYLOAD_KEYS
+    with pytest.raises(public.LeakTestError) as exc:
+        public.build(corpus(), tmp_path / "record",
+                     payload_hook=lambda p: dict(p, extra_column=[1, 2, 3]))
+    assert "extra_column" in str(exc.value)
+
+
+def test_the_rollups_own_top_level_is_an_allowlist():
+    """Mutation: walking `days` and leaving the level that contains it open.
+
+    Round 3's plainest escape: the guard entered `rollup["days"]` and nothing
+    else, so the container had no allowlist at all.
+    """
+    rollup = analysis.daily_rollup(corpus())
+    assert set(rollup) == analysis.DAILY_ROLLUP_KEYS
+    rollup["by_item"] = {"a" * 64: "instapaper"}
+    assert "by_item" in " ".join(analysis.check_daily_shape(rollup))
+
+
+def test_a_dict_at_an_undesigned_level_is_a_finding():
+    """Mutation: a walk that descends anywhere and checks only known levels.
+
+    A level nobody designed is a level nobody reviewed, and silently ignoring
+    it is how the level above `days` stayed open for three rounds.
+    """
+    rollup = analysis.daily_rollup(corpus())
+    rollup["days"][0]["raw_data"]["by_abandonment"] = {"never_opened": {"x": 1}}
+    assert analysis.check_daily_shape(rollup)
+
+
+def test_the_name_check_still_catches_a_stray_key_that_is_not_hex_shaped():
+    """Mutation: the rollup's top-level allowlist set to None.
+
+    The content check does not care what a key is called, which is its
+    strength - and it means a stray key carrying nothing private walks past it.
+    That key is still a key nobody designed, and the name check is what names
+    it. Both, not either.
+    """
+    rollup = analysis.daily_rollup(corpus())
+    rollup["notes_for_later"] = "a count of something"
+    assert public.content_findings(rollup, corpus()) == []
+    assert "notes_for_later" in " ".join(analysis.check_daily_shape(rollup))
+
+
+def test_an_article_title_anywhere_in_the_payload_is_a_finding():
+    """Mutation: the title branch of the content check.
+
+    The hex and integer rules catch an identifier. A TITLE is the disclosure
+    this record is actually built around, and it is the one shape a
+    key-name allowlist would never see coming: it can arrive as a topic, a
+    band label, a note, or a key.
+    """
+    rows = corpus()
+    title = rows[0]["title"]
+    assert public.content_findings({"anything": title}, rows)
+    assert public.content_findings({title: 1}, rows)
+    assert public.content_findings({"deep": [{"x": {"y": title}}]}, rows)
+    # and a URL path, which is the other half
+    assert public.content_findings({"p": "/2018/the-distinctive-slug-3"}, rows)
+
+
+def test_the_leak_scan_still_stops_a_publish_on_its_own(tmp_path):
+    """Mutation: the leak scan's own refusal, now that two checks run before it.
+
+    `content_findings` catches a title in the PAYLOAD, which is what the old
+    version of this test planted - so disabling the leak scan stopped failing
+    anything. The scan's job is the written TREE, which is a different
+    surface: a stray file, a thumbnail's metadata, a template that writes
+    something the payload never carried.
+    """
+    rows = corpus()
+    titles, paths = public.private_needles(rows)
+    out = tmp_path / "record"
+
+    def plant(payload):
+        # Written beside the build, into the directory the scan walks, without
+        # ever passing through the payload.
+        stray = out.parent / (out.name + ".building") / "notes.txt"
+        stray.write_text(titles[0], encoding="utf-8")
+        return payload
+
+    with pytest.raises(public.LeakTestError) as exc:
+        public.build(rows, out, payload_hook=plant)
+    assert "leak scan" in str(exc.value)
+    assert not out.exists()
+
+
+def test_a_hook_that_adds_a_harmless_stray_key_is_still_refused(tmp_path):
+    """Mutation: the post-hook shape check, which `public_shape`'s own call
+    makes look redundant.
+
+    It is not redundant, and the difference is exactly the payload hook - the
+    shape of every "just add one field" change this payload will ever get.
+    `public_shape` checks what IT built; only the post-hook call sees what the
+    hook added.
+
+    The stray key here carries nothing private, so the content check has
+    nothing to say about it. That is the division of labour: the content check
+    catches what a key contains, and this catches a key nobody designed.
+    """
+    rows = corpus()
+    out = tmp_path / "record"
+
+    def hook(payload):
+        payload["daily"]["days"][0]["raw_data"]["median_words"] = 1479
+        return payload
+
+    with pytest.raises(public.LeakTestError) as exc:
+        public.build(rows, out, payload_hook=hook)
+    assert "median_words" in str(exc.value)
+    assert not out.exists()
+    # and it is the SHAPE check that refused, not the content one
+    assert public.content_findings(hook(public.public_shape(rows)), rows) == []
