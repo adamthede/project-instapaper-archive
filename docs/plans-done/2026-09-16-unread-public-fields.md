@@ -1,6 +1,7 @@
 ---
 title: "The unread record's payload: the aggregates its page reads"
-status: "QA Needed"
+completed: 2026-09-17
+status: "Done - payload shipped; 10 round-4 items carried to the typed-schema redesign"
 priority: "P2"
 project: "articles"
 created: 2026-09-16
