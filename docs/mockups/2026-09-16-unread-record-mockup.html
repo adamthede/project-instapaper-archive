@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What I meant to read - record mockup</title>
+<style>
+:root{
+  --bg:#1c1917; --bg-raise:#292524; --bg-sink:#171412;
+  --ink:#e7e5e4; --ink-2:#a8a29e; --ink-3:#78716c; --ink-4:#57504c;
+  --rule:#44403c; --rule-2:#302b28;
+  --brand:#FF8F3B; --brand-2:#FDAD57; --brand-3:#FFCE9D;
+  /* semantic palette, by data type */
+  --amber:#fbbf24;    /* time, priority        */
+  --emerald:#34d399;  /* progress, recovered   */
+  --rose:#fb7185;     /* blocked, lost         */
+  --cyan:#22d3ee;     /* places, sources       */
+  --indigo:#818cf8;   /* connections, the read corpus */
+  --purple:#c084fc;   /* inference, ideas      */
+  --gray:#78716c;     /* inactive, unknown     */
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow-x:clip}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+  line-height:1.55;font-size:15px;-webkit-text-size-adjust:100%}
+.wrap{max-width:900px;margin:0 auto;padding-inline:16px;padding-block:0 96px}
+
+/* ---------- mockup banner ---------------------------------------------- */
+.mockbar{background:var(--brand);color:#1c1917;font-family:var(--mono);
+  font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  padding:8px 16px;font-weight:600}
+.mockbar span{display:block;max-width:900px;margin:0 auto}
+
+/* ---------- shared type ------------------------------------------------ */
+.lab{font-family:var(--mono);font-size:10px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--ink-3)}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.hair{border:0;border-top:1px solid var(--rule);margin:0}
+.hair-2{border:0;border-top:1px dotted var(--rule);margin:0}
+
+/* ---------- cover ------------------------------------------------------ */
+.cover{padding-block:48px 8px}
+.eyebrow{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;
+  margin-bottom:26px}
+.eyebrow .site{color:var(--brand);font-family:var(--mono);font-size:10px;
+  letter-spacing:.2em;text-transform:uppercase}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(34px,8.6vw,62px);
+  line-height:1.03;letter-spacing:-.02em;margin-bottom:14px}
+.dateline{color:var(--ink-2);font-size:14px;max-width:46em;margin-bottom:30px}
+.dateline .num{color:var(--ink)}
+
+.hero{display:grid;grid-template-columns:1fr;gap:28px;
+  padding-block:30px;border-top:1px solid var(--rule);
+  border-bottom:1px solid var(--rule)}
+.heronum{font-family:var(--serif);font-weight:400;color:var(--brand);
+  font-size:clamp(76px,22vw,148px);line-height:.84;letter-spacing:-.03em}
+.herosub{color:var(--ink-2);font-size:14px;margin-top:12px;max-width:34em}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:0 26px;align-content:start}
+.stat{border-top:1px dotted var(--rule);padding-block:11px 12px}
+.stat .v{font-family:var(--serif);font-size:clamp(23px,5.4vw,30px);
+  line-height:1.05;color:var(--ink);margin-top:3px}
+.stat .s{color:var(--ink-4);font-size:11.5px;margin-top:2px;line-height:1.35}
+@media(min-width:680px){
+  .hero{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:40px;align-items:start}
+}
+
+/* ---------- stacked recovery bar --------------------------------------- */
+.recov{padding-block:26px 30px;border-bottom:1px solid var(--rule)}
+.stack{display:flex;width:100%;height:20px;margin-block:12px 0;
+  border-radius:2px;overflow:hidden;background:var(--bg-raise)}
+.stack i{display:block;height:100%}
+.key{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:13px}
+.key div{display:flex;align-items:baseline;gap:7px;font-size:12.5px;
+  color:var(--ink-2)}
+.key b{width:8px;height:8px;border-radius:1px;display:inline-block;
+  transform:translateY(-1px)}
+.key .n{color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* ---------- cover signature chart --------------------------------------- */
+.sig{padding-block:30px 8px}
+.ladder{display:grid;gap:3px;margin-top:16px}
+.lrow{display:grid;grid-template-columns:2.7rem minmax(0,1fr);
+  align-items:center;gap:8px}
+.lrow .y{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);
+  font-variant-numeric:tabular-nums}
+.lbar{height:11px;background:var(--amber);border-radius:1px;min-width:1px}
+.lrow.nil .lbar{background:var(--rule-2)}
+
+/* ---------- plates ------------------------------------------------------ */
+.plate{padding-block:52px 0;border-top:1px solid var(--rule);margin-top:52px}
+.pnum{font-family:var(--mono);font-size:10px;letter-spacing:.2em;
+  color:var(--brand);margin-bottom:12px}
+.plate h2{font-family:var(--serif);font-weight:400;
+  font-size:clamp(21px,4.6vw,29px);line-height:1.22;letter-spacing:-.01em;
+  max-width:24em;margin-bottom:8px}
+.ptag{color:var(--ink-3);font-size:12.5px;margin-bottom:26px}
+.fig{margin-block:26px}
+.figlab{display:flex;flex-wrap:wrap;gap:4px 18px;margin-bottom:14px}
+
+/* paired share rows */
+.pair{display:grid;gap:9px}
+.prow{display:grid;grid-template-columns:2.7rem minmax(0,1fr);gap:8px;
+  align-items:center}
+.prow .k{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;line-height:1.2}
+.bars{display:grid;gap:3px}
+.bl{display:grid;grid-template-columns:minmax(0,1fr) 3.4rem;
+  align-items:center;gap:8px}
+.bar{height:10px;border-radius:1px;min-width:1px}
+.bv{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;text-align:right}
+.b-unread{background:var(--amber)}
+.b-read{background:var(--indigo)}
+.b-topic{background:var(--brand-2)}
+.b-topic-read{background:var(--indigo)}
+.b-src{background:var(--cyan)}
+.b-inf{background:var(--purple)}
+.b-nil{background:var(--rule-2)}
+
+/* topic + domain rows, wider key column */
+.prow.wide{grid-template-columns:minmax(6.6rem,10.5rem) minmax(0,1fr)}
+.prow.wide .k{font-family:var(--sans);font-size:12.5px;color:var(--ink-2);
+  letter-spacing:0;overflow-wrap:anywhere}
+
+/* ratio chips */
+.chip{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:2px;
+  background:var(--bg-raise);color:var(--ink-2);white-space:nowrap}
+.chip.up{color:#1c1917;background:var(--brand-2)}
+.chip.dn{color:var(--ink);background:#3b3a68}
+
+/* three-part count strip */
+.strip{display:flex;width:100%;height:16px;border-radius:2px;overflow:hidden;
+  background:var(--bg-raise);margin-top:10px}
+.strip i{display:block;height:100%}
+
+/* small stat trio */
+.trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(122px,1fr));
+  gap:0 22px;margin-top:24px}
+.trio div{border-top:1px dotted var(--rule);padding-block:10px 12px}
+.trio .v{font-family:var(--serif);font-size:24px;line-height:1.1;margin-top:3px}
+
+/* sparkline */
+.spark{display:flex;align-items:flex-end;gap:1px;height:64px;margin-top:14px}
+.spark i{flex:1 1 0;min-width:2px;background:var(--emerald);border-radius:1px}
+.spark i.zero{background:var(--rule-2);height:1px !important}
+.sparkx{display:flex;justify-content:space-between;margin-top:7px}
+
+/* two queue points */
+.points{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:18px;margin-top:20px}
+.point{border-left:2px solid var(--amber);padding:2px 0 6px 12px}
+.point.est{border-left-style:dotted;border-left-color:var(--gray)}
+.point .v{font-family:var(--serif);font-size:30px;line-height:1.05;margin-top:4px}
+.point .s{color:var(--ink-4);font-size:11.5px;margin-top:4px}
+
+/* unknown / caveat block */
+.unknown{border-left:2px solid var(--rose);padding:4px 0 6px 13px;
+  margin-top:24px;color:var(--ink-2);font-size:13.5px;max-width:44em}
+.unknown .lab{color:var(--rose);display:block;margin-bottom:5px}
+.caveat{border-left:2px solid var(--gray);padding:4px 0 6px 13px;
+  margin-top:20px;color:var(--ink-3);font-size:12.5px;max-width:44em}
+
+/* collapsed prose */
+details{margin-top:26px;border-top:1px dotted var(--rule);padding-top:14px}
+summary{cursor:pointer;list-style:none;font-family:var(--mono);font-size:10px;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3);
+  display:flex;align-items:center;gap:9px}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+";font-size:13px;color:var(--brand);line-height:1}
+details[open] summary::before{content:"\2212"}
+summary:hover{color:var(--ink-2)}
+details .prose{margin-top:15px;max-width:40em;color:var(--ink-2);font-size:14px}
+details .prose p+p{margin-top:12px}
+
+/* footnote */
+.fn{margin-top:22px;padding-top:12px;border-top:1px solid var(--rule-2);
+  font-family:var(--mono);font-size:10.5px;color:var(--ink-4);
+  line-height:1.65;overflow-wrap:anywhere}
+.fn b{color:var(--ink-3);font-weight:400}
+
+/* colophon */
+.colophon{margin-top:64px;padding-top:26px;border-top:1px solid var(--rule);
+  color:var(--ink-4);font-size:12.5px;max-width:44em}
+.colophon p+p{margin-top:10px}
+
+/* horizontal-scroll escape hatch for anything genuinely wide */
+.scrollx{overflow-x:auto}
+
+@media print{
+  body{background:#fff;color:#111}
+  .mockbar{display:none}
+  details>*:not(summary){display:block !important}
+  details::details-content{content-visibility:visible !important;
+    block-size:auto !important}
+  summary{color:#555}
+}
+</style>
+</head>
+<body>
+
+<div class="mockbar"><span>Mockup &middot; not the built record &middot; numbers computed 16 Sep 2026 from branch feat/2026-09-16-unread-corpus</span></div>
+
+<div class="wrap">
+
+<!-- ==================== COVER ==================== -->
+<header class="cover">
+  <div class="eyebrow">
+    <span class="site">data.adamthede.com</span>
+    <span class="lab">A record of the reading practice</span>
+  </div>
+
+  <h1>What I meant to read</h1>
+
+  <p class="dateline">
+    The other archive. Every item here is a recorded intention: on one particular
+    day it was worth his time, and the time never came. <span class="num">492</span>
+    of them, saved between <span class="num">27 January 2011</span> and
+    <span class="num">12 April 2026</span>, still unread on
+    <span class="num">16 September 2026</span>.
+  </p>
+
+  <div class="hero">
+    <div>
+      <div class="lab">Saved, never read</div>
+      <div class="heronum num">492</div>
+      <p class="herosub">
+        395 sitting in the unread queue, 97 filed into folders and never opened.
+        Twenty of them he thought enough of to star.
+      </p>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="lab">Years spanned</div>
+        <div class="v num">16</div>
+        <div class="s">2011 to 2026. Nothing at all was saved in 2021.</div>
+      </div>
+      <div class="stat">
+        <div class="lab">Words recovered</div>
+        <div class="v num">1,086,902</div>
+        <div class="s">Across the 466 whose text came back. A median of 1,479 each.</div>
+      </div>
+      <div class="stat">
+        <div class="lab">Oldest save</div>
+        <div class="v num">27 Jan 2011</div>
+        <div class="s">Still in the queue after fifteen years and seven months.</div>
+      </div>
+      <div class="stat">
+        <div class="lab">Sources</div>
+        <div class="v num">218</div>
+        <div class="s">Distinct hosts. 170 of them appear exactly once.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- recovery split -->
+  <section class="recov">
+    <div class="lab">How the text was recovered</div>
+    <div class="stack" role="img"
+      aria-label="Stored copy 353, Wayback snapshot 90, direct fetch 23, no text anywhere 26">
+      <i style="width:71.75%;background:var(--emerald)"></i>
+      <i style="width:18.29%;background:var(--cyan)"></i>
+      <i style="width:4.67%;background:var(--amber)"></i>
+      <i style="width:5.28%;background:var(--rose)"></i>
+    </div>
+    <div class="key">
+      <div><b style="background:var(--emerald)"></b>Stored copy <span class="n">353</span></div>
+      <div><b style="background:var(--cyan)"></b>Wayback snapshot <span class="n">90</span></div>
+      <div><b style="background:var(--amber)"></b>Direct fetch <span class="n">23</span></div>
+      <div><b style="background:var(--rose)"></b>No text anywhere <span class="n">26</span></div>
+    </div>
+  </section>
+
+  <!-- signature chart -->
+  <section class="sig">
+    <div class="lab">The backlog, by the year it was saved</div>
+    <div class="ladder">
+      <div class="lrow nil"><span class="y num">2010</span><span class="lbar" style="width:1px"></span></div>
+      <div class="lrow"><span class="y num">2011</span><span class="lbar" style="width:51.5%"></span></div>
+      <div class="lrow"><span class="y num">2012</span><span class="lbar" style="width:6.9%"></span></div>
+      <div class="lrow"><span class="y num">2013</span><span class="lbar" style="width:13.9%"></span></div>
+      <div class="lrow"><span class="y num">2014</span><span class="lbar" style="width:30.7%"></span></div>
+      <div class="lrow"><span class="y num">2015</span><span class="lbar" style="width:11.9%"></span></div>
+      <div class="lrow"><span class="y num">2016</span><span class="lbar" style="width:52.5%"></span></div>
+      <div class="lrow"><span class="y num">2017</span><span class="lbar" style="width:56.4%"></span></div>
+      <div class="lrow"><span class="y num">2018</span><span class="lbar" style="width:100%"></span></div>
+      <div class="lrow"><span class="y num">2019</span><span class="lbar" style="width:50.5%"></span></div>
+      <div class="lrow"><span class="y num">2020</span><span class="lbar" style="width:14.9%"></span></div>
+      <div class="lrow nil"><span class="y num">2021</span><span class="lbar" style="width:1px"></span></div>
+      <div class="lrow"><span class="y num">2022</span><span class="lbar" style="width:1%"></span></div>
+      <div class="lrow"><span class="y num">2023</span><span class="lbar" style="width:18.8%"></span></div>
+      <div class="lrow"><span class="y num">2024</span><span class="lbar" style="width:6.9%"></span></div>
+      <div class="lrow"><span class="y num">2025</span><span class="lbar" style="width:31.7%"></span></div>
+      <div class="lrow"><span class="y num">2026</span><span class="lbar" style="width:39.6%"></span></div>
+    </div>
+    <div class="fn">
+      <b>Cover.</b> Counts and years from <code>public_data.json</code>, built by
+      <code>scripts/unread/public.py</code> &rarr; <code>public_shape()</code> over
+      <code>data/unread_enriched.jsonl</code> (492 rows, gitignored).
+      Word total, oldest save and star count computed from the same rows via
+      <code>body_words</code>, <code>saved_date</code> and <code>starred</code>;
+      those three are <b>not yet fields in the public payload</b> and have to be
+      added to <code>public_shape()</code> before the built page can show them.
+      Bars scaled to 2018 = 101.
+    </div>
+  </section>
+</header>
+
+<!-- ==================== PLATE 01 ==================== -->
+<section class="plate" id="years">
+  <div class="pnum">Plate 01</div>
+  <h2>Half the backlog was saved between 2016 and 2019, a four-year band that
+      produced 12 percent of everything he finished.</h2>
+  <p class="ptag">262 of 492 unread &middot; 812 of 6,769 read</p>
+
+  <div class="fig">
+    <div class="figlab">
+      <span class="lab" style="color:var(--amber)">&#9632; Unread, share of 492</span>
+      <span class="lab" style="color:var(--indigo)">&#9632; Read, share of 6,769</span>
+    </div>
+    <div class="pair">
+      <div class="prow"><span class="k">2010</span><span class="bars">
+        <span class="bl"><span class="bar b-nil" style="width:1px"></span><span class="bv">0</span></span>
+        <span class="bl"><span class="bar b-read" style="width:17.3%"></span><span class="bv">269</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2011</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:46.0%"></span><span class="bv">52</span></span>
+        <span class="bl"><span class="bar b-read" style="width:23.1%"></span><span class="bv">360</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2012</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:6.2%"></span><span class="bv">7</span></span>
+        <span class="bl"><span class="bar b-read" style="width:96.5%"></span><span class="bv">1,502</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2013</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:12.4%"></span><span class="bv">14</span></span>
+        <span class="bl"><span class="bar b-read" style="width:54.9%"></span><span class="bv">854</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2014</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:27.4%"></span><span class="bv">31</span></span>
+        <span class="bl"><span class="bar b-read" style="width:70.4%"></span><span class="bv">1,096</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2015</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:10.6%"></span><span class="bv">12</span></span>
+        <span class="bl"><span class="bar b-read" style="width:23.9%"></span><span class="bv">372</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2016</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:46.8%"></span><span class="bv">53</span></span>
+        <span class="bl"><span class="bar b-read" style="width:15.2%"></span><span class="bv">237</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2017</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:50.4%"></span><span class="bv">57</span></span>
+        <span class="bl"><span class="bar b-read" style="width:8.5%"></span><span class="bv">133</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2018</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:89.3%"></span><span class="bv">101</span></span>
+        <span class="bl"><span class="bar b-read" style="width:15.2%"></span><span class="bv">237</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2019</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:45.1%"></span><span class="bv">51</span></span>
+        <span class="bl"><span class="bar b-read" style="width:13.2%"></span><span class="bv">205</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2020</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:13.3%"></span><span class="bv">15</span></span>
+        <span class="bl"><span class="bar b-read" style="width:12.5%"></span><span class="bv">194</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2021</span><span class="bars">
+        <span class="bl"><span class="bar b-nil" style="width:1px"></span><span class="bv">0</span></span>
+        <span class="bl"><span class="bar b-read" style="width:0.8%"></span><span class="bv">13</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2022</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:0.9%"></span><span class="bv">1</span></span>
+        <span class="bl"><span class="bar b-read" style="width:9.7%"></span><span class="bv">150</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2023</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:16.8%"></span><span class="bv">19</span></span>
+        <span class="bl"><span class="bar b-read" style="width:24.3%"></span><span class="bv">378</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2024</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:6.2%"></span><span class="bv">7</span></span>
+        <span class="bl"><span class="bar b-read" style="width:13.8%"></span><span class="bv">215</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2025</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:28.3%"></span><span class="bv">32</span></span>
+        <span class="bl"><span class="bar b-read" style="width:25.1%"></span><span class="bv">391</span></span>
+      </span></div>
+      <div class="prow"><span class="k">2026</span><span class="bars">
+        <span class="bl"><span class="bar b-unread" style="width:35.3%"></span><span class="bv">40</span></span>
+        <span class="bl"><span class="bar b-read" style="width:10.5%"></span><span class="bv">163</span></span>
+      </span></div>
+    </div>
+    <p class="caveat">Both series are drawn as a share of their own corpus on one
+      shared scale, so a long bar means "a big slice of that pile", not "a lot of
+      articles". 2012 is 22 percent of everything he read and 1 percent of what he
+      did not.</p>
+  </div>
+
+  <details>
+    <summary>Read the note</summary>
+    <div class="prose">
+      <p>The two curves are close to inverses of each other. The years that fill
+      the read archive, 2012 through 2014, left almost nothing behind: seven
+      unread items survive from 2012 against 1,502 finished. The years that fill
+      the backlog, 2016 through 2019, are the years the reading nearly stopped.</p>
+      <p>2018 is the peak of the queue and it has not moved. The May 2025 export
+      counted 101 unread items saved in 2018; there are 101 today.</p>
+      <p>The oldest strata behave differently, and the split is exact. All 73
+      items saved in 2011, 2012 and 2013 sit in folders. Not one of them is in
+      the queue, and the queue holds nothing at all from before 2014. That is two
+      different acts wearing the same label: the queue is where things were
+      dropped, the folders are where things were sorted, named and shelved. The
+      sorted ones are the ones that survived fifteen years unread.</p>
+    </div>
+  </details>
+
+  <div class="fn">
+    <b>Plate 01.</b> Unread counts: <code>public_data.json</code> &rarr;
+    <code>by_saved_year</code>, from <code>scripts/unread/analysis.py</code>
+    &rarr; <code>by_saved_year()</code>.
+    Read counts: <code>data/archive_index.parquet</code>, rows whose
+    <code>source</code> is in <code>analysis.READ_IT_LATER_SOURCES</code>
+    (instapaper, matter), grouped on <code>date_saved</code> &mdash; 6,769 of the
+    index's 17,320 rows. The other 10,551 are the legacy document archive and were
+    never saved with an intention to read later, so they are not the comparison.
+    Bars scaled to 23 percent.
+  </div>
+</section>
+
+<!-- ==================== PLATE 02 ==================== -->
+<section class="plate" id="topics">
+  <div class="pnum">Plate 02</div>
+  <h2>Ruby on Rails is ten times heavier in what he saved than in what he read.
+      Technology is the one subject he read more than he saved.</h2>
+  <p class="ptag">Share of each corpus's topic mentions &middot; 2,076 unread, 26,912 read</p>
+
+  <div class="fig">
+    <div class="figlab">
+      <span class="lab" style="color:var(--brand-2)">&#9632; Unread</span>
+      <span class="lab" style="color:var(--indigo)">&#9632; Read</span>
+      <span class="lab">Chip = how many times heavier in the unread pile</span>
+    </div>
+    <div class="pair">
+      <div class="prow wide"><span class="k">Software Development <span class="chip up num">6.1&times;</span></span><span class="bars">
+        <span class="bl"><span class="bar b-topic" style="width:100%"></span><span class="bv">1.40%</span></span>
+        <span class="bl"><span class="bar b-topic-read" style="width:16.4%"></span><span class="bv">0.23%</span></span>
+      </span></div>
+      <div class="prow wide"><span class="k">Ruby on Rails <span class="chip up num">10.2&times;</span></span><span class="bars">
+        <span class="bl"><span class="bar b-topic" style="width:75.7%"></span><span class="bv">1.06%</span></span>
+        <span class="bl"><span class="bar b-topic-read" style="width:7.1%"></span><span class="bv">0.10%</span></span>
+      </span></div>
+      <div class="prow wide"><span class="k">Personal Development <span class="chip up num">2.5&times;</span></span><span class="bars">
+        <span class="bl"><span class="bar b-topic" style="width:68.6%"></span><span class="bv">0.96%</span></span>
+        <span class="bl"><span class="bar b-topic-read" style="width:27.1%"></span><span class="bv">0.38%</span></span>
+      </span></div>
+      <div class="prow wide"><span class="k">Artificial Intelligence <span class="chip up num">1.4&times;</span></span><span class="bars">
+        <span class="bl"><span class="bar b-topic" style="width:62.1%"></span><span class="bv">0.87%</span></span>
+        <span class="bl"><span class="bar b-topic-read" style="width:43.6%"></span><span class="bv">0.61%</span></span>
+      </span></div>
+      <div class="prow wide"><span class="k">Innovation <span class="chip up num">2.1&times;</span></span><span class="bars">
+        <span class="bl"><span class="bar b-topic" style="width:62.1%"></span><span class="bv">0.87%</span></span>
+        <span class="bl"><span class="bar b-topic-read" style="width:29.3%"></span><span class="bv">0.41%</span></span>
+      </span></div>
+      <div class="prow wide"><span class="k">Entrepreneurship <span class="chip num">0.9&times;</span></span><span class="bars">
+        <span class="bl"><span class="bar b-topic" style="width:55.0%"></span><span class="bv">0.77%</span></span>
+        <span class="bl"><span class="bar b-topic-read" style="width:62.9%"></span><span class="bv">0.88%</span></span>
+      </span></div>
+      <div class="prow wide"><span class="k">Web Development <span class="chip up num">8.8&times;</span></span><span class="bars">
+        <span class="bl"><span class="bar b-topic" style="width:51.4%"></span><span class="bv">0.72%</span></span>
+        <span class="bl"><span class="bar b-topic-read" style="width:5.7%"></span><span class="bv">0.08%</span></span>
+      </span></div>
+      <div class="prow wide"><span class="k">Technology <span class="chip dn num">0.6&times;</span></span><span class="bars">
+        <span class="bl"><span class="bar b-topic" style="width:41.4%"></span><span class="bv">0.58%</span></span>
+        <span class="bl"><span class="bar b-topic-read" style="width:70.7%"></span><span class="bv">0.99%</span></span>
+      </span></div>
+      <div class="prow wide"><span class="k">Self-Improvement <span class="chip up num">4.6&times;</span></span><span class="bars">
+        <span class="bl"><span class="bar b-topic" style="width:41.4%"></span><span class="bv">0.58%</span></span>
+        <span class="bl"><span class="bar b-topic-read" style="width:9.3%"></span><span class="bv">0.13%</span></span>
+      </span></div>
+      <div class="prow wide"><span class="k">Business Strategy <span class="chip num">1.0&times;</span></span><span class="bars">
+        <span class="bl"><span class="bar b-topic" style="width:37.9%"></span><span class="bv">0.53%</span></span>
+        <span class="bl"><span class="bar b-topic-read" style="width:36.4%"></span><span class="bv">0.51%</span></span>
+      </span></div>
+      <div class="prow wide"><span class="k">Social Media <span class="chip dn num">0.0&times;</span></span><span class="bars">
+        <span class="bl"><span class="bar b-nil" style="width:1px"></span><span class="bv">0.00%</span></span>
+        <span class="bl"><span class="bar b-topic-read" style="width:39.3%"></span><span class="bv">0.55%</span></span>
+      </span></div>
+      <div class="prow wide"><span class="k">Venture Capital <span class="chip dn num">0.4&times;</span></span><span class="bars">
+        <span class="bl"><span class="bar b-topic" style="width:13.6%"></span><span class="bv">0.19%</span></span>
+        <span class="bl"><span class="bar b-topic-read" style="width:31.4%"></span><span class="bv">0.44%</span></span>
+      </span></div>
+    </div>
+  </div>
+
+  <div class="caveat">The unread summaries were generated from full article
+    bodies; the read corpus's were generated under a 10,000-character cap, which
+    28 of 79 sampled bodies exceed. The unread side therefore saw more of each
+    article than the read side did, and a topic present on one and absent on the
+    other may be a difference in how much text the model read rather than a
+    difference in what was saved. Topic density is close: 4.47 topics per unread
+    article against 3.98 per read one.</div>
+
+  <details>
+    <summary>Read the note</summary>
+    <div class="prose">
+      <p>The backlog is a technical education he kept buying and never took.
+      Software Development, Ruby on Rails and Web Development together are 3.2
+      percent of everything he saved and 0.4 percent of everything he read, an
+      almost eight-fold difference that no amount of enrichment asymmetry
+      explains.</p>
+      <p>What he actually read is broader and softer: Technology, Entrepreneurship,
+      Social Media, Venture Capital. Social Media is 147 mentions in the read
+      corpus and zero in the queue. The pattern is not "he saved hard things and
+      read easy ones" so much as "he saved the things he meant to become, and read
+      the things he was already following".</p>
+    </div>
+  </details>
+
+  <div class="fn">
+    <b>Plate 02.</b> Unread topics: <code>public_data.json</code> &rarr;
+    <code>by_topic</code> (top 40), from
+    <code>scripts/unread/analysis.py</code> &rarr; <code>by_topic()</code> over the
+    464 rows the prompt's own <code>CONTENT_VALID</code> guard did not reject.
+    Read topics: <code>analysis.read_corpus_topics()</code> over
+    <code>data/archive_index.parquet</code>, read-it-later sources only.
+    Shares are of each corpus's total topic mentions, so the two are comparable
+    without a per-item denominator. Caveat text is <code>analysis.COMPARISON_CAVEAT</code>,
+    published verbatim in the payload.
+    <b>One topic was withheld</b> from the published list by
+    <code>public.drop_title_shaped()</code> because the string is also the title
+    of an article in this corpus; the title stays a leak needle.
+  </div>
+</section>
+
+<!-- ==================== PLATE 03 ==================== -->
+<section class="plate" id="why">
+  <div class="pnum">Plate 03</div>
+  <h2>A model was asked why each piece was saved. It answered for 461 of 492,
+      and judged 82 of them past their moment.</h2>
+  <p class="ptag">Inference, not record &middot; every figure on this plate is a machine's guess</p>
+
+  <div class="fig">
+    <div class="lab">What the inference produced</div>
+    <div class="strip" role="img"
+      aria-label="Counted 461, excluded at low confidence 21, no inference offered 10">
+      <i style="width:93.70%;background:var(--purple)"></i>
+      <i style="width:4.27%;background:var(--ink-4)"></i>
+      <i style="width:2.03%;background:var(--rule-2)"></i>
+    </div>
+    <div class="key">
+      <div><b style="background:var(--purple)"></b>Counted <span class="n">461</span></div>
+      <div><b style="background:var(--ink-4)"></b>Excluded, low confidence <span class="n">21</span></div>
+      <div><b style="background:var(--rule-2)"></b>Declined to infer <span class="n">10</span></div>
+    </div>
+  </div>
+
+  <div class="fig">
+    <div class="lab">How sure it said it was</div>
+    <div class="pair" style="margin-top:12px">
+      <div class="prow wide"><span class="k">High</span><span class="bars">
+        <span class="bl"><span class="bar b-inf" style="width:100%"></span><span class="bv">371</span></span></span></div>
+      <div class="prow wide"><span class="k">Medium</span><span class="bars">
+        <span class="bl"><span class="bar b-inf" style="width:24.3%"></span><span class="bv">90</span></span></span></div>
+      <div class="prow wide"><span class="k">Low</span><span class="bars">
+        <span class="bl"><span class="bar b-inf" style="width:8.4%"></span><span class="bv">31</span></span></span></div>
+    </div>
+  </div>
+
+  <div class="trio">
+    <div><div class="lab">Judged aged out</div><div class="v num">82</div>
+      <div class="s">of the 464 it could read. 17.7 percent.</div></div>
+    <div><div class="lab">Could not be judged</div><div class="v num">28</div>
+      <div class="s">Text the guard flagged as not an article.</div></div>
+    <div><div class="lab">Still worth the time</div><div class="v num">382</div>
+      <div class="s">Qualify for a shortlist that stays private.</div></div>
+  </div>
+
+  <div class="unknown">
+    <span class="lab">What this plate cannot show</span>
+    There is no taxonomy of reasons. The model returns one sentence per article,
+    and a sentence about an unread article is an item-level string, so it does not
+    ship. What is publishable is how often it answered and how sure it said it
+    was. The reasons themselves live on the private side of the record.
+  </div>
+
+  <details>
+    <summary>Read the method</summary>
+    <div class="prose">
+      <p>Two fields were deliberately not asked of the model. The abandonment band
+      is arithmetic on read progress, and the topic drift is a corpus computation.
+      Asking a model for either would have produced a plausible number that nothing
+      could check.</p>
+      <p>The two that were asked, why it was saved and whether it has aged out,
+      are genuinely inferential, and both carry guards. The reason may come back
+      empty, and an empty answer is treated as a result rather than a failure: it
+      happened ten times. The model sets its own confidence, and the 21 rows it
+      marked low are excluded from every aggregate on this page. Aged-out is judged
+      only on rows whose text passed the content check, which is why the
+      denominator is 464 and not 492.</p>
+      <p>The shortlist is ranked on the enrichment rather than on a fresh model
+      pass, so every part of the ranking traces to a stored field. 382 pieces
+      qualify. The ranked list is published privately, where titles are allowed and
+      the ranking can be judged; the public record gets the count.</p>
+    </div>
+  </details>
+
+  <div class="fn">
+    <b>Plate 03.</b> <code>public_data.json</code> &rarr; <code>why_saved</code>
+    (carrying <code>kind: "inference"</code> in the payload itself) and
+    <code>still_worth_your_time</code>, from
+    <code>scripts/unread/analysis.py</code> &rarr; <code>why_saved_summary()</code>
+    and <code>shortlist_eligible_count()</code>.
+    Aged-out and unknown: <code>public_data.json</code> &rarr;
+    <code>aging_curve</code>, summed across years
+    (<code>analysis.aging_curve()</code>).
+    The confidence split is computed from <code>why_saved_confidence</code> on
+    <code>data/unread_enriched.jsonl</code> and is <b>not yet a payload field</b>;
+    it needs adding to <code>public_shape()</code> before the built page can show it.
+    Model: gemini-2.5-flash-lite, full bodies, no character cap.
+  </div>
+</section>
+
+<!-- ==================== PLATE 04 ==================== -->
+<section class="plate" id="sources">
+  <div class="pnum">Plate 04</div>
+  <h2>218 hosts feed the backlog, and one newspaper is 17 percent of it.</h2>
+  <p class="ptag">Top ten hosts are 45 percent &middot; 170 hosts appear exactly once</p>
+
+  <div class="fig">
+    <div class="pair">
+      <div class="prow wide"><span class="k">nytimes.com</span><span class="bars">
+        <span class="bl"><span class="bar b-src" style="width:100%"></span><span class="bv">84</span></span></span></div>
+      <div class="prow wide"><span class="k">medium.com</span><span class="bars">
+        <span class="bl"><span class="bar b-src" style="width:59.5%"></span><span class="bv">50</span></span></span></div>
+      <div class="prow wide"><span class="k">x.com</span><span class="bars">
+        <span class="bl"><span class="bar b-src" style="width:19.0%"></span><span class="bv">16</span></span></span></div>
+      <div class="prow wide"><span class="k">blakemasters.com</span><span class="bars">
+        <span class="bl"><span class="bar b-src" style="width:16.7%"></span><span class="bv">14</span></span></span></div>
+      <div class="prow wide"><span class="k">businessinsider.com</span><span class="bars">
+        <span class="bl"><span class="bar b-src" style="width:16.7%"></span><span class="bv">14</span></span></span></div>
+      <div class="prow wide"><span class="k">brainpickings.org</span><span class="bars">
+        <span class="bl"><span class="bar b-src" style="width:14.3%"></span><span class="bv">12</span></span></span></div>
+      <div class="prow wide"><span class="k">theatlantic.com</span><span class="bars">
+        <span class="bl"><span class="bar b-src" style="width:9.5%"></span><span class="bv">8</span></span></span></div>
+      <div class="prow wide"><span class="k">theguardian.com</span><span class="bars">
+        <span class="bl"><span class="bar b-src" style="width:9.5%"></span><span class="bv">8</span></span></span></div>
+      <div class="prow wide"><span class="k">newyorker.com</span><span class="bars">
+        <span class="bl"><span class="bar b-src" style="width:8.3%"></span><span class="bv">7</span></span></span></div>
+      <div class="prow wide"><span class="k">fastcodesign.com</span><span class="bars">
+        <span class="bl"><span class="bar b-src" style="width:7.1%"></span><span class="bv">6</span></span></span></div>
+      <div class="prow wide"><span class="k">medium.freecodecamp.org</span><span class="bars">
+        <span class="bl"><span class="bar b-src" style="width:7.1%"></span><span class="bv">6</span></span></span></div>
+      <div class="prow wide"><span class="k">en.wikipedia.org</span><span class="bars">
+        <span class="bl"><span class="bar b-src" style="width:6.0%"></span><span class="bv">5</span></span></span></div>
+      <div class="prow wide"><span class="k">tennessean.com</span><span class="bars">
+        <span class="bl"><span class="bar b-src" style="width:6.0%"></span><span class="bv">5</span></span></span></div>
+    </div>
+  </div>
+
+  <div class="trio">
+    <div><div class="lab">Distinct hosts</div><div class="v num">218</div>
+      <div class="s">Across 492 saves.</div></div>
+    <div><div class="lab">Top host's share</div><div class="v num">17.1%</div>
+      <div class="s">One newspaper, 84 items.</div></div>
+    <div><div class="lab">Seen once only</div><div class="v num">170</div>
+      <div class="s">78 percent of the hosts.</div></div>
+  </div>
+
+  <details>
+    <summary>Read the note</summary>
+    <div class="prose">
+      <p>Hosts ship and article addresses do not. A host is a fact about the
+      archive; a path identifies one article in it, and the whole point of this
+      record is that the articles stay unnamed.</p>
+      <p>The concentration is the finding. Two hosts are more than a quarter of
+      the queue, and they are also the two hardest to fetch: both bot-block a
+      plain request, which is why the recovery on the cover leans so heavily on
+      the copy Instapaper stored at the moment of saving. The long tail is the
+      other half of the story. 170 hosts contributed exactly one thing he meant
+      to read and never came back to.</p>
+    </div>
+  </details>
+
+  <div class="fn">
+    <b>Plate 04.</b> <code>public_data.json</code> &rarr; <code>by_domain</code>
+    (top 60 published), <code>distinct_domains</code> and
+    <code>domain_concentration</code>, from
+    <code>scripts/unread/analysis.py</code> &rarr; <code>by_domain()</code> and
+    <code>scripts/unread/public.py</code> &rarr; <code>_concentration()</code>.
+    Bars scaled to 84.
+  </div>
+</section>
+
+<!-- ==================== PLATE 05 ==================== -->
+<section class="plate" id="survival">
+  <div class="pnum">Plate 05</div>
+  <h2>Text came back for 466 of the 492, and three quarters of it came from a
+      copy stored at the moment of saving rather than from the web.</h2>
+  <p class="ptag">Which leg of the fetch chain produced the text &middot; not a measure of what is still live</p>
+
+  <div class="fig">
+    <div class="pair">
+      <div class="prow wide"><span class="k">Instapaper's stored copy</span><span class="bars">
+        <span class="bl"><span class="bar" style="width:100%;background:var(--emerald)"></span><span class="bv">353</span></span></span></div>
+      <div class="prow wide"><span class="k">Wayback snapshot</span><span class="bars">
+        <span class="bl"><span class="bar" style="width:25.5%;background:var(--cyan)"></span><span class="bv">90</span></span></span></div>
+      <div class="prow wide"><span class="k">Direct fetch</span><span class="bars">
+        <span class="bl"><span class="bar" style="width:6.5%;background:var(--amber)"></span><span class="bv">23</span></span></span></div>
+      <div class="prow wide"><span class="k">No text anywhere</span><span class="bars">
+        <span class="bl"><span class="bar" style="width:7.4%;background:var(--rose)"></span><span class="bv">26</span></span></span></div>
+    </div>
+  </div>
+
+  <div class="unknown">
+    <span class="lab">Stated exactly as the data supports it</span>
+    This is which leg of the fetch chain produced the text, not whether the URL is
+    still live. The chain short-circuits: the direct fetch runs only where
+    Instapaper held no stored text, so every item Instapaper resolved was never
+    probed against its own URL at all. <b>A live-web survival figure needs a
+    separate probe of all 492 and is not reported here.</b> For scale, a 100-item
+    sample measured while planning this record found 51 URLs still serving their
+    own article. This chain cannot reproduce that number and does not try.
+  </div>
+
+  <details>
+    <summary>Read the note</summary>
+    <div class="prose">
+      <p>The 26 that resolved nowhere are the only items on this page that can be
+      called lost, and even they are not evenly lost. Four were saved in 2011 and
+      seven in 2025: the old ones died of age, the recent ones are paywalls,
+      JavaScript shells and rate limits. Different failure, same outcome.</p>
+      <p>Two of them were saved as archive links, to services that now rate-limit
+      the request. The hedge against link rot rotted.</p>
+      <p>The 26 still count as intentions. They are enriched from their title and
+      description alone, flagged as such, and they appear in every year, host and
+      abandonment figure on this page. They simply carry no topics, which is why
+      the topic plate's denominator is smaller than 492.</p>
+    </div>
+  </details>
+
+  <div class="fn">
+    <b>Plate 05.</b> <code>public_data.json</code> &rarr; <code>survival</code>
+    and <code>dead_fraction_by_year</code>, from
+    <code>scripts/unread/analysis.py</code> &rarr; <code>survival()</code>. The
+    unknown-liveness paragraph is <code>analysis.SURVIVAL_NOTE</code>, which the
+    payload publishes verbatim alongside <code>liveness_measured: false</code>.
+    The 51-of-100 sample is <code>docs/2026-09-15-unread-corpus-resolve-rate.md</code>.
+    Bars scaled to 353.
+  </div>
+</section>
+
+<!-- ==================== PLATE 06 ==================== -->
+<section class="plate" id="velocity">
+  <div class="pnum">Plate 06 &middot; Matter only</div>
+  <h2>The current reading queue grew from 431 to 510 across three years while
+      reading ran at about three articles a week.</h2>
+  <p class="ptag">A second, live backlog &middot; the one above is the Instapaper era, this one is now</p>
+
+  <div class="points">
+    <div class="point">
+      <div class="lab">12 May 2023</div>
+      <div class="v num">431</div>
+      <div class="s">Queue at the export. 941,221 words.</div>
+    </div>
+    <div class="point">
+      <div class="lab">16 Sep 2026</div>
+      <div class="v num">510</div>
+      <div class="s">Queue today. 1,306,734 words. 64 started and set down.</div>
+    </div>
+    <div class="point est">
+      <div class="lab">Saves per week</div>
+      <div class="v num">&mdash;</div>
+      <div class="s">Not measured. The ledger has no inflow column yet.</div>
+    </div>
+  </div>
+
+  <div class="fig">
+    <div class="lab">Articles read per week, last 52 weeks</div>
+    <div class="spark" role="img"
+      aria-label="Weekly reads from ISO week 2025-W39 to 2026-W38, peaking at 27">
+      <i style="height:7.4%"></i><i style="height:3.7%"></i><i class="zero"></i><i class="zero"></i>
+      <i class="zero"></i><i class="zero"></i><i class="zero"></i><i class="zero"></i>
+      <i style="height:3.7%"></i><i style="height:7.4%"></i><i style="height:3.7%"></i><i style="height:7.4%"></i>
+      <i style="height:18.5%"></i><i style="height:3.7%"></i><i class="zero"></i><i style="height:3.7%"></i>
+      <i style="height:18.5%"></i><i class="zero"></i><i style="height:7.4%"></i><i style="height:3.7%"></i>
+      <i class="zero"></i><i style="height:22.2%"></i><i class="zero"></i><i style="height:3.7%"></i>
+      <i class="zero"></i><i style="height:40.7%"></i><i style="height:25.9%"></i><i style="height:11.1%"></i>
+      <i style="height:14.8%"></i><i style="height:3.7%"></i><i style="height:7.4%"></i><i class="zero"></i>
+      <i style="height:7.4%"></i><i style="height:3.7%"></i><i class="zero"></i><i style="height:11.1%"></i>
+      <i style="height:7.4%"></i><i style="height:14.8%"></i><i style="height:11.1%"></i><i style="height:18.5%"></i>
+      <i style="height:11.1%"></i><i style="height:11.1%"></i><i style="height:11.1%"></i><i style="height:11.1%"></i>
+      <i style="height:14.8%"></i><i style="height:44.4%"></i><i style="height:66.7%"></i><i style="height:100%"></i>
+      <i style="height:37.0%"></i><i class="zero"></i><i style="height:44.4%"></i><i style="height:14.8%"></i>
+    </div>
+    <div class="sparkx">
+      <span class="lab">2025-W39</span><span class="lab">peak 27</span><span class="lab">2026-W38</span>
+    </div>
+  </div>
+
+  <div class="trio">
+    <div><div class="lab">Reads, last 52 weeks</div><div class="v num">178</div>
+      <div class="s">3.4 a week.</div></div>
+    <div><div class="lab">Reads, last 13 weeks</div><div class="v num">104</div>
+      <div class="s">8.0 a week. The rate more than doubled.</div></div>
+    <div><div class="lab">Net queue growth</div><div class="v num">+0.45</div>
+      <div class="s">Items a week, across 174.7 weeks.</div></div>
+  </div>
+
+  <div class="unknown">
+    <span class="lab">When this plate becomes readable</span>
+    Two points is a line, not a trend. The nightly snapshot that records queue
+    size, inflow and outflow shipped on 16 September 2026 and <b>is not yet
+    installed</b>. The first measured inflow and outflow pair arrives on the second
+    night after it runs, a four-week average becomes meaningful at about week five,
+    and the saves-versus-reads crossing this plate is really asking about needs
+    roughly eight weeks of nights. Until then the queue line is drawn between the
+    only two observations that exist, and the saves-per-week figure is left blank
+    rather than reconstructed from them.
+  </div>
+
+  <details>
+    <summary>Read the note</summary>
+    <div class="prose">
+      <p>The reading rate more than doubled in the last quarter, from about three
+      articles a week to eight, and the queue still grew. That is the whole
+      argument for measuring inflow separately: a backlog that grows while reading
+      accelerates is a saving problem, not a reading problem, and nothing on this
+      page can yet prove which it is.</p>
+      <p>The two endpoints are not the same kind of measurement. The 2023 figure is
+      counted from an export, filtered to rows marked saved and not read. The 2026
+      figure is a live count of everything in the queue status. They agree on
+      definition and differ on instrument, which is the usual reason a long-run
+      series has a seam in it.</p>
+    </div>
+  </details>
+
+  <div class="fn">
+    <b>Plate 06.</b> Queue endpoints: <code>scripts/matter/queue_snapshot.py</code>
+    on <code>main</code> (<code>SEED_2023_DATE = "2023-05-12"</code>,
+    <code>seed_2023()</code> over the May 2023 export, and the live snapshot run
+    recorded on pull request 27). Its ledger,
+    <code>data/matter/queue_daily.csv</code> and
+    <code>data/matter/queue_snapshots.jsonl</code>, <b>does not exist yet</b>: the
+    launchd job <code>launchd/com.thedetech.article-sync.matter-queue.plist</code>
+    is shipped and not installed.
+    Weekly reads: <code>queue_snapshot.compute_weekly_reads()</code> over
+    <code>derive_date_read()</code> on <code>data/archive_index.parquet</code>,
+    filtered to <code>source == "matter"</code> (292 rows) so the plate is
+    Matter-only on both sides. The bundled
+    <code>--backfill-reads</code> writes an archive-wide series, which would have
+    mixed the Instapaper era into a Matter plate.
+    Sparkline scaled to 27.
+  </div>
+</section>
+
+<!-- ==================== COLOPHON ==================== -->
+<footer class="colophon">
+  <p><b style="color:var(--ink-3);font-weight:400">What is published.</b>
+  Counts, years, topics and source hosts. No titles, no addresses, no article
+  text, no people, organisations or locations. Redaction happens where the data
+  is built rather than where it is drawn: the payload is assembled field by field
+  out of aggregates, so nothing downstream can print what it was never handed.
+  A scan then walks the whole written tree for every article title and address in
+  the corpus, and refuses to publish on a single match.</p>
+  <p><b style="color:var(--ink-3);font-weight:400">Provenance.</b>
+  Built 16 September 2026 from 492 rows on branch
+  <code>feat/2026-09-16-unread-corpus</code> at commit <code>0ae5395</code>.
+  Enrichment: gemini-2.5-flash-lite, whole bodies, one pass.
+  The private half of this record, where titles are allowed, lives behind
+  Cloudflare Access on the reading site.</p>
+  <p>Part of a lifelogging practice at Thede Technologies.</p>
+</footer>
+
+</div>
+</body>
+</html>
