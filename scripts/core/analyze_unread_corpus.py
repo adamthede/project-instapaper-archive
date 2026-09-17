@@ -87,15 +87,21 @@ def main(argv=None):
                               encoding="utf-8")
 
     print(f"\n{report['items']} items enriched.")
-    print(f"  survival     live web {report['survival']['live_web']}, "
-          f"archived only {report['survival']['archived_only']}, "
-          f"dead {report['survival']['dead']}")
+    surv = report["survival"]
+    print(f"  text found   Instapaper {surv['instapaper_stored_copy']}, "
+          f"Wayback {surv['wayback_snapshot']}, "
+          f"direct-after-Instapaper-failed "
+          f"{surv['direct_fetch_after_instapaper_failed']}, "
+          f"nowhere {surv['no_text_anywhere']}")
+    print("               (this is which leg found the text, NOT whether the "
+          "URL is live; see the note in the report)")
     why = report["why_saved"]
     print(f"  why_saved    {why['counted']} counted, "
           f"{why['excluded_low_confidence']} excluded (low confidence), "
           f"{why['no_inference']} no inference")
     print(f"  peak drift   {report['peak_drift_year']}")
-    print(f"  shortlist    {len(report['shortlist'])} (private)")
+    print(f"  shortlist    {report['shortlist_eligible']} qualified, "
+          f"{len(report['shortlist'])} shown (private)")
     print(f"\nPrivate report -> {args.out}")
     return 0
 

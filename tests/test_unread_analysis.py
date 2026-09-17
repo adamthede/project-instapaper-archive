@@ -549,3 +549,38 @@ def test_the_shortlist_is_marked_private():
     """
     report = analysis.build(many(5), read_topics={2018: {"Attention": 5}})
     assert report["shortlist_visibility"] == "private"
+
+
+# ---------------------------------------------------------------------------
+# the command line
+# ---------------------------------------------------------------------------
+
+def test_the_analysis_cli_runs_end_to_end(tmp_path, capsys):
+    """Mutation: a summary line reading a key the report no longer carries.
+
+    This is not hypothetical either. Renaming `survival()["live_web"]` left the
+    CLI printing a key that no longer existed, and nothing caught it until the
+    command was run by hand - every test exercised the library and none
+    exercised the entry point. A crash in the last five lines of a script that
+    has already done all the work is a bad way to find out.
+    """
+    import json as json_mod
+    import sys as sys_mod
+
+    sys_mod.path.insert(0, str(REPO / "scripts" / "core"))
+    import analyze_unread_corpus as cli
+
+    enriched = tmp_path / "enriched.jsonl"
+    enriched.write_text("\n".join(
+        json_mod.dumps(record(url_sha256=f"{i:064d}")) for i in range(5)),
+        encoding="utf-8")
+    out = tmp_path / "report.json"
+
+    code = cli.main(["--enriched", str(enriched), "--out", str(out),
+                     "--index", str(tmp_path / "absent.parquet")])
+    assert code == 0
+    assert out.exists()
+    report = json_mod.loads(out.read_text())
+    assert report["items"] == 5
+    printed = capsys.readouterr().out
+    assert "5 items enriched" in printed
