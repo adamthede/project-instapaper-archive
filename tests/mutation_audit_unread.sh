@@ -525,9 +525,8 @@ run_mutation "the rollup shape is checked at the top level only" \
   scripts/unread/analysis.py \
   '        for key, allowed in DAILY_NESTED_KEYS.items():' "        for key, allowed in {}.items():" "$PUBLIC"
 run_mutation "the build does not check the shape it publishes" \
-  scripts/unread/public.py "        problems = analysis.check_daily_shape(payload.get(\"daily\") or {})
-        if problems:" "        problems = []
-        if problems:" "$PUBLIC"
+  scripts/unread/public.py "        problems += analysis.check_daily_shape(payload.get(\"daily\") or {})" \
+  "        problems += []" "$PUBLIC"
 run_mutation "by_recovery is keyed on the item instead of the leg" \
   scripts/unread/analysis.py \
   '                "by_recovery": {leg: count for leg, count

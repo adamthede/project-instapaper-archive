@@ -1038,3 +1038,60 @@ def test_a_dict_at_an_undesigned_level_is_a_finding():
     rollup = analysis.daily_rollup(corpus())
     rollup["days"][0]["raw_data"]["by_abandonment"] = {"never_opened": {"x": 1}}
     assert analysis.check_daily_shape(rollup)
+
+
+def test_the_name_check_still_catches_a_stray_key_that_is_not_hex_shaped():
+    """Mutation: the rollup's top-level allowlist set to None.
+
+    The content check does not care what a key is called, which is its
+    strength - and it means a stray key carrying nothing private walks past it.
+    That key is still a key nobody designed, and the name check is what names
+    it. Both, not either.
+    """
+    rollup = analysis.daily_rollup(corpus())
+    rollup["notes_for_later"] = "a count of something"
+    assert public.content_findings(rollup, corpus()) == []
+    assert "notes_for_later" in " ".join(analysis.check_daily_shape(rollup))
+
+
+def test_an_article_title_anywhere_in_the_payload_is_a_finding():
+    """Mutation: the title branch of the content check.
+
+    The hex and integer rules catch an identifier. A TITLE is the disclosure
+    this record is actually built around, and it is the one shape a
+    key-name allowlist would never see coming: it can arrive as a topic, a
+    band label, a note, or a key.
+    """
+    rows = corpus()
+    title = rows[0]["title"]
+    assert public.content_findings({"anything": title}, rows)
+    assert public.content_findings({title: 1}, rows)
+    assert public.content_findings({"deep": [{"x": {"y": title}}]}, rows)
+    # and a URL path, which is the other half
+    assert public.content_findings({"p": "/2018/the-distinctive-slug-3"}, rows)
+
+
+def test_the_leak_scan_still_stops_a_publish_on_its_own(tmp_path):
+    """Mutation: the leak scan's own refusal, now that two checks run before it.
+
+    `content_findings` catches a title in the PAYLOAD, which is what the old
+    version of this test planted - so disabling the leak scan stopped failing
+    anything. The scan's job is the written TREE, which is a different
+    surface: a stray file, a thumbnail's metadata, a template that writes
+    something the payload never carried.
+    """
+    rows = corpus()
+    titles, paths = public.private_needles(rows)
+    out = tmp_path / "record"
+
+    def plant(payload):
+        # Written beside the build, into the directory the scan walks, without
+        # ever passing through the payload.
+        stray = out.parent / (out.name + ".building") / "notes.txt"
+        stray.write_text(titles[0], encoding="utf-8")
+        return payload
+
+    with pytest.raises(public.LeakTestError) as exc:
+        public.build(rows, out, payload_hook=plant)
+    assert "leak scan" in str(exc.value)
+    assert not out.exists()
