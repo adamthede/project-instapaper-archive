@@ -453,3 +453,267 @@ def test_the_needle_file_is_written_for_the_index_repo(tmp_path):
     lines = [l for l in needles.read_text().splitlines() if l.strip()
              and not l.startswith("#")]
     assert any("Is Google Making Us Stupid" in l for l in lines)
+
+
+# ---------------------------------------------------------------------------
+# the cover aggregates the page reads, and the leak scan over them
+# ---------------------------------------------------------------------------
+
+def test_the_cover_aggregates_are_in_the_payload():
+    """Mutation: the built page computing them from the enriched file.
+
+    The record ships as one self-contained page on a host that holds no corpus.
+    Every figure it prints has to come out of `public_data.json`, or it comes
+    out of a number somebody typed, and a typed number is the thing this whole
+    pipeline exists to not have.
+    """
+    payload = public.public_shape(corpus())
+    assert payload["words"]["total"] > 0
+    assert payload["words"]["measured_over"] == 6
+    assert payload["saved_span"]["oldest"] == "2014-06-01"
+    assert payload["saved_span"]["newest"] == "2019-06-01"
+    assert payload["saved_span"]["years_spanned"] == 6
+    assert payload["starred"] == 0
+    assert payload["pool"] == {"unread_queue": 6, "filed_in_folders": 0, "total": 6}
+    assert payload["why_saved"]["by_confidence"]["high"] == 6
+
+
+def test_the_confidence_split_is_over_the_corpus_and_the_counts_are_over_the_answers():
+    """Mutation: publishing one population under both names.
+
+    `by_confidence` splits all 492 rows by the grade the model set.
+    `counted` / `excluded_low_confidence` / `no_inference` split only the rows
+    that carried a sentence. A page that adds a bar from one to a bar from the
+    other is adding two different denominators, and the two disagree by exactly
+    the rows the model graded and then declined to answer.
+    """
+    rows = corpus(3) + [record(url_sha256="l" * 64, confidence="low"),
+                        record(url_sha256="d" * 64, confidence="low", why="")]
+    payload = public.public_shape(rows)
+    why = payload["why_saved"]
+    assert why["by_confidence"]["low"] == 2
+    assert why["excluded_low_confidence"] == 1
+    assert why["no_inference"] == 1
+    assert sum(why["by_confidence"][g] for g in ("high", "medium", "low", "unset")) == 5
+    assert why["counted"] + why["excluded_low_confidence"] + why["no_inference"] == 5
+
+
+def test_the_star_count_is_a_number_and_not_a_list_of_what_was_starred():
+    """Mutation: publishing `starred: [...]` because "it is only twenty".
+
+    Twenty is worse, not better. A starred unread article is the strongest
+    statement of intent in the corpus, and twenty of them named is twenty
+    unexecuted intentions with his name on them.
+    """
+    rows = [record(url_sha256=f"{i:064d}", starred=(i == 0),
+                   title=f"A Distinctive Starred Headline Number {i}",
+                   url=f"https://x.example/2018/the-distinctive-slug-{i}")
+            for i in range(4)]
+    payload = public.public_shape(rows)
+    assert payload["starred"] == 1
+    serialised = json.dumps(payload, ensure_ascii=False).casefold()
+    for row in rows:
+        assert row["title"].casefold() not in serialised
+
+
+def test_no_needle_reaches_any_of_the_new_payload_fields(tmp_path):
+    """Mutation: a new field added to the payload after the scan was written.
+
+    This is the failure the allowlist exists to prevent and the one a test
+    suite most easily misses: the redaction is correct for the fields it knew
+    about on the day it was written. So the scan here runs over the WHOLE
+    serialised payload with the whole corpus's needles, and every field added
+    later is inside it by construction.
+    """
+    rows = corpus(6)
+    read_topics = {2018: {"Attention": 40, "Technology": 9}}
+    payload = public.public_shape(
+        rows, read_by_year={2018: 237}, read_topics=read_topics,
+        read_titles={"A Read Article Title Long Enough To Be A Needle"})
+    titles, paths = public.private_needles(rows)
+    assert titles and paths
+    serialised = json.dumps(payload, ensure_ascii=False).casefold()
+    for needle in list(titles) + list(paths):
+        assert needle.casefold() not in serialised
+    # and the scan the build runs, over the real written tree
+    out = tmp_path / "record"
+    public.build(rows, out, payload_hook=lambda p: dict(
+        p, read_comparison=payload["read_comparison"],
+        topic_comparison=payload["topic_comparison"]))
+    assert public.leak_scan(out, titles, paths) == []
+
+
+# ---------------------------------------------------------------------------
+# the paired series
+# ---------------------------------------------------------------------------
+
+def test_the_read_comparison_is_counts_by_year_and_nothing_else():
+    """Mutation: carrying the read corpus's rows so the page "can filter".
+
+    The read corpus is 17,320 articles with titles, URLs, authors and
+    summaries. The paired plate needs seventeen integers.
+    """
+    payload = public.public_shape(corpus(), read_by_year={2017: 133, 2018: 237})
+    comparison = payload["read_comparison"]
+    assert comparison["by_year"] == {"2017": 133, "2018": 237}
+    assert comparison["total"] == 370
+    assert all(isinstance(v, int) for v in comparison["by_year"].values())
+
+
+def test_the_read_comparison_is_absent_rather_than_empty_when_the_index_is_not_read():
+    """Mutation: emitting `{}`, which a page renders as a plate with no bars
+    and no explanation.
+
+    None says "this build did not read the index". An empty dict says "he read
+    nothing", which is a claim about a corpus of 17,320 articles.
+    """
+    payload = public.public_shape(corpus())
+    assert payload["read_comparison"] is None
+    assert payload["topic_comparison"] is None
+
+
+def test_an_unread_title_cannot_be_laundered_through_the_read_topic_column(tmp_path):
+    """Mutation: filtering the unread topics and trusting the read ones.
+
+    A third route onto the page, after the topic table and the band lists. The
+    read corpus's topics are model-generated strings out of 17,320 articles and
+    this record publishes them beside the saved ones; one colliding with an
+    unread title would print that title in a column nothing was scanning.
+    """
+    title = "Is Google Making Us Stupid, The Atlantic Cover Story"
+    rows = corpus()
+    payload = public.public_shape(
+        rows, read_topics={2018: {title: 900, "Technology": 9}})
+    assert title not in json.dumps(payload, ensure_ascii=False)
+    out = tmp_path / "record"
+    public.build(rows, out, payload_hook=lambda p: dict(
+        p, topic_comparison=payload["topic_comparison"]))
+    assert title not in published_text(out)
+
+
+def test_a_read_corpus_title_is_dropped_from_the_read_topic_column_too():
+    """Mutation: scanning only against this corpus's titles.
+
+    This record's needles are its own titles, correctly - the read index does
+    not contain them. But that leaves the read corpus's own titles unguarded on
+    a page that publishes read-corpus topics, and the index repo's word list is
+    120 hand-kept strings, not 16,467 titles. The redaction runs at the data
+    layer with both title sets, because there is no backstop for this one.
+    """
+    read_title = "A Read Article Title Long Enough To Be A Needle"
+    payload = public.public_shape(
+        corpus(), read_topics={2018: {read_title: 900, "Technology": 9}},
+        read_titles={read_title})
+    assert read_title not in json.dumps(payload, ensure_ascii=False)
+
+
+# ---------------------------------------------------------------------------
+# the per-day rollup and the 5Ws declaration
+# ---------------------------------------------------------------------------
+
+def test_the_payload_carries_a_per_day_rollup_and_it_holds_no_item(tmp_path):
+    """Mutation: a rollup carrying the day's titles "so the importer has a key".
+
+    Every record is built import-eligible, and the rollup is the shape Silo
+    imports. It is published like everything else here, so one date plus one
+    title - which is exactly what a one-save day would carry - is the most
+    identifying pair in the corpus.
+    """
+    rows = corpus(6)
+    payload = public.public_shape(rows)
+    days = payload["daily"]["days"]
+    assert days and all(set(d) == {"date_of_summary", "computed_stats"} for d in days)
+    assert payload["daily"]["provider"] == "meant-to-read"
+    serialised = json.dumps(payload["daily"], ensure_ascii=False).casefold()
+    for row in rows:
+        assert row["title"].casefold() not in serialised
+        assert row["url"].casefold() not in serialised
+    assert "rewires how we read" not in serialised
+    assert "thinking about attention" not in serialised
+
+
+def test_the_rollup_reports_reads_as_unknown():
+    """Mutation: `reads: 0`, which imports as a measurement of nothing read."""
+    payload = public.public_shape(corpus())
+    assert all(d["computed_stats"]["reads"] is None
+               for d in payload["daily"]["days"])
+
+
+def test_the_payload_declares_its_five_ws_and_says_which_are_not_published():
+    """Mutation: declaring only the Ws that ship.
+
+    The declaration is what a later importer reads to know what it is getting.
+    A who it does not mention is a who somebody assumes is coming, and the
+    whole point of this record is that the who never ships.
+    """
+    five = public.public_shape(corpus())["five_ws"]
+    assert set(five) >= {"who", "what", "when", "where", "why",
+                         "source", "source_id", "provenance"}
+    assert five["who"]["published"] is False
+    assert five["where"]["published"] is False
+    assert five["what"]["published"] is True
+    assert five["when"]["published"] is True
+    assert five["when"]["precision"] == "day"
+    assert five["why"]["published"] is True
+    assert five["why"]["kind"] == "inference"
+    assert five["source_id"]["published"] is False
+
+
+def test_the_five_ws_declaration_agrees_with_the_payload_it_describes():
+    """Mutation: a declaration that drifts from the payload.
+
+    A declaration nothing checks is a comment. Every field name it points at
+    has to be a field the payload actually carries, or the importer written
+    against it breaks on the first import and the record gets blamed.
+    """
+    payload = public.public_shape(corpus())
+    for which in ("what", "when", "why"):
+        fields = payload["five_ws"][which]["fields"]
+        assert fields
+        for name in fields:
+            assert name.split(".")[0].split("[")[0] in payload, (which, name)
+
+
+# ---------------------------------------------------------------------------
+# the command line
+# ---------------------------------------------------------------------------
+
+def _cli():
+    import sys as sys_mod
+    sys_mod.path.insert(0, str(REPO / "scripts" / "core"))
+    import publish_unread_record
+    return publish_unread_record
+
+
+def test_the_publish_cli_refuses_to_build_without_the_read_corpus(tmp_path, capsys):
+    """Mutation: warning and carrying on.
+
+    A payload silently missing the read series publishes a record whose first
+    two plates have no bars in them, and the build that made it printed
+    success. Two of six plates is not a warning-sized hole.
+    """
+    enriched = tmp_path / "enriched.jsonl"
+    enriched.write_text("\n".join(json.dumps(r) for r in corpus()), encoding="utf-8")
+    code = _cli().main(["--enriched", str(enriched), "--out", str(tmp_path / "rec"),
+                        "--index", str(tmp_path / "absent.parquet")])
+    assert code == 2
+    assert not (tmp_path / "rec").exists()
+    assert "--no-comparison" in capsys.readouterr().err
+
+
+def test_the_publish_cli_builds_the_unpaired_half_when_asked(tmp_path, capsys):
+    """Mutation: an escape hatch that quietly produces the same payload.
+
+    The unpaired build is a legitimate thing to want and it has to say what it
+    is, on the terminal and in the payload, or it becomes the thing that ships
+    by accident.
+    """
+    enriched = tmp_path / "enriched.jsonl"
+    enriched.write_text("\n".join(json.dumps(r) for r in corpus()), encoding="utf-8")
+    out = tmp_path / "rec"
+    code = _cli().main(["--enriched", str(enriched), "--out", str(out),
+                        "--no-comparison"])
+    assert code == 0
+    payload = json.loads((out / "public_data.json").read_text())
+    assert payload["read_comparison"] is None
+    assert "plates 01 and 02 cannot be drawn" in capsys.readouterr().out

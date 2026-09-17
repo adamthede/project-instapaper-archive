@@ -70,12 +70,32 @@ class LeakTestError(RuntimeError):
 # the payload
 # ---------------------------------------------------------------------------
 
-def public_shape(records, shortlist_count=None, today=None):
+def public_shape(records, shortlist_count=None, today=None,
+                 read_by_year=None, read_topics=None, read_titles=()):
     """Everything the record may say, built from aggregates and nothing else.
 
     Assembled field by field rather than filtered down from the enriched rows.
     A denylist over a record shaped like this fails silently the first time a
     field is added; an allowlist fails loudly.
+
+    The page built from this payload is one self-contained file served from a
+    host that holds no corpus, so every figure it prints has to be in here.
+    That is why the cover aggregates - words, span, stars, the queue-against-
+    folders split - are payload fields rather than something the page computes:
+    a figure the payload cannot supply is a figure somebody types.
+
+    `read_by_year` and `read_topics` are the paired series this record is built
+    around, and they come from the read corpus rather than from these rows. Both
+    are optional: a build without them emits None rather than an empty
+    container, because an empty container renders as a plate saying he read
+    nothing.
+
+    `read_titles` are the READ corpus's article titles. They are not this
+    record's leak needles - the needles are this corpus's own - but this record
+    publishes read-corpus topic strings, and the index repo's word list is a
+    hundred hand-kept strings rather than sixteen thousand titles. So the read
+    column is redacted here, at the data layer, where there is something to
+    redact it against.
     """
     today = today or dt.date.today()
     titles = corpus_titles(records)
@@ -85,11 +105,24 @@ def public_shape(records, shortlist_count=None, today=None):
     topic_rows = [[topic, count] for topic, count
                   in analysis.by_topic(records, limit=None).most_common()
                   if topic.casefold() not in titles][:40]
+    # The topic redaction runs against BOTH title sets on both columns. A
+    # string is dropped if it is an article title anywhere the record can see,
+    # because a topic costs one row of an aggregate and a laundered title costs
+    # the record.
+    all_titles = titles | {str(t).strip().casefold() for t in (read_titles or ())}
+    comparison = (analysis.topic_comparison(records, read_topics, titles=all_titles)
+                  if read_topics else None)
 
     return {
         "record": "meant-to-read",
         "built": today.isoformat(),
         "items": len(records),
+
+        # the cover: how big the pool is, and what kind of act made it
+        "pool": analysis.pool_split(records),
+        "starred": analysis.starred_count(records),
+        "words": analysis.word_totals(records),
+        "saved_span": analysis.saved_span(records),
 
         # counts, years, and the shape of the queue
         "by_saved_year": analysis.by_saved_year(records),
@@ -112,16 +145,131 @@ def public_shape(records, shortlist_count=None, today=None):
                    "top_topics": drop_title_shaped(values["top_topics"], titles)}
             for band, values in bands.items()},
 
-        # the inference, as counts only, carrying its label
-        "why_saved": dict(analysis.why_saved_summary(records), kind="inference"),
+        # the inference, as counts only, carrying its label. Two populations
+        # here, and the difference between them matters: `by_confidence` splits
+        # every row by the grade the model set, while `counted` and
+        # `excluded_low_confidence` split only the rows that carried a
+        # sentence. They disagree by exactly the rows the model graded and then
+        # declined to answer - ten of them - and a page that adds a bar from
+        # one to a bar from the other is adding two denominators.
+        "why_saved": dict(analysis.why_saved_summary(records), kind="inference",
+                          by_confidence=analysis.confidence_split(records)),
 
         # a count, never the list
         "still_worth_your_time": shortlist_count,
+
+        # the paired series, from the read corpus. None, never {}: an empty
+        # container renders as a plate reporting that he read nothing.
+        "read_comparison": ({"by_year": {str(y): int(n) for y, n
+                                         in sorted(read_by_year.items())},
+                             "total": int(sum(read_by_year.values())),
+                             "sources": list(analysis.READ_IT_LATER_SOURCES),
+                             "note": READ_COMPARISON_NOTE}
+                            if read_by_year else None),
+        "topic_comparison": comparison,
+
+        # the per-day rollup and the 5Ws declaration: what makes the record
+        # import-eligible for Tractor and Silo. Aggregates, like everything
+        # else here - a day with one save is not an aggregate, so a per-day
+        # roster would be more identifying than a title.
+        "daily": analysis.daily_rollup(records, built=today.isoformat()),
+        "five_ws": five_ws(),
 
         "caveat": analysis.COMPARISON_CAVEAT,
         "redaction": ("Counts, years, topics, and source hosts only. No titles, "
                       "no URLs, no article text, no people, organisations or "
                       "locations."),
+    }
+
+
+READ_COMPARISON_NOTE = (
+    "Read-it-later articles only, counted by the year they were saved. The "
+    "legacy document archive - scanned PDFs, Word files and text dumps, the "
+    "larger half of the index - was never saved with an intention to read "
+    "later, so it is not the comparison. Its denominator also differs from the "
+    "topic comparison's on purpose: a row the content guard rejected still "
+    "went through the save-then-read loop and counts as a read, it simply "
+    "carries no usable topics."
+)
+
+
+def five_ws():
+    """What this record holds per item, which halves ship, and why.
+
+    Every record on data.adamthede.com is built import-eligible for Tractor and
+    Silo, and this is the declaration a later import reads. It names the Ws
+    that do NOT ship as well as the ones that do: a W the declaration is silent
+    about is a W somebody assumes is coming, and on this record the who never
+    ships at all.
+    """
+    return {
+        "who": {
+            "held": True, "published": False, "public_shape": None,
+            "note": "People, organisations and locations are extracted per "
+                    "item and none of them ships. An entity pulled out of an "
+                    "article nobody read still says what he was looking into, "
+                    "and the allowlist that would gate them does not exist "
+                    "yet. Not even a count: the count is over articles that "
+                    "are identifiable from their entities.",
+        },
+        "what": {
+            "held": True, "published": True, "public_shape": "category counts",
+            "entity": "one saved article",
+            "categories": ["topic", "source host", "abandonment band",
+                           "recovery leg"],
+            "fields": ["by_topic", "by_domain", "topic_comparison",
+                       "abandonment_bands", "survival", "daily"],
+            "note": "The entity itself - the title, the address, the text - "
+                    "never ships. What ships is which categories it fell into "
+                    "and how many fell into each.",
+        },
+        "when": {
+            "held": True, "published": True, "public_shape": "date",
+            "precision": "day", "timezone": "UTC",
+            "fields": ["saved_span", "by_saved_year", "daily"],
+            "note": "The save date as Instapaper reports it: a calendar date "
+                    "with no zone on it. UTC is declared so a day boundary has "
+                    "one meaning rather than the importer's. There is no read "
+                    "timestamp anywhere in this record, because nothing in it "
+                    "was read.",
+        },
+        "where": {
+            "held": False, "published": False, "public_shape": None,
+            "note": "A saved article has no place. The source host is a "
+                    "publisher, not a location, and it is filed under what "
+                    "rather than where. No home flag, because there is no "
+                    "place to flag.",
+        },
+        "why": {
+            "held": True, "published": True, "kind": "inference",
+            "public_shape": "the inferred-reason presence rate",
+            "fields": ["why_saved", "daily"],
+            "note": "The user-applied annotation this slot wants does not "
+                    "exist: he saved these without writing down why. What "
+                    "stands in is a model's one-sentence guess, and it is "
+                    "labelled inference wherever it appears. The sentences are "
+                    "item level and do not ship. What ships is how often it "
+                    "answered, how sure it said it was, and the per-day rate.",
+        },
+        "source": "instapaper",
+        "source_id": {
+            "held": True, "published": False, "field": "url_sha256",
+            "note": "A SHA-256 of the article URL. It is a stable join key and "
+                    "it is also a confirmable guess: anyone holding a URL can "
+                    "hash it and test whether it is in this queue. That is the "
+                    "whole disclosure this record refuses, so the id stays on "
+                    "the private side and an importer is handed the aggregates.",
+        },
+        "provenance": {
+            "repo": "adamthede/project-instapaper-archive",
+            "module": "scripts/unread/public.py",
+            "function": "public_shape",
+            "corpus": "data/unread_enriched.jsonl",
+            "enrichment": "gemini-2.5-flash-lite, whole bodies, one pass",
+            "note": "The public shape is derived from the same rows the "
+                    "private record is built from, never assembled separately. "
+                    "Two builders drift; one builder with an allowlist does not.",
+        },
     }
 
 
@@ -271,11 +419,42 @@ columns are never handed to a writer. An allowlist, not a denylist: a denylist
 over a payload like this fails silently the first time a field is added.
 
 Published: counts, years, topic distributions, source hosts, the aging curve,
-the abandonment bands, and the survival figures.
+the abandonment bands, the survival figures, the cover aggregates (recovered
+words, the span of save dates, the star count, the queue-against-folders split),
+the confidence split on the inference, the paired series against the read
+corpus, and a per-day rollup of saves.
 Not published: anything item level.
 
 Domains ship deliberately (Adam, 2026-09-15). A host is a fact about the
 archive; a path identifies one article in it, and paths do not ship.
+
+## The paired series
+
+Two of the six plates draw the unread queue against what was actually read, so
+the payload carries the read side as aggregates: counts by saved year, and a
+topic table pairing each subject's share of one corpus with its share of the
+other. Read-it-later sources only - the legacy document archive was never saved
+with an intention to read later.
+
+The topic redaction runs on BOTH columns against BOTH title sets. The read
+corpus's topics are model-generated strings out of 17,320 articles and this
+record publishes them; one of them colliding with an unread title would print
+that title in a column the leak scan is not looking at, because this record's
+needles are its own corpus's titles.
+
+## The per-day rollup and the 5Ws
+
+`daily` is a compact series, one row per day saved, in the shape of Silo's
+provider daily summary: keyed on `date_of_summary`, carrying `computed_stats`
+and declaring its provider, source, timezone and provenance in the payload
+rather than in a column. `reads` is null on every day rather than 0, because
+every item in this corpus is unread by definition - there is no observation, not
+an observation of nothing.
+
+`five_ws` declares what the record holds per item and which halves ship: who
+never ships at all, where does not exist for a saved article, what ships as
+category counts, when ships as a date at day precision, and why ships as the
+presence rate of a model's inference rather than as the inference.
 
 ## The scan
 
@@ -310,7 +489,8 @@ def _collision_note(records):
 
 
 def build(records, out_dir, needle_file=None, payload_hook=None,
-          shortlist_count=None, today=None):
+          shortlist_count=None, today=None, read_by_year=None,
+          read_topics=None, read_titles=()):
     """Render, scan, and only then publish.
 
     The order is the whole design. Everything is written into a sibling
@@ -353,7 +533,9 @@ def build(records, out_dir, needle_file=None, payload_hook=None,
                 f"corpus; it belongs beside the build, never in it.")
 
     try:
-        payload = public_shape(records, shortlist_count=shortlist_count, today=today)
+        payload = public_shape(records, shortlist_count=shortlist_count,
+                               today=today, read_by_year=read_by_year,
+                               read_topics=read_topics, read_titles=read_titles)
         if payload_hook:
             payload = payload_hook(payload)
         data_path = tmp / "public_data.json"

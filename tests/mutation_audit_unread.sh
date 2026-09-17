@@ -318,6 +318,128 @@ run_mutation "the build clears an --out it did not write" \
   "    strays = []" "$PUBLIC"
 
 echo
+echo "STAGE 5 - the cover aggregates, the paired series and the rollup"
+run_mutation "the word median counts the rows that have no text" \
+  scripts/unread/analysis.py '    words = [int(r.get("body_words") or 0) for r in records if r.get("body_words")]' \
+  '    words = [int(r.get("body_words") or 0) for r in records]' "$ANALYSIS"
+run_mutation "a corpus with no text reports a median of zero" \
+  scripts/unread/analysis.py '        "median": int(statistics.median(words)) if words else None,' \
+  '        "median": int(statistics.median(words)) if words else 0,' "$ANALYSIS"
+run_mutation "the span is taken from the year, losing the day" \
+  scripts/unread/analysis.py \
+  '    dates = sorted(str(r.get("saved_date")).strip() for r in records
+                   if str(r.get("saved_date") or "").strip())' \
+  '    dates = sorted(str(r.get("saved_year")).strip() for r in records
+                   if str(r.get("saved_year") or "").strip())' "$ANALYSIS"
+run_mutation "the confidence split drops the grades it does not know" \
+  scripts/unread/analysis.py '    split["unset"] = len(records) - sum(split.values())' \
+  '    split["unset"] = 0' "$ANALYSIS"
+run_mutation "the confidence split runs over the answered rows only" \
+  scripts/unread/analysis.py \
+  '    counts = Counter(str(r.get("why_saved_confidence") or "").strip().lower()
+                     for r in records)' \
+  '    records = [r for r in records if (r.get("why_saved") or "").strip()]
+    counts = Counter(str(r.get("why_saved_confidence") or "").strip().lower()
+                     for r in records)' "$ANALYSIS"
+run_mutation "a missing starred field counts as starred" \
+  scripts/unread/analysis.py '    return sum(1 for r in records if r.get("starred") is True)' \
+  '    return sum(1 for r in records if r.get("starred") is not False)' "$ANALYSIS"
+run_mutation "the pool is one number" \
+  scripts/unread/analysis.py \
+  '    filed = sum(1 for r in records if str(r.get("folder") or "").strip())' \
+  '    filed = 0' "$ANALYSIS"
+run_mutation "the legacy archive joins the read year series" \
+  scripts/unread/analysis.py \
+  '    if "source" in rows.columns:
+        rows = rows[rows["source"].isin(READ_IT_LATER_SOURCES)]
+    dates = pd.to_datetime(rows["date_saved"], errors="coerce", format="mixed")' \
+  '    dates = pd.to_datetime(rows["date_saved"], errors="coerce", format="mixed")' "$ANALYSIS"
+run_mutation "an unparseable read date is coerced to a year anyway" \
+  scripts/unread/analysis.py \
+  '    counts = Counter(int(d.year) for d in dates if d is not None and not pd.isna(d))' \
+  '    counts = Counter(int(d.year) if (d is not None and not pd.isna(d)) else 2026
+                     for d in dates)' "$ANALYSIS"
+run_mutation "the read year series inherits the clean-rows filter" \
+  scripts/unread/analysis.py \
+  '    if "source" in rows.columns:
+        rows = rows[rows["source"].isin(READ_IT_LATER_SOURCES)]
+    dates' \
+  '    if "source" in rows.columns:
+        rows = rows[rows["source"].isin(READ_IT_LATER_SOURCES)]
+    if "content_corrupted" in rows.columns:
+        rows = rows[rows["content_corrupted"] != True]  # noqa: E712
+    dates' "$ANALYSIS"
+run_mutation "the comparison ranks on the saved side only" \
+  scripts/unread/analysis.py \
+  '        if len(chosen) >= limit + read_extra:' '        if True:' "$ANALYSIS"
+run_mutation "a title-shaped string survives in the read column" \
+  scripts/unread/analysis.py \
+  '    keep = lambda name: str(name).strip().casefold() not in titles  # noqa: E731' \
+  '    keep = lambda name: True  # noqa: E731' "$ANALYSIS"
+run_mutation "a topic the read corpus never carried gets a zero ratio" \
+  scripts/unread/analysis.py \
+  '            "ratio": (round(unread_share / read_share, 4)
+                      if (unread_share and read_share) else None),' \
+  '            "ratio": (round(unread_share / read_share, 4)
+                      if (unread_share and read_share) else 0.0),' "$ANALYSIS"
+run_mutation "the rollup emits one row per item" \
+  scripts/unread/analysis.py '        grouped[day].append(record)' \
+  '        grouped[day + str(len(grouped))].append(record)' "$ANALYSIS"
+run_mutation "the rollup is in fetch order rather than by day" \
+  scripts/unread/analysis.py '    for day in sorted(grouped):' '    for day in grouped:' "$ANALYSIS"
+run_mutation "a day reports zero reads instead of no observation" \
+  scripts/unread/analysis.py '                "reads": None,' '                "reads": 0,' "$ANALYSIS"
+run_mutation "the day carries the inference sentences" \
+  scripts/unread/analysis.py \
+  '                "why_saved_present": with_reason,' \
+  '                "why_saved_present": with_reason,
+                "why": [r.get("why_saved") for r in rows],' "$ANALYSIS"
+run_mutation "an undated row is filed under a guessed day" \
+  scripts/unread/analysis.py \
+  '        if not day:
+            undated += 1
+            continue' \
+  '        if not day:
+            day = "2026-09-16"' "$ANALYSIS"
+run_mutation "the rollup ships without its provider key" \
+  scripts/unread/analysis.py '        "provider": DAILY_PROVIDER,' '        "provider": None,' "$ANALYSIS"
+run_mutation "the paired series ships as an empty container" \
+  scripts/unread/public.py \
+  '                            if read_by_year else None),' \
+  '                            if read_by_year else {}),' "$PUBLIC"
+run_mutation "the read column skips the title-shaped redaction" \
+  scripts/unread/public.py \
+  '    all_titles = titles | {str(t).strip().casefold() for t in (read_titles or ())}' \
+  '    all_titles = set()' "$PUBLIC"
+run_mutation "the confidence split never reaches the payload" \
+  scripts/unread/public.py \
+  '        "why_saved": dict(analysis.why_saved_summary(records), kind="inference",
+                          by_confidence=analysis.confidence_split(records)),' \
+  '        "why_saved": dict(analysis.why_saved_summary(records), kind="inference"),' "$PUBLIC"
+run_mutation "the cover aggregates never reach the payload" \
+  scripts/unread/public.py '        "starred": analysis.starred_count(records),' \
+  '        "starred": None,' "$PUBLIC"
+run_mutation "the record publishes its per-day titles" \
+  scripts/unread/public.py '        "daily": analysis.daily_rollup(records, built=today.isoformat()),' \
+  '        "daily": dict(analysis.daily_rollup(records, built=today.isoformat()),
+                      titles=[r.get("title") for r in records]),' "$PUBLIC"
+run_mutation "the 5Ws declaration hides the halves that do not ship" \
+  scripts/unread/public.py '            "held": True, "published": False, "public_shape": None,
+            "note": "People, organisations and locations are extracted per "' \
+  '            "held": True, "published": True, "public_shape": None,
+            "note": "People, organisations and locations are extracted per "' "$PUBLIC"
+run_mutation "the 5Ws declaration points at fields the payload does not carry" \
+  scripts/unread/public.py '            "fields": ["saved_span", "by_saved_year", "daily"],' \
+  '            "fields": ["saved_timestamps"],' "$PUBLIC"
+run_mutation "the publish CLI warns instead of refusing the unpaired build" \
+  scripts/core/publish_unread_record.py '        if not Path(args.index).exists():' \
+  '        if False:' "$PUBLIC"
+run_mutation "the unpaired build says nothing about being unpaired" \
+  scripts/core/publish_unread_record.py \
+  '        print("Built WITHOUT the read series: plates 01 and 02 cannot be drawn.")' \
+  '        pass' "$PUBLIC"
+
+echo
 find . -name "__pycache__" -type d -not -path "./.git/*" -exec rm -rf {} + 2>/dev/null
 echo "Mutations caught: $PASS   escaped or stale: $FAIL"
 

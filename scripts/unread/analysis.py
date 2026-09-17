@@ -149,6 +149,272 @@ def survival(records):
 
 
 # ---------------------------------------------------------------------------
+# the cover aggregates
+# ---------------------------------------------------------------------------
+
+def word_totals(records):
+    """Recovered words, and the population that figure was measured over.
+
+    26 of the 492 resolved nowhere and carry no body at all. They are still
+    intentions and they still count in every year, host and abandonment figure,
+    but they have no length, so the denominator here is the rows that came back
+    with text rather than the corpus. The record says that denominator out
+    loud; the payload carries it so the page cannot say it wrong.
+    """
+    words = [int(r.get("body_words") or 0) for r in records if r.get("body_words")]
+    return {
+        "total": sum(words),
+        # None, not 0: a median of 0 reads as "the typical article was empty",
+        # which is a claim. No median is the true statement.
+        "median": int(statistics.median(words)) if words else None,
+        "mean": int(statistics.mean(words)) if words else None,
+        "measured_over": len(words),
+        "corpus": len(records),
+    }
+
+
+def saved_span(records):
+    """The oldest and newest save, to the day.
+
+    Not from `saved_year`. The cover's sentence is about how long one
+    particular intention has been sitting there, and a year is the wrong
+    precision for that.
+    """
+    dates = sorted(str(r.get("saved_date")).strip() for r in records
+                   if str(r.get("saved_date") or "").strip())
+    if not dates:
+        return {"oldest": None, "newest": None, "years_spanned": None, "dated": 0}
+    return {"oldest": dates[0], "newest": dates[-1],
+            "years_spanned": int(dates[-1][:4]) - int(dates[0][:4]) + 1,
+            "dated": len(dates)}
+
+
+CONFIDENCE_GRADES = ("high", "medium", "low")
+
+
+def confidence_split(records):
+    """Every row by the grade the model set on its own inference.
+
+    A different population from `why_saved_summary()`, deliberately. The grade
+    and the sentence are separate fields: the model can grade a row low and
+    then decline to say anything, and in the live corpus it did that ten times.
+    The three grades sum to the whole corpus; `counted` and
+    `excluded_low_confidence` sum only over the rows that carried a sentence. A
+    bar chart built from the wrong one of those has a total that is not the
+    corpus and nothing on the page saying why.
+    """
+    counts = Counter(str(r.get("why_saved_confidence") or "").strip().lower()
+                     for r in records)
+    split = {grade: counts.get(grade, 0) for grade in CONFIDENCE_GRADES}
+    # A grade the model invented is a fact about the run, not something to
+    # drop. Dropping it makes the split stop summing to the corpus.
+    split["unset"] = len(records) - sum(split.values())
+    split["total"] = len(records)
+    return split
+
+
+def starred_count(records):
+    """How many he thought enough of to star. A count, never the list."""
+    return sum(1 for r in records if r.get("starred") is True)
+
+
+def pool_split(records):
+    """The queue against the folders.
+
+    Two different acts wearing the same label. The queue is where things were
+    dropped; the folders are where things were sorted, named and shelved, and
+    every item saved before 2014 that survived unread is in a folder. One
+    number for the pool would hide the finding.
+    """
+    filed = sum(1 for r in records if str(r.get("folder") or "").strip())
+    return {"unread_queue": len(records) - filed, "filed_in_folders": filed,
+            "total": len(records)}
+
+
+# ---------------------------------------------------------------------------
+# the paired series against the read corpus
+# ---------------------------------------------------------------------------
+
+def read_corpus_by_year(frame):
+    """Read-it-later articles by the year they were saved.
+
+    The other half of plate 01. Read-it-later sources only, for the reason
+    READ_IT_LATER_SOURCES exists.
+
+    Note the filter that is NOT here: `content_corrupted`. A row the content
+    guard rejected still went through the save-then-read loop, so it is a read;
+    it simply carries no usable topics. `read_corpus_topics()` drops it because
+    its topics are junk, and this one keeps it because its date is not. The two
+    series have different denominators on purpose, and the record states both.
+    """
+    import pandas as pd
+
+    rows = frame
+    if rows is None or not len(rows):
+        return {}
+    if "source" in rows.columns:
+        rows = rows[rows["source"].isin(READ_IT_LATER_SOURCES)]
+    dates = pd.to_datetime(rows["date_saved"], errors="coerce", format="mixed")
+    counts = Counter(int(d.year) for d in dates if d is not None and not pd.isna(d))
+    return dict(sorted(counts.items()))
+
+
+def read_corpus_titles(frame, min_len=12):
+    """Article titles from the read index, case-folded, at the needle floor.
+
+    Not leak needles - this record's needles are its own corpus's titles, and
+    correctly so. These exist for one job: this record publishes read-corpus
+    TOPIC strings, those topics are model-generated out of 17,320 articles, and
+    one of them can be a headline. `topic_comparison()` drops any topic that is
+    a title on either side, and this is the other side.
+    """
+    if frame is None or not len(frame) or "title" not in frame.columns:
+        return set()
+    return {str(t).strip().casefold() for t in frame["title"].dropna()
+            if len(str(t).strip()) >= min_len}
+
+
+def topic_comparison(records, read_topics, limit=10, read_extra=2, titles=()):
+    """The two topic distributions paired on the topic, with the ratio.
+
+    The pairing is the finding, so it happens here rather than on the page: two
+    lists paired by position mismatch silently the first time one of them drops
+    a string the other keeps.
+
+    `read_extra` reaches down the READ side for subjects that are not in the
+    saved pile at all. Without it the table is a ranking of what he saved, and
+    "the one subject he read more than he saved" is a sentence that cannot
+    appear in it.
+
+    `titles` is the redaction, and it runs over BOTH columns. The read corpus's
+    topics are model-generated strings too, out of 17,320 articles, and this
+    record publishes them; one of them colliding with an unread title would
+    launder that title onto the page through a column nothing was scanning.
+    """
+    titles = {str(t).strip().casefold() for t in (titles or ())}
+    keep = lambda name: str(name).strip().casefold() not in titles  # noqa: E731
+
+    saved = by_topic(records)
+    read = Counter()
+    for counts in (read_topics or {}).values():
+        read.update(counts)
+
+    saved_total = sum(saved.values())
+    read_total = sum(read.values())
+
+    ranked_saved = [t for t, _ in sorted(saved.items(), key=lambda kv: (-kv[1], kv[0]))
+                    if keep(t)]
+    chosen = ranked_saved[:limit]
+    seen = {t.casefold() for t in chosen}
+    for topic, _ in sorted(read.items(), key=lambda kv: (-kv[1], kv[0])):
+        if len(chosen) >= limit + read_extra:
+            break
+        if keep(topic) and topic.casefold() not in seen:
+            chosen.append(topic)
+            seen.add(topic.casefold())
+
+    rows = []
+    for topic in chosen:
+        unread_n, read_n = saved.get(topic, 0), read.get(topic, 0)
+        unread_share = round(unread_n / saved_total, 6) if saved_total else None
+        read_share = round(read_n / read_total, 6) if read_total else None
+        rows.append({
+            "topic": topic,
+            "unread": unread_n,
+            "read": read_n,
+            "unread_share": unread_share,
+            "read_share": read_share,
+            # None where the read corpus never carried the topic. Infinity is a
+            # claim four mentions against nothing cannot support, and 0.0 says
+            # the opposite of what happened.
+            "ratio": (round(unread_share / read_share, 4)
+                      if (unread_share and read_share) else None),
+        })
+    return {
+        "topics": rows,
+        "unread_mentions": saved_total,
+        "read_mentions": read_total,
+        "unread_articles": len(_clean(records)),
+        "unread_corpus": len(records),
+        "caveat": COMPARISON_CAVEAT,
+    }
+
+
+# ---------------------------------------------------------------------------
+# the per-day rollup, in the shape Silo's provider daily summary takes
+# ---------------------------------------------------------------------------
+
+#: Silo keys a provider daily summary on (provider, date_of_summary) and
+#: carries its provenance inside the payload rather than in a column, so the
+#: rollup declares both. `computed_stats` is Silo's name for the derived,
+#: chartable half of a summary; `raw_data` is the provider's own shape and this
+#: record has none to offer that is not item level, so it is not emitted.
+DAILY_PROVIDER = "meant-to-read"
+
+DAILY_READS_NOTE = (
+    "Reads are null rather than 0 on every day. Every item in this corpus is "
+    "unread by definition, so the record holds no reading events at all - not "
+    "zero of them on a given day, but no observation. A 0 here would draw a "
+    "flat line along the bottom of a chart and call it a measurement."
+)
+
+
+def daily_rollup(records, built=None):
+    """One row per day saved, with the day's counts and nothing item level.
+
+    This is what makes the record import-eligible: a compact daily series in
+    the shape of Silo's provider daily summary, keyed on the day.
+
+    Nothing here is a title, a URL, or an inference sentence. A day with one
+    save is not an aggregate, so a per-day roster of what was saved - or one
+    day's `why_saved` concatenated under its date - would be MORE identifying
+    than the title would have been, not less.
+    """
+    grouped = defaultdict(list)
+    undated = 0
+    for record in records:
+        day = str(record.get("saved_date") or "").strip()
+        if not day:
+            undated += 1
+            continue
+        grouped[day].append(record)
+
+    days = []
+    for day in sorted(grouped):
+        rows = grouped[day]
+        with_reason = sum(1 for r in rows if (r.get("why_saved") or "").strip()
+                          and r.get("why_saved_confidence") in ("high", "medium"))
+        bands = Counter(r.get("abandonment") or derive.NEVER_OPENED for r in rows)
+        days.append({
+            "date_of_summary": day,
+            "computed_stats": {
+                "saves": len(rows),
+                "reads": None,
+                "starred": sum(1 for r in rows if r.get("starred") is True),
+                "words": sum(int(r.get("body_words") or 0) for r in rows),
+                "by_abandonment": {band: bands.get(band, 0) for band in derive.BANDS},
+                "by_recovery": dict(Counter(r.get("resolve_path") for r in rows)),
+                "why_saved_present": with_reason,
+                "why_saved_rate": round(with_reason / len(rows), 4),
+            },
+        })
+
+    return {
+        "provider": DAILY_PROVIDER,
+        "source": "instapaper",
+        "imported_at": built,
+        # `saved_date` is a calendar date with no zone on it, as Instapaper
+        # reports it. Declaring UTC is how a day boundary gets one meaning
+        # instead of the importer's.
+        "timezone": "UTC",
+        "date_field": "date_of_summary",
+        "days": days,
+        "undated": undated,
+        "reads_note": DAILY_READS_NOTE,
+    }
+
+
+# ---------------------------------------------------------------------------
 # the inference
 # ---------------------------------------------------------------------------
 
