@@ -105,7 +105,7 @@ def public_shape(records, shortlist_count=None, today=None,
     bands = analysis.abandonment_bands(records)
     topic_rows = [[topic, count] for topic, count
                   in analysis.by_topic(records, limit=None).most_common()
-                  if topic.casefold() not in titles][:40]
+                  if analysis.normalize(topic) not in titles][:40]
     # The topic redaction runs against BOTH title sets on both columns. A
     # string is dropped if it is an article title anywhere the record can see,
     # because a topic costs one row of an aggregate and a laundered title costs
@@ -179,7 +179,7 @@ def public_shape(records, shortlist_count=None, today=None,
         # import-eligible for Tractor and Silo. Aggregates, like everything
         # else here - a day with one save is not an aggregate, so a per-day
         # roster would be more identifying than a title.
-        "daily": analysis.daily_rollup(records, built=today.isoformat()),
+        "daily": _checked_rollup(records, today),
         "five_ws": five_ws(),
 
         "caveat": analysis.COMPARISON_CAVEAT,
@@ -198,6 +198,26 @@ READ_COMPARISON_NOTE = (
     "went through the save-then-read loop and counts as a read, it simply "
     "carries no usable topics."
 )
+
+
+def _checked_rollup(records, today):
+    """The rollup, refused if any level of it grew a key nobody allowed.
+
+    The allowlist is only an allowlist where something enforces it. Twice now a
+    join key has reached this dict - once at the top of `computed_stats`, once
+    inside `by_recovery`'s values - and both times every test was green,
+    because a test that compares one flat key set is a fence with a gate one
+    level down.
+    """
+    rollup = analysis.daily_rollup(records, built=today.isoformat())
+    problems = analysis.check_daily_shape(rollup)
+    if problems:
+        raise LeakTestError(
+            "The per-day rollup grew keys nothing allowed, and this payload is "
+            "published:\n  " + "\n  ".join(problems[:10])
+            + "\nAdd them to DAILY_RAW_KEYS / DAILY_NESTED_KEYS deliberately, "
+              "or stop emitting them. Nothing was published.")
+    return rollup
 
 
 def five_ws():
@@ -366,10 +386,20 @@ def private_needles(records, min_len=MIN_NEEDLE):
 def leak_scan(root, titles, paths, min_len=MIN_NEEDLE):
     """Every private string found in every file under `root`.
 
-    Case-insensitive, over both the file's text and its HTML-unescaped text: a
-    title carrying an ampersand or a curly quote reaches a page escaped, and a
-    scan that only read raw bytes would miss exactly the titles most likely to
-    be printed verbatim.
+    Three forms of the text, and the needle compared against all of them:
+
+    * as written, case-folded. The baseline.
+    * HTML-unescaped. A title carrying an ampersand or a curly quote reaches a
+      page escaped, and a scan reading raw bytes misses exactly the titles most
+      likely to be printed verbatim.
+    * normalized, by `analysis.normalize()`. A title and a copy of it with one
+      curly apostrophe turned straight are the same private string to a reader
+      and different strings to `in`.
+
+    The third was added after adversarial review found the redaction and this
+    scan failing in the same direction: the filter passed a near-copy and then
+    this did not look for it. One rule everywhere is the whole point - a second
+    gate asking a different question is a second answer, not a second chance.
     """
     needles = ([(t, "title") for t in titles if len(t) >= min_len]
                + [(p, "url path") for p in paths if len(p) >= min_len])
@@ -381,9 +411,11 @@ def leak_scan(root, titles, paths, min_len=MIN_NEEDLE):
             text = path.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue  # a thumbnail, or anything else that is not text
-        haystack = (text + "\n" + html_mod.unescape(text)).casefold()
+        unescaped = html_mod.unescape(text)
+        haystack = (text + "\n" + unescaped).casefold()
+        haystack += "\n" + analysis.normalize(text + "\n" + unescaped)
         for needle, kind in needles:
-            if needle.casefold() in haystack:
+            if needle.casefold() in haystack or analysis.normalize(needle) in haystack:
                 found.append({"file": path.relative_to(root).as_posix(),
                               "needle": needle, "kind": kind})
     return found
@@ -559,6 +591,14 @@ def build(records, out_dir, needle_file=None, payload_hook=None,
                                read_index_rows=read_index_rows)
         if payload_hook:
             payload = payload_hook(payload)
+        # After the hook, not only inside public_shape(). The hook is the
+        # shape of every "just add one field" change this payload will ever
+        # get, and a guard that runs before it guards the wrong thing.
+        problems = analysis.check_daily_shape(payload.get("daily") or {})
+        if problems:
+            raise LeakTestError(
+                "The per-day rollup grew keys nothing allowed, and this "
+                "payload is published:\n  " + "\n  ".join(problems[:10]))
         data_path = tmp / "public_data.json"
         data_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True),
                              encoding="utf-8")

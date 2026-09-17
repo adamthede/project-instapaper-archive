@@ -1,7 +1,7 @@
 # What I Meant To Read - provenance
 
-Source repository: Article Archive (`scripts/unread/`), commit 589f7e8.
-Built: 2026-09-16
+Source repository: Article Archive (`scripts/unread/`), commit b0d8089.
+Built: 2026-09-17
 Record: https://data.adamthede.com/meant-to-read/
 
 ## What this is
@@ -69,4 +69,4 @@ passing, because with nothing to look for every tree passes.
 
 ## Files
 
-public_data.json  sha256 29b3e554b6348bd01fcedf775da58d8f6f7c1109bc4963031f5b4bdcf12c5f85
+public_data.json  sha256 351b465893e3fee0cb299a1dddf188b844ec5cb4f3ae1a2366511406ead63d33

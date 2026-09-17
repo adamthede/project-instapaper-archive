@@ -69,7 +69,12 @@ def record(url_sha256="a" * 64, year=2018, domain="nytimes.com",
 def corpus(n=6):
     titles = [
         "Is Google Making Us Stupid, The Atlantic Cover Story",
-        "The Machine Stops And Nobody Notices It Happening",
+        # Curly apostrophe and an en dash on purpose. Every fixture in this
+        # file was plain ASCII until adversarial review, which is why a
+        # regression that swapped the normalized comparison key for a
+        # case-folded one could not be caught by any of them: on ASCII the two
+        # agree exactly.
+        "The Machine Stops \u2013 And Nobody\u2019s Noticing It Happening",
         "Why We Sleep And What Happens When We Do Not",
         "A Very Long And Distinctive Headline About Farming",
         "Notes On The Collapse Of The Attention Commons",
@@ -766,3 +771,111 @@ def test_the_index_row_count_is_absent_rather_than_guessed():
     payload = public.public_shape(corpus(), read_by_year={2018: 237})
     assert payload["read_comparison"]["index_rows"] is None
     assert payload["read_comparison"]["other_rows"] is None
+
+
+def test_a_title_with_its_own_punctuation_is_dropped_from_the_topic_table():
+    """Mutation: comparing a topic on `.casefold()` against normalized titles.
+
+    The regression adversarial review found on 2026-09-17, and the reason it
+    matters more than the hole it came from: the two sides of the comparison
+    spoke different languages, and the failure ran BACKWARDS. A near-copy of a
+    title was dropped and the BYTE-EXACT title was published - which is the one
+    case this record's provenance note records as having actually happened on
+    this corpus.
+
+    Both sides normalize. This test carries a curly apostrophe for the same
+    reason: on plain ASCII, casefold and normalize agree, so an ASCII fixture
+    cannot fail.
+    """
+    title = "The Crane Wife’s Long — Awaited Return"
+    rows = [record(url_sha256="1" * 64, title=title,
+                   topics=(title, "Attention"))]
+    payload = json.dumps(public.public_shape(rows), ensure_ascii=False)
+    assert "The Crane Wife" not in payload
+    assert "Attention" in payload
+
+
+def test_the_topic_table_and_the_band_lists_use_one_comparison_key():
+    """Mutation: one of the two redaction call sites left on the old key.
+
+    There are two routes a model-generated string takes to the page and they
+    were fixed on different days. A test that only exercises one of them is how
+    the second went stale, so this one asserts both drop the same string.
+    """
+    title = "A Distinctive Headline – About Wanting Less"
+    rows = [record(url_sha256=f"{i:064d}", title=title, abandonment="nearly_finished",
+                   topics=(title,)) for i in range(3)]
+    payload = public.public_shape(rows)
+    assert all(title not in json.dumps(payload[key], ensure_ascii=False)
+               for key in ("by_topic", "abandonment_bands"))
+
+
+def test_the_records_own_scan_finds_a_normalized_near_copy(tmp_path):
+    """Mutation: a build scan that is exact-substring while the filter is not.
+
+    The same two-gates-one-blind-spot shape, one level down. `leak_scan` is the
+    scan the BUILD runs before it publishes anything, so a near-copy the filter
+    somehow passed would reach the tree with nothing looking for it.
+    """
+    rows = [record(title="Tractors ’n Silos — And Other Long Titles")]
+    root = tmp_path / "out"
+    root.mkdir()
+    (root / "page.html").write_text(
+        "<p>Tractors 'n Silos - And Other Long Titles</p>", encoding="utf-8")
+    titles, paths = public.private_needles(rows)
+    assert public.leak_scan(root, titles, paths)
+
+
+def test_the_rollup_shape_is_checked_at_every_level_not_just_the_top(tmp_path):
+    """Mutation: a join key inside an ALLOWED key's values.
+
+    The second time this happened. The first allowlist landed after review
+    walked `url_sha256` into `computed_stats`; review then walked it back in as
+    `by_recovery: {url_sha256: resolve_path}` and all 1,095 tests stayed green,
+    because two flat `set()` comparisons are a fence with a gate one level
+    down. `by_recovery` was the one allowed key with no test naming its
+    contents.
+
+    So the check is recursive, it names the offending path, and the BUILD runs
+    it - a shape guard that lives only in the tests is a guard that protects
+    the fixtures.
+    """
+    rows = corpus(3)
+    payload = public.public_shape(rows)
+    for day in payload["daily"]["days"]:
+        recovery = day["raw_data"]["by_recovery"]
+        assert set(recovery) <= analysis.DAILY_NESTED_KEYS["by_recovery"]
+        assert all(isinstance(v, int) for v in recovery.values())
+        bands = day["raw_data"]["by_abandonment"]
+        assert set(bands) == set(analysis.DAILY_NESTED_KEYS["by_abandonment"])
+
+    # and the check itself goes red on exactly the shape review used
+    leaky = json.loads(json.dumps(payload["daily"]))
+    leaky["days"][0]["raw_data"]["by_recovery"] = {"a" * 64: "instapaper"}
+    problems = analysis.check_daily_shape(leaky)
+    assert problems and "by_recovery" in problems[0]
+
+
+def test_a_rollup_that_grew_a_key_refuses_to_publish(tmp_path):
+    """Mutation: reporting the stray key instead of refusing.
+
+    The payload is vendored into a public repository. A build that writes it
+    and then complains is a build that published.
+    """
+    rows = corpus(3)
+    out = tmp_path / "record"
+    with pytest.raises(public.LeakTestError) as exc:
+        public.build(rows, out, payload_hook=_smuggle)
+    assert not out.exists()
+
+    # and the refusal has to come from the SHAPE check, not from the scan
+    rollup = analysis.daily_rollup(rows)
+    rollup["days"][0]["raw_data"]["url_sha256"] = ["nothing private here"]
+    assert "url_sha256" in " ".join(analysis.check_daily_shape(rollup))
+
+
+def _smuggle(payload):
+    """A payload hook that adds a key nothing allowed, carrying no needle."""
+    day = payload["daily"]["days"][0]
+    day["raw_data"]["by_recovery"] = {"0" * 64: "instapaper"}
+    return payload

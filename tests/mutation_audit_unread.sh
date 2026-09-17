@@ -511,6 +511,31 @@ run_mutation "the index row count goes missing" \
 run_mutation "the index row count IS the comparison's own total" \
   scripts/unread/analysis.py '    return int(len(frame)) if frame is not None else None' \
   '    return sum(read_corpus_by_year(frame).values()) if frame is not None else None' "$ANALYSIS"
+run_mutation "the topic table compares on casefold against normalized titles" \
+  scripts/unread/public.py '                  if analysis.normalize(topic) not in titles][:40]' \
+  '                  if topic.casefold() not in titles][:40]' "$PUBLIC"
+run_mutation "the topic dedupe uses a different key from the redaction" \
+  scripts/unread/analysis.py '        if keep(topic) and normalize(topic) not in seen:' \
+  '        if keep(topic) and topic.casefold() not in seen:' "$ANALYSIS"
+run_mutation "the build scan goes back to exact substring" \
+  scripts/unread/public.py \
+  '            if needle.casefold() in haystack or analysis.normalize(needle) in haystack:' \
+  "            if needle.casefold() in haystack:" "$PUBLIC"
+run_mutation "the rollup shape is checked at the top level only" \
+  scripts/unread/analysis.py \
+  '        for key, allowed in DAILY_NESTED_KEYS.items():' "        for key, allowed in {}.items():" "$PUBLIC"
+run_mutation "the build does not check the shape it publishes" \
+  scripts/unread/public.py "        problems = analysis.check_daily_shape(payload.get(\"daily\") or {})
+        if problems:" "        problems = []
+        if problems:" "$PUBLIC"
+run_mutation "by_recovery is keyed on the item instead of the leg" \
+  scripts/unread/analysis.py \
+  '                "by_recovery": {leg: count for leg, count
+                                in sorted(Counter(r.get("resolve_path")
+                                                  for r in rows).items())
+                                if leg},' \
+  '                "by_recovery": {r.get("url_sha256"): r.get("resolve_path")
+                                for r in rows},' "$PUBLIC"
 
 echo
 find . -name "__pycache__" -type d -not -path "./.git/*" -exec rm -rf {} + 2>/dev/null
@@ -523,5 +548,27 @@ if [ -n "$(git status --porcelain scripts/ tests/)" ]; then
 fi
 
 echo "Worktree clean. Re-running the four suites to confirm they are green:"
+#
+# The exit code, kept. Piping pytest into `tail` hands the PIPELINE's status to
+# the shell, which is tail's, which is always 0 - so this step printed "to
+# confirm they are green", printed "1 failed, 206 passed", and exited 0.
+# Adversarial review proved it twice, on two different shapes of the same bug.
+#
+# The output still goes through `tail` because the full run is 200 lines; the
+# status comes from PIPESTATUS, which is the half that was being thrown away.
 "$PY" -m pytest $FETCH $ENRICH $ANALYSIS $PUBLIC -q -p no:cacheprovider 2>&1 | tail -3
-[ "$FAIL" -eq 0 ] || exit 1
+SUITE=${PIPESTATUS[0]}
+
+if [ "$SUITE" -ne 0 ]; then
+  echo "THE SUITE IS RED after the audit (pytest exit $SUITE). The mutation"
+  echo "counts above describe a suite that does not pass, so they mean nothing."
+  exit 1
+fi
+
+if [ "$FAIL" -ne 0 ]; then
+  echo "$FAIL mutation(s) escaped or went stale. Both are failures: a mutation"
+  echo "nobody ran is reported beside the ones that did."
+  exit 1
+fi
+
+echo "Suite green (pytest exit 0), $PASS mutations caught, 0 escaped or stale."

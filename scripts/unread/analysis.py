@@ -373,13 +373,18 @@ def topic_comparison(records, read_topics, limit=10, read_extra=2, titles=()):
     ranked_saved = [t for t, _ in sorted(saved.items(), key=lambda kv: (-kv[1], kv[0]))
                     if keep(t)]
     chosen = ranked_saved[:limit]
-    seen = {t.casefold() for t in chosen}
+    # Deduped on the same key the redaction uses. Two keys in one function is
+    # how the regression above happened: `corpus_titles()` moved to normalized
+    # and one call site stayed on casefold, so the two sides of a comparison
+    # spoke different languages and the failure ran backwards - the byte-exact
+    # title published and the near-copy was dropped.
+    seen = {normalize(t) for t in chosen}
     for topic, _ in sorted(read.items(), key=lambda kv: (-kv[1], kv[0])):
         if len(chosen) >= limit + read_extra:
             break
-        if keep(topic) and topic.casefold() not in seen:
+        if keep(topic) and normalize(topic) not in seen:
             chosen.append(topic)
-            seen.add(topic.casefold())
+            seen.add(normalize(topic))
 
     rows = []
     for topic in chosen:
@@ -517,7 +522,12 @@ def daily_rollup(records, built=None):
                 "starred": sum(1 for r in rows if r.get("starred") is True),
                 "words": sum(int(r.get("body_words") or 0) for r in rows),
                 "by_abandonment": {band: bands.get(band, 0) for band in derive.BANDS},
-                "by_recovery": dict(Counter(r.get("resolve_path") for r in rows)),
+                    # Keyed on the leg, counted. Not `{id: leg}`, which is the
+                # same four facts plus 492 join keys.
+                "by_recovery": {leg: count for leg, count
+                                in sorted(Counter(r.get("resolve_path")
+                                                  for r in rows).items())
+                                if leg},
                 "why_saved_present": with_reason,
                 "why_saved_rate": round(with_reason / len(rows), 4),
                 # The provenance keys the archive-sourced precedent nests HERE
@@ -555,6 +565,47 @@ DAILY_RAW_KEYS = frozenset({
 
 #: Every key a day itself may carry.
 DAILY_DAY_KEYS = frozenset({"date_of_summary", "word_count", "raw_data"})
+
+#: The keys of the two nested dicts, because a flat key allowlist is a fence
+#: with a gate one level down. Adversarial review walked the join key in a
+#: SECOND time after the first allowlist landed, as
+#: `{url_sha256: resolve_path}` inside `by_recovery` - an allowed key whose
+#: CONTENTS nothing constrained.
+#:
+#: `by_abandonment`'s keys are the bands; `by_recovery`'s are the resolve
+#: legs. Both are closed vocabularies of four or fewer strings, so there is no
+#: reason for either to be open.
+DAILY_NESTED_KEYS = {
+    "by_abandonment": frozenset(derive.BANDS),
+    "by_recovery": frozenset({"instapaper", "direct", "wayback", "metadata"}),
+}
+
+
+def check_daily_shape(rollup):
+    """Every key in the rollup, at every level, against its allowlist.
+
+    Returns the offending paths, empty when clean. A function rather than a
+    test-only loop because the BUILD calls it: a shape guard that lives only in
+    the tests is a guard that protects the fixtures.
+    """
+    problems = []
+    for day in rollup.get("days", ()):
+        where = day.get("date_of_summary", "?")
+        stray = set(day) - DAILY_DAY_KEYS
+        if stray:
+            problems.append(f"{where}: {sorted(stray)}")
+        raw = day.get("raw_data", {})
+        stray = set(raw) - DAILY_RAW_KEYS
+        if stray:
+            problems.append(f"{where}.raw_data: {sorted(stray)}")
+        for key, allowed in DAILY_NESTED_KEYS.items():
+            nested = raw.get(key)
+            if not isinstance(nested, dict):
+                continue
+            stray = set(nested) - allowed
+            if stray:
+                problems.append(f"{where}.raw_data.{key}: {sorted(stray)}")
+    return problems
 
 
 # ---------------------------------------------------------------------------
