@@ -1,11 +1,11 @@
 ---
 title: "The unread record's payload: the aggregates its page reads"
-status: "In Progress"
+status: "QA Needed"
 priority: "P2"
 project: "articles"
 created: 2026-09-16
 effort: "S - aggregates, a paired series, a per-day rollup and the tests"
-linked_pr: ""
+linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/30"
 depends_on:
   - "the unread corpus (PR #28, merged 2026-09-16)"
   - "the approved mockup (PR #29, merged 2026-09-16)"
