@@ -815,7 +815,7 @@ def render_versus(data, built, domain=""):
     stats += _stat(_pct(band_u), "Unread saved 2017-19",
                    f"against {_pct(band_r)} of what was read", cls="time")
     stats += _stat(str(peak) if peak else "-", "Peak drift year",
-                   f"{_pct(peak_share)} of its saved topics unread elsewhere" if peak_share is not None else "")
+                   f"{_pct(peak_share)} of its saved topics absent from that year's reading" if peak_share is not None else "")
     stats += _stat(_pct(aged / judged) if judged else "-", "Aged out",
                    f"{n(aged)} of {n(judged)} the model judged")
     stats += _stat(n(ab[derive.STARTED]["count"] + ab[derive.NEARLY]["count"]),
