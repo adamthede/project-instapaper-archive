@@ -42,8 +42,12 @@ it.
 
 - `site/unread_pages.py`, wired through `site/generate.py`. Unread leg costs
   0.18 to 0.55 s per build.
-- 26 tests in `tests/test_site_unread.py`, 25 of 25 mutations caught by
-  `tests/mutation_audit_unread_pages.sh`.
+- 48 tests in `tests/test_site_unread.py`, 42 of 42 mutations caught by
+  `tests/mutation_audit_unread_pages.sh`, including the reviewer's nine.
+- Review fix round 1: the ledger tail reader handles lines longer than a
+  block (every real line is) and skips a torn last line, the Matter half has
+  its own failure domain, and the typed "reading volume was lowest" claim is
+  replaced by a computed window rank (2017-19 is the fourth lowest of 14).
 - Screenshots are in a private artifact, not the repo, because the shortlist
   carries unread titles and this repository is public.
 - Open: the burn-down projection needs 4 full ledger weeks before it names a
