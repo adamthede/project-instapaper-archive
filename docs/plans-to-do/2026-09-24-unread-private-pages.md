@@ -1,11 +1,11 @@
 ---
 title: "The unread corpus, private pages on reading.adamthede.com (study step 6)"
-status: "In Progress"
+status: "QA Needed"
 priority: "P2"
 project: "articles"
 created: 2026-09-24
 effort: "M - three generated pages, nav wiring, tests"
-linked_pr: ""
+linked_pr: "https://github.com/adamthede/project-instapaper-archive/pull/31"
 depends_on:
   - "docs/plans-done/2026-09-15-unread-corpus-what-i-meant-to-read.md (build order step 6)"
   - "the enriched corpus (PR #28) - data/unread_enriched.jsonl, 492 rows, no new model calls"
@@ -32,9 +32,22 @@ it.
    ranked on the stored enrichment, one line of reasoning each, labelled as
    inference with its confidence flag, with link, saved date and source.
    Private only.
-4. Wiring: one page-row entry and the weeks index's "Beyond the week" nav.
-   The nightly build regenerates them because they come out of
-   `site/generate.py` with its default paths.
+4. Wiring: the weeks index's "Beyond the week" nav and a sub-nav across the
+   three. Not the sticky page row: Adam named its six items on 2026-09-08 and
+   a test guards them, so a seventh entry is his call. The nightly build
+   regenerates the pages because they come out of `site/generate.py` with its
+   default paths.
+
+## As built (PR #31)
+
+- `site/unread_pages.py`, wired through `site/generate.py`. Unread leg costs
+  0.18 to 0.55 s per build.
+- 26 tests in `tests/test_site_unread.py`, 25 of 25 mutations caught by
+  `tests/mutation_audit_unread_pages.sh`.
+- Screenshots are in a private artifact, not the repo, because the shortlist
+  carries unread titles and this repository is public.
+- Open: the burn-down projection needs 4 full ledger weeks before it names a
+  figure, and the live-web probe (study question 6) is still its own follow-up.
 
 ## Rules carried
 
