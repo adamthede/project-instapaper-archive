@@ -138,30 +138,54 @@ def load_daily(path):
     return rows
 
 
-def load_latest_snapshot(path):
-    """The last line of the ledger: the queue as it stood at the last run.
+#: How much of the ledger is read per step, walking back from the end. Real
+#: lines run 66 to 68 KB (one full item listing a night), so a line routinely
+#: spans more than one block and the reader must never assume it does not.
+LEDGER_BLOCK = 65536
+
+
+def load_latest_snapshot(path, block=None):
+    """The newest complete, parseable line of the ledger, or None.
 
     Read from the end, because the ledger gains a full item listing every
-    night and only the newest line is ever drawn.
+    night and only the newest line is ever drawn. Two rules, both from review
+    of the first version:
+
+    - A line is trusted only once its start has been read: a newline precedes
+      it in the buffer, or the read has reached the start of the file. The
+      first version stopped at "two non-empty fragments", which on the real
+      ledger is a stop in the middle of a 67 KB line.
+    - A torn last line, a nightly append killed mid-write, is skipped and the
+      previous night's snapshot is drawn instead. A ledger torn all the way
+      down returns None, which costs the Matter section its item detail and
+      nothing else.
     """
     path = Path(path) if path else None
     if not path or not path.exists() or path.stat().st_size == 0:
         return None
+    block = block or LEDGER_BLOCK
     with open(path, "rb") as f:
         f.seek(0, 2)
-        end = f.tell()
-        block, data = 65536, b""
-        pos = end
-        while pos > 0:
+        pos = f.tell()
+        buf = b""
+        while True:
+            pieces = buf.split(b"\n")
+            # pieces[0] is the tail of a line whose start is not yet read,
+            # unless the read has reached the start of the file.
+            complete = pieces if pos == 0 else pieces[1:]
+            for line in reversed(complete):
+                if not line.strip():
+                    continue
+                try:
+                    return json.loads(line)
+                except ValueError:
+                    continue  # torn: keep walking back
+            if pos == 0:
+                return None
             step = min(block, pos)
             pos -= step
             f.seek(pos)
-            data = f.read(step) + data
-            lines = [ln for ln in data.split(b"\n") if ln.strip()]
-            if len(lines) >= 2 or pos == 0:
-                break
-    lines = [ln for ln in data.split(b"\n") if ln.strip()]
-    return json.loads(lines[-1]) if lines else None
+            buf = f.read(step) + buf
 
 
 READ_COLUMNS = ["source", "date_saved", "date_archived", "topics",
@@ -262,6 +286,30 @@ def projection(weeks, queue_size):
             "weeks": round(weeks_left, 1)}
 
 
+#: How far back the queue-size delta on the cover reaches, in days.
+DELTA_DAYS = 7
+
+
+def change_over(daily, days=DELTA_DAYS):
+    """(delta, days actually spanned) for the queue size, or (None, None).
+
+    Measured against the newest row at least `days` before the last one, by
+    DATE, not by row. The first version took the row eight back and called it
+    seven days, which is true only when no night was missed. When the exact
+    day is missing the comparison reaches one row further back and the page
+    says how many days it actually spans.
+    """
+    if not daily:
+        return None, None
+    last = daily[-1]
+    cutoff = last["date"] - dt.timedelta(days=days)
+    earlier = [r for r in daily if r["date"] <= cutoff and r["count"] is not None]
+    if not earlier or last["count"] is None:
+        return None, None
+    base = earlier[-1]
+    return last["count"] - base["count"], (last["date"] - base["date"]).days
+
+
 def matter_view(daily, snapshot, reads_by_week, today=None):
     """Everything the living view draws about the Matter queue, or None."""
     if not daily and not snapshot:
@@ -293,7 +341,7 @@ def matter_view(daily, snapshot, reads_by_week, today=None):
         "days": daily,
         "weeks": weeks,
         "first_day": daily[0]["date"] if daily else None,
-        "change_week": (daily[-1]["count"] - daily[-8]["count"]) if len(daily) >= 8 else None,
+        "change": change_over(daily),
         "reads_context": context,
         "reads_median": statistics.median([c for _, c in context]) if context else None,
         "sites": sorted(sites.items(), key=lambda kv: (-kv[1], kv[0]))[:12],
@@ -326,6 +374,53 @@ def pool_view(records):
         "starred": analysis.starred_count(records),
         "bands": Counter(r.get("abandonment") or derive.NEVER_OPENED for r in records),
     }
+
+
+def read_windows(read_by_year, width=3, current_year=None):
+    """Read-it-later saves per `width`-year window, lowest first.
+
+    Complete years only: a window that includes the current year is left out,
+    because a year still in progress would rank low for no reason but the
+    calendar. Each entry is (first year, last year, articles).
+    """
+    current_year = current_year or dt.date.today().year
+    years = [int(y) for y in read_by_year]
+    if not years:
+        return []
+    out = []
+    for start in range(min(years), max(years) - width + 2):
+        end = start + width - 1
+        if end >= current_year:
+            continue
+        out.append((start, end, sum(read_by_year.get(y, 0) for y in range(start, end + 1))))
+    return sorted(out, key=lambda w: (w[2], w[0]))
+
+
+def hypothesis_window_note(read_by_year, current_year=None):
+    """One sentence on where 2017-19 sits among the read corpus's windows.
+
+    Replaces a typed claim that the unread queue peaks where reading volume
+    was lowest. Adversarial review computed the windows and 2017-19 was the
+    fourth lowest, so the page now says what the data says, whatever it says.
+    """
+    windows = read_windows(read_by_year, len(HYPOTHESIS_YEARS), current_year)
+    lo, hi = HYPOTHESIS_YEARS[0], HYPOTHESIS_YEARS[-1]
+    rank = next((i for i, w in enumerate(windows, 1) if w[0] == lo and w[1] == hi), None)
+    if rank is None:
+        return ""
+    band_n = windows[rank - 1][2]
+    if rank == 1:
+        return (f"Read-it-later saves in {lo}-{str(hi)[2:]} were {n(band_n)}, the lowest of the "
+                f"{len(windows)} complete three-year windows.")
+    low = windows[0]
+    return (f"Read-it-later saves in {lo}-{str(hi)[2:]} were {n(band_n)}, the "
+            f"{_ordinal(rank)} lowest of the {len(windows)} complete three-year windows. The "
+            f"lowest is {low[0]}-{str(low[1])[2:]} at {n(low[2])}.")
+
+
+def _ordinal(k):
+    return {1: "first", 2: "second", 3: "third", 4: "fourth", 5: "fifth", 6: "sixth",
+            7: "seventh", 8: "eighth", 9: "ninth", 10: "tenth"}.get(k, f"{k}th")
 
 
 def _top(counter, k):
@@ -415,11 +510,27 @@ def load(enriched=DEFAULT_ENRICHED, daily_csv=DEFAULT_DAILY_CSV,
     read_topics = versus["read_topics"] if versus else {}
     return {
         "pool": pool_view(records),
-        "matter": matter_view(load_daily(daily_csv), load_latest_snapshot(ledger),
-                              matter_reads_by_week(frame)),
+        "matter": load_matter(daily_csv, ledger, frame),
         "versus": versus,
         "worth": worth_view(records, read_topics),
     }
+
+
+def load_matter(daily_csv, ledger, frame):
+    """The Matter half of the living view, in its own failure domain.
+
+    The ledger is appended by a separate nightly job, and a torn or malformed
+    file is a fact about that job, not about the Instapaper pool, the
+    comparison or the shortlist. Any failure here drops the Matter section
+    only, loudly on stderr, and the other three halves still build.
+    """
+    try:
+        return matter_view(load_daily(daily_csv), load_latest_snapshot(ledger),
+                           matter_reads_by_week(frame))
+    except Exception as err:
+        print(f"Matter queue ledger unreadable ({err!r}): the living view drops "
+              f"its Matter section", file=sys.stderr)
+        return None
 
 
 def pages(data):
@@ -454,6 +565,8 @@ UNREAD_STYLE = """
 .pair .bars i.u { border:1px solid var(--amber); border-bottom:none;
   background:rgba(251,191,36,.08); }
 .pair .col.hyp i.u { background:rgba(251,191,36,.28); }
+.pair .col.hyp .bl { color:var(--amber); }
+.days .day.gap .dl::before { content:"\\00b7 "; color:var(--amber); }
 .pair .col:hover i.r { background:var(--brand); }
 .pair .col:hover i.u { border-color:var(--brand); }
 .pair .bl { text-align:center; margin-top:7px; font-size:9px; color:var(--ink-3);
@@ -608,9 +721,13 @@ def render_queue(data, built, domain=""):
     stats += _stat(n(pool["items"]), "Instapaper pool",
                    f"{n(split['unread_queue'])} queue · {n(split['filed_in_folders'])} in folders")
     if matter:
-        wk = matter["change_week"]
-        delta = ("" if wk is None else
-                 f"{'+' if wk > 0 else ''}{wk} in 7 days" if wk else "level over 7 days")
+        wk, span = matter["change"]
+        if wk is None:
+            delta = ""
+        elif wk:
+            delta = f"{'+' if wk > 0 else ''}{wk} over {span} days"
+        else:
+            delta = f"level over {span} days"
         stats += _stat(n(matter["size"]), "Matter queue",
                        f"as of {matter['as_of'].isoformat()}" + (f" · {delta}" if delta else "")
                        if matter["as_of"] else delta, cls="time")
@@ -643,10 +760,15 @@ def _render_matter(m):
         for d in days:
             c = d["count"]
             pct = max((c - floor) / span, 0.04) * 100 if c is not None else 2
+            gap = (d.get("days_since_previous") or 1) > 1
             flow = ("first night, nothing to diff against" if d["inflow"] is None
                     else f"+{d['inflow']} in, -{d['outflow']} out")
+            if gap and d["inflow"] is not None:
+                # A missed night: this row's flow covers every night since the
+                # last snapshot, and the bar says so rather than drawing it as one.
+                flow += f" across {d['days_since_previous']} nights, a missed snapshot"
             tip = f"{d['date'].strftime('%a %b %-d')} - {n(c)} in the queue, {flow}"
-            cls = " peak" if c == hi else ""
+            cls = (" peak" if c == hi else "") + (" gap" if gap else "")
             cols += (f'      <div class="day{cls}" data-tip="{e(tip)}"><div class="dv num">{n(c)}</div>'
                      f'<div class="bar" style="height:{pct:.1f}%"></div>'
                      f'<div class="dl label">{d["date"].strftime("%-d")}</div></div>\n')
@@ -684,6 +806,8 @@ def _render_matter(m):
                 "previous snapshot. Outflow is the count that left, whether read or removed. Both "
                 "come from the nightly snapshot ledger, one row per night, and a week sums its "
                 "nights. Net is inflow minus outflow, so a positive week is a week the queue grew.",
+                "A night whose date carries a dot follows a missed snapshot: its flow covers every "
+                "night since the last one, and its tooltip says how many.",
                 f"Reads are Matter articles archived that week, from the reading index. They are "
                 f"not the same thing as outflow: an article saved and read the same day never "
                 f"sits in the queue at all, and an item removed unread is outflow with no read. "
@@ -714,6 +838,7 @@ def _render_matter(m):
             f'    <div class="label viz-title">Matter queue by length · words</div>\n'
             f'{_orows(lengths["bands"], lead=False)}'
             f'    <div class="note">Median {n(m["median_words"]) if m["median_words"] else "-"} words. '
+            f'{n(lengths["no_length"])} carry no word count and sit outside the bands. '
             f'{n(m["never_opened"])} never opened, {n(m["finished_in_queue"])} finished but '
             f'never filed out of the queue. No saved date is in the ledger, so the Matter '
             f'queue has no by-year cut here.</div>\n'
@@ -842,11 +967,11 @@ def render_versus(data, built, domain=""):
           f'share of its own corpus per year</div>\n    <div class="pair">\n{cols}    </div>\n'
           f'    <div class="key label"><span><i class="r"></i>Read · {n(v["read_total"])}</span>'
           f'<span><i class="u"></i>Unread · {n(v["unread_total"])}</span>'
-          f'<span>2017-19 shaded</span></div>\n'
+          f'<span>2017-19 shaded, years in amber</span></div>\n'
           + _collapsed("The first hypothesis", [
               "Written down before the enrichment ran: 2017 to 2019 was a period of saving one "
-              "kind of thing and reading another. The unread queue is heaviest in exactly the "
-              "band where reading volume was lowest.",
+              "kind of thing and reading another.",
+              hypothesis_window_note(v["read_by_year"]),
               f"{n(v['band_unread'])} of the {n(v['unread_total'])} unread items were saved in "
               f"those three years, {_pct(band_u, 1)}. Of the read-it-later articles, "
               f"{n(v['band_read'])} of {n(v['read_total'])}, {_pct(band_r, 1)}.",
@@ -987,8 +1112,8 @@ def render_worth(data, built, domain=""):
     depth = 2
     head = _header("Still worth your time",
                    f"The {len(w['picks'])} highest-ranked of the {n(w['eligible'])} unread pieces "
-                   f"the model judged still current. Ranked on the stored enrichment, not on a "
-                   f"new model pass.", depth)
+                   f"the model judged still current and whose text passed its content check. "
+                   f"Ranked on the stored enrichment, not on a new model pass.", depth)
     head += _subnav("unread/worth", built, depth) + "  </header>\n"
 
     stats = '  <div class="stats">\n'
@@ -1009,10 +1134,13 @@ def render_worth(data, built, domain=""):
             e(p.get("domain") or ""), e(str(p.get("saved_date") or p.get("saved_year") or "")),
             e(BAND_WORDS.get(p.get("abandonment"), "")),
         ) if x)
-        conf = str(p.get("why_saved_confidence") or "unset").lower()
+        conf = str(p.get("why_saved_confidence") or "").strip().lower()
+        graded = conf in analysis.CONFIDENCE_GRADES
         if (p.get("why_saved") or "").strip():
-            why_html = (f'<div class="why{" low" if conf == "low" else ""}">'
-                        f'<span class="label">Inference · {e(conf)} confidence</span>'
+            label = (f"Inference · {e(conf)} confidence" if graded
+                     else "Inference · confidence not set")
+            dim = " low" if (conf == "low" or not graded) else ""
+            why_html = (f'<div class="why{dim}"><span class="label">{label}</span>'
                         f'{e(p["why_saved"])}</div>')
         else:
             why_html = ('<div class="why low"><span class="label">Inference</span>'

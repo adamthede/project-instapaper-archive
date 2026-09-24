@@ -58,6 +58,19 @@ RECORDS = [
         domain="dead.example.org", url="javascript:alert(1)", title=HOSTILE_TITLE),
     rec(8, saved_year=2025, saved_date="2025-01-15", abandonment="nearly_finished",
         read_progress=0.9, why_saved=""),
+    # The live corpus carries 90 medium-confidence rows, 4 of them on the live
+    # shortlist. The first fixture had none, and review relabelled medium as
+    # high with 26 of 26 still green.
+    rec(9, saved_year=2021, saved_date="2021-04-04", why_saved_confidence="medium",
+        title="MEDIUM PIECE"),
+    # A grade the model never set. Not reachable on today's corpus, reachable
+    # on the next enrichment run.
+    rec(10, saved_year=2022, saved_date="2022-02-02", why_saved_confidence=None,
+        url="instapaper://private/10", title="APP SCHEME PIECE"),
+    # One live row carries an instapaper: URL. Neither it nor a data: URL may
+    # become a link: http and https only.
+    rec(11, saved_year=2022, saved_date="2022-03-03", url="data:text/html,hi",
+        title="DATA SCHEME PIECE"),
 ]
 
 
@@ -93,13 +106,35 @@ def write_daily(path, rows=DAILY):
 def write_ledger(path, n_lines=3):
     lines = []
     for k in range(n_lines):
-        items = [{"id": f"itm_{k}_{j}", "word_count": 300 + j * 700,
+        items = [{"id": f"itm_{k}_{j}", "word_count": (300 + j * 700) if j else None,
                   "reading_progress": [0.0, 0.5, 1.0][j % 3],
                   "site": ["Site A", "Site B"][j % 2], "updated_at": "2026-09-22T00:00:00Z"}
                  for j in range(k + 2)]
         lines.append(json.dumps({"taken_at": f"2026-09-2{k}T00:00:00Z", "date": f"2026-09-2{k}",
                                  "count": len(items), "total_words": 0, "items": items}))
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
+def real_shaped_line(date, n_items=494):
+    """One ledger line in the shape the nightly job writes, at its real size.
+
+    Field names, types and value widths follow a real line: a 9-character id,
+    an integer word count, a float progress at full precision, a site name and
+    a UTC timestamp. 494 items puts the line at about 67 KB, inside the 66,398
+    to 67,964 bytes review measured on the live ledger and over LEDGER_BLOCK.
+    """
+    items = [{"id": f"itm_{j:05d}", "word_count": 1000 + (j * 37) % 9000,
+              "reading_progress": [0.0, 0.5931050777435303, 1.0][j % 3],
+              "site": ["The New York Times", "Medium", "mustafa-suleyman.ai"][j % 3],
+              "updated_at": "2026-09-17T02:35:58Z"} for j in range(n_items)]
+    return json.dumps({"taken_at": f"{date}T02:41:45Z", "date": date, "count": n_items,
+                       "total_words": 1314599, "items": items, "superseding": False})
+
+
+def write_real_ledger(path, dates=("2026-09-22", "2026-09-23", "2026-09-24")):
+    path.write_text("".join(real_shaped_line(d, 494 + i) + "\n"
+                            for i, d in enumerate(dates)), encoding="utf-8")
     return path
 
 
@@ -158,7 +193,8 @@ def test_every_shown_inference_is_labelled_with_its_confidence(pages_html):
     for _, label, text in shown:
         assert label.startswith("Inference"), label
         if text.startswith("Saved because"):
-            assert re.match(r"Inference · (high|medium|low) confidence", label), label
+            assert re.match(r"Inference · ((high|medium|low) confidence|confidence not set)",
+                            label), label
     # the low-confidence row is dimmed, not hidden
     assert 'class="why low"><span class="label">Inference · low confidence' in raw
 
@@ -200,14 +236,14 @@ def test_each_pick_carries_its_saved_date_source_and_link(pages_html):
 
 
 def test_the_cover_counts_what_qualified_not_the_page_size(unread_files, monkeypatch):
-    """Mutation: print len(w["picks"]) where w["eligible"] is printed. Five of
-    the eight are still current (1, 2, 3, 7, 8); with a page size of two the
-    two figures differ and the cover has to print the measurement."""
+    """Mutation: print len(w["picks"]) where w["eligible"] is printed. Eight of
+    the eleven are still current (1, 2, 3, 7, 8, 9, 10, 11); with a page size of
+    two the two figures differ and the cover has to print the measurement."""
     monkeypatch.setattr(up, "SHORTLIST_SIZE", 2)
     data = up.load(enriched=unread_files["enriched"], daily_csv=None, ledger=None)
     raw = up.render_worth(data, up.pages(data))
-    assert re.search(r'<div class="v num">5</div><div class="l label">Still current</div>'
-                     r'<div class="delta">of 8 in the pool</div>', raw)
+    assert re.search(r'<div class="v num">8</div><div class="l label">Still current</div>'
+                     r'<div class="delta">of 11 in the pool</div>', raw)
     assert '<div class="v num">2</div><div class="l label">Ranked here</div>' in raw
 
 
@@ -293,11 +329,11 @@ def test_length_bands_are_inclusive_at_the_top_and_zero_is_no_length():
 # ---------------------------------------------------------------------------
 
 def test_the_hypothesis_band_is_measured_on_both_corpora(pages_html):
-    """Mutation: HYPOTHESIS_YEARS = (2018,). Four of the eight unread items were
-    saved 2017 to 2019 (2, 1, 3, 7) and 2 of the 7 read-it-later rows in the
-    cover fixture were (2018, 2019), so the cover reads 50% against 29%."""
+    """Mutation: HYPOTHESIS_YEARS = (2018,). Four of the eleven unread items
+    were saved 2017 to 2019 (2, 1, 3, 7) and 2 of the 7 read-it-later rows in
+    the cover fixture were (2018, 2019), so the cover reads 36% against 29%."""
     raw = pages_html["unread/versus"]
-    assert re.search(r'<div class="v num">50%</div><div class="l label">Unread saved 2017-19</div>'
+    assert re.search(r'<div class="v num">36%</div><div class="l label">Unread saved 2017-19</div>'
                      r'<div class="delta">against 29% of what was read</div>', raw), raw[:3000]
 
 
@@ -398,3 +434,220 @@ def test_the_copy_uses_no_semicolons_em_dashes_or_analyze(pages_html):
         assert ";" not in re.sub(r"&[a-z#0-9]+;", "", text), rel
         assert "—" not in text, rel
         assert not re.search(r"\banaly[sz]e", text, re.I), rel
+
+
+# ---------------------------------------------------------------------------
+# fix round 1 (review of PR #31)
+# ---------------------------------------------------------------------------
+
+def row_of(raw, title):
+    """The shortlist row carrying `title`, as raw HTML."""
+    for chunk in raw.split('<div class="srow">')[1:]:
+        if title in chunk:
+            return chunk
+    raise AssertionError(f"{title} not on the page")
+
+
+# ---- M1: the ledger reader -------------------------------------------------
+
+def test_the_real_shaped_fixture_is_longer_than_a_block(tmp_path):
+    """Guards the fixture, not the code: a ledger line under LEDGER_BLOCK would
+    let every reader test below pass on the one-block path real data never
+    takes. This is the fixture that agreed with the bug the first time."""
+    path = write_real_ledger(tmp_path / "l.jsonl")
+    sizes = [len(line) for line in path.read_bytes().split(b"\n") if line]
+    assert min(sizes) > up.LEDGER_BLOCK and max(sizes) < 70_000, sizes
+
+
+def test_the_ledger_reader_crosses_blocks_on_a_real_sized_line(tmp_path):
+    """Mutation (review M3): give up after the first block, `if pos == 0 or buf`.
+    Every real line is 66 to 68 KB against a 64 KB block."""
+    snap = up.load_latest_snapshot(write_real_ledger(tmp_path / "l.jsonl"))
+    assert snap["date"] == "2026-09-24" and len(snap["items"]) == 496
+
+
+def test_the_ledger_reader_holds_at_any_block_size(tmp_path):
+    """Mutation: same as above. Shrinking the block to 100 bytes puts every
+    line across hundreds of blocks, so no line can be read by luck."""
+    path = write_real_ledger(tmp_path / "l.jsonl")
+    for block in (100, 4096, 65536, 1 << 20):
+        snap = up.load_latest_snapshot(path, block=block)
+        assert snap["date"] == "2026-09-24", block
+
+
+def test_a_torn_last_line_falls_back_to_the_previous_night(tmp_path):
+    """Mutation: re-raise instead of `continue` on an unparseable line. Review
+    cut 5,000 bytes off a real ledger and every unread page vanished."""
+    path = write_real_ledger(tmp_path / "l.jsonl")
+    data = path.read_bytes()
+    path.write_bytes(data[:-5000])
+    snap = up.load_latest_snapshot(path)
+    assert snap["date"] == "2026-09-23" and len(snap["items"]) == 495
+
+
+def test_a_ledger_torn_all_the_way_down_is_none(tmp_path):
+    """Mutation: same. One torn line and nothing before it is no snapshot."""
+    path = tmp_path / "l.jsonl"
+    path.write_text(real_shaped_line("2026-09-24")[:-500], encoding="utf-8")
+    assert up.load_latest_snapshot(path) is None
+
+
+# ---- M2: failure domains ---------------------------------------------------
+
+def test_a_torn_ledger_still_builds_every_page(synth_dir, index_file, unread_files, tmp_path):  # noqa: F811
+    """Mutation: same as the fallback test. A truncated copy of a real-shaped
+    ledger must cost at most the Matter half, and here costs nothing: the
+    Matter section draws the previous night."""
+    ledger = write_real_ledger(tmp_path / "torn.jsonl")
+    ledger.write_bytes(ledger.read_bytes()[:-5000])
+    out = tmp_path / "_site"
+    paths = {k: str(v) for k, v in unread_files.items()}
+    paths["ledger"] = str(ledger)
+    gen.generate(synth_dir, out, index_path=index_file, unread_paths=paths)
+    for rel in ("unread", "unread/versus", "unread/worth"):
+        assert (out / rel / "index.html").exists(), rel
+    queue = (out / "unread" / "index.html").read_text(encoding="utf-8")
+    assert "Matter queue by site" in queue and "The Instapaper pool by year saved" in queue
+
+
+def test_an_unreadable_matter_ledger_drops_only_the_matter_section(
+        synth_dir, index_file, unread_files, tmp_path):  # noqa: F811
+    """Mutation: narrow load_matter()'s `except Exception` to `except ImportError`.
+    A malformed daily row is a fact about the snapshot job, not about the
+    Instapaper pool, the comparison or the shortlist."""
+    bad = tmp_path / "bad.csv"
+    bad.write_text("date,count,source\nnot-a-date,5,matter-api\n", encoding="utf-8")
+    out = tmp_path / "_site"
+    paths = {k: str(v) for k, v in unread_files.items()}
+    paths["daily_csv"] = str(bad)
+    gen.generate(synth_dir, out, index_path=index_file, unread_paths=paths)
+    for rel in ("unread", "unread/versus", "unread/worth"):
+        assert (out / rel / "index.html").exists(), rel
+    queue = (out / "unread" / "index.html").read_text(encoding="utf-8")
+    assert "The Instapaper pool by year saved" in queue
+    assert "Matter queue by site" not in queue
+    assert "Matter words waiting" not in queue
+
+
+# ---- M3: the window claim --------------------------------------------------
+
+READ_YEARS = {2015: 10, 2016: 10, 2017: 5, 2018: 5, 2019: 5, 2020: 1, 2021: 1,
+              2022: 1, 2023: 50, 2024: 0, 2025: 0, 2026: 0}
+
+
+def test_the_hypothesis_note_says_where_2017_19_actually_ranks():
+    """Mutation: rank windows highest first. 2017-19 is fourth lowest here and
+    2020-22 lowest, which is the shape review measured on the live corpus."""
+    note = up.hypothesis_window_note(READ_YEARS, current_year=2026)
+    assert note == ("Read-it-later saves in 2017-19 were 15, the fourth lowest of the "
+                    "9 complete three-year windows. The lowest is 2020-22 at 3.")
+
+
+def test_a_window_reaching_the_current_year_is_not_ranked():
+    """Mutation: `end >= current_year` becomes `end > current_year`. 2024-26
+    holds nothing only because 2026 has not happened yet."""
+    windows = up.read_windows(READ_YEARS, current_year=2026)
+    assert all(end < 2026 for _, end, _ in windows)
+    assert windows[0] == (2020, 2022, 3)
+
+
+def test_the_versus_page_no_longer_types_the_volume_claim(pages_html):
+    """Mutation: restore the typed sentence."""
+    assert "reading volume was lowest" not in pages_html["unread/versus"]
+    assert "complete three-year windows" in pages_html["unread/versus"]
+
+
+# ---- L1: the delta counts days ---------------------------------------------
+
+def _daily(dates, counts):
+    return [{"date": dt.date.fromisoformat(d), "count": c, "total_words": 0, "started": 0,
+             "inflow": 0, "outflow": 0, "days_since_previous": 1}
+            for d, c in zip(dates, counts)]
+
+
+def test_the_delta_spans_seven_days_by_date():
+    """Mutation (review M4): reach 6 days back, `days=days - 1`."""
+    dates = [f"2026-09-{d}" for d in range(17, 25)]
+    assert up.change_over(_daily(dates, [512, 508, 506, 507, 507, 512, 513, 518])) == (6, 7)
+
+
+def test_a_missed_night_makes_the_delta_say_eight_days():
+    """Mutation: same. With the 7-days-back night missing, the comparison
+    reaches one row further and the page says so, not "in 7 days"."""
+    dates = ["2026-09-16"] + [f"2026-09-{d}" for d in range(18, 25)]
+    assert up.change_over(_daily(dates, [511, 508, 506, 507, 507, 512, 513, 518])) == (7, 8)
+
+
+def test_the_cover_prints_the_days_the_delta_spans(tmp_path):
+    """Mutation: print a fixed "in 7 days" whatever the span."""
+    rows = [(f"2026-09-{d:02d}", 500 + i, 0, 0, 1, 0, 1, "matter-api")
+            for i, d in enumerate([16, 18, 19, 20, 21, 22, 23, 24])]
+    data = up.load(enriched=write_enriched(tmp_path / "e.jsonl"),
+                   daily_csv=write_daily(tmp_path / "d.csv", rows), ledger=None)
+    raw = up.render_queue(data, up.pages(data))
+    assert "+7 over 8 days" in raw
+
+
+def test_a_missed_night_is_marked_on_the_nightly_chart(pages_html):
+    """Mutation: `gap = False`. The 09-21 row covers two nights."""
+    raw = pages_html["unread"]
+    assert "across 2 nights, a missed snapshot" in raw
+    assert raw.count('class="day gap"') + raw.count('class="day peak gap"') == 1
+
+
+# ---- L2: the confidence grades ---------------------------------------------
+
+def test_a_medium_inference_is_labelled_medium(pages_html):
+    """Mutation (review M1): relabel medium as high in render_worth."""
+    row = row_of(pages_html["unread/worth"], "MEDIUM PIECE")
+    assert "Inference · medium confidence" in row and 'class="why low"' not in row
+
+
+def test_an_ungraded_inference_is_never_labelled_high(pages_html):
+    """Mutation (review M1b): label a missing grade as high."""
+    row = row_of(pages_html["unread/worth"], "APP SCHEME PIECE")
+    assert "Inference · confidence not set" in row and "high confidence" not in row
+    assert 'class="why low"' in row
+
+
+def test_a_low_inference_is_dimmed(pages_html):
+    """Mutation (review M1c): drop the low dimming class."""
+    row = row_of(pages_html["unread/worth"], "Piece 2<")
+    assert '<div class="why low"><span class="label">Inference · low confidence' in row
+
+
+def test_the_cover_tile_counts_each_grade_separately(pages_html):
+    """Mutation (review M1d): count medium as high on the cover tile. The 11
+    picks carry high 1, 3, 7, 8, 11, medium 9, low 2, and 10 ungraded."""
+    raw = pages_html["unread/worth"]
+    assert ('<div class="v num">5</div><div class="l label">High-confidence inferences</div>'
+            '<div class="delta">1 medium · 1 low</div>') in raw
+
+
+# ---- L3: URL schemes -------------------------------------------------------
+
+@pytest.mark.parametrize("title,scheme", [("APP SCHEME PIECE", "instapaper:"),
+                                          ("DATA SCHEME PIECE", "data:")])
+def test_only_http_and_https_become_links(pages_html, title, scheme):
+    """Mutations (review M2, M2b): safe_url becomes a javascript: denylist, or
+    render_worth links anything that is not javascript:. Decision: an
+    instapaper: URL is the Instapaper app's own scheme and opens nothing in a
+    browser, so it is not linked either. The title still shows."""
+    raw = pages_html["unread/worth"]
+    assert f'<span class="st">{title}</span>' in raw
+    assert f'href="{scheme}' not in raw
+
+
+# ---- L4 and M5 -------------------------------------------------------------
+
+def test_the_matter_note_counts_the_items_outside_the_length_bands(pages_html):
+    """Mutation: drop the no-length sentence. The fixture's last snapshot holds
+    four items and one carries no word count, as 31 of 518 do live."""
+    assert "1 carry no word count and sit outside the bands" in pages_html["unread"]
+
+
+def test_opened_and_abandoned_counts_both_bands(pages_html):
+    """Mutation (review M5): count started only. The fixture has one started
+    (2) and one nearly finished (8), and the live cover reads 119 = 99 + 20."""
+    assert re.search(r'<div class="v num">2</div><div class="l label">Opened, abandoned</div>'
+                     r'<div class="delta">1 nearly finished</div>', pages_html["unread/versus"])

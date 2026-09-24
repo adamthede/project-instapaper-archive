@@ -58,8 +58,8 @@ run_mutation "ai_summary admitted by the field allowlist" $U \
   '"why_saved", "why_saved_confidence", "why_saved_kind", "ai_summary",' \
   "$T::test_load_records_drops_every_field_outside_the_allowlist"
 run_mutation "inference shown without its label" $U \
-  "f'<span class=\"label\">Inference · {e(conf)} confidence</span>'" \
-  "f'<span class=\"label\">{e(conf)}</span>'" \
+  'label = (f"Inference · {e(conf)} confidence" if graded' \
+  'label = (f"{e(conf)}" if graded' \
   "$T::test_every_shown_inference_is_labelled_with_its_confidence"
 run_mutation "inference not flattened to one line" $U \
   '    flat = " ".join(str(text or "").split())' \
@@ -108,8 +108,8 @@ run_mutation "projection on the mean" $U \
   'median_net = statistics.median(measured)' 'median_net = statistics.mean(measured)' \
   "$T::test_projection_divides_the_queue_by_the_median_drain"
 run_mutation "first ledger line read as the latest" $U \
-  'return json.loads(lines[-1]) if lines else None' \
-  'return json.loads(lines[0]) if lines else None' \
+  'for line in reversed(complete):' \
+  'for line in complete:' \
   "$T::test_the_latest_snapshot_is_the_last_line"
 run_mutation "reads from every source counted as drain" $U \
   'rows = frame[frame["source"] == "matter"]' 'rows = frame' \
@@ -157,6 +157,87 @@ run_mutation "reason line keeps its semicolons" $U \
   'reason = str(p.get("reason") or "").replace("; ", " · ")' \
   'reason = str(p.get("reason") or "")' \
   "$T::test_the_copy_uses_no_semicolons_em_dashes_or_analyze"
+
+echo "fix round 1: ledger reader and failure domains"
+run_mutation "torn ledger line re-raised" $U \
+  'continue  # torn: keep walking back' \
+  'raise' \
+  "$T::test_a_torn_last_line_falls_back_to_the_previous_night $T::test_a_torn_ledger_still_builds_every_page"
+# Not run: trusting the fragment before the first newline
+# (`complete = pieces`) is an equivalent mutant. A suffix of one JSON object
+# always carries more closing brackets than opening ones, so json.loads can
+# never accept it and the reader walks on either way. The rule stays because
+# it makes the invariant explicit, not because a test can tell the difference.
+run_mutation "Matter failure not isolated" $U \
+  '    except Exception as err:
+        print(f"Matter queue ledger unreadable' \
+  '    except ImportError as err:
+        print(f"Matter queue ledger unreadable' \
+  "$T::test_an_unreadable_matter_ledger_drops_only_the_matter_section"
+run_mutation "window reaching the current year ranked" $U \
+  'if end >= current_year:' 'if end > current_year:' \
+  "$T::test_a_window_reaching_the_current_year_is_not_ranked"
+run_mutation "windows ranked highest first" $U \
+  'return sorted(out, key=lambda w: (w[2], w[0]))' \
+  'return sorted(out, key=lambda w: (-w[2], w[0]))' \
+  "$T::test_the_hypothesis_note_says_where_2017_19_actually_ranks"
+run_mutation "typed volume claim restored" $U \
+  '              hypothesis_window_note(v["read_by_year"]),' \
+  '              "The unread queue is heaviest in exactly the band where reading volume was lowest.",' \
+  "$T::test_the_versus_page_no_longer_types_the_volume_claim"
+run_mutation "delta label fixed at 7 days" $U \
+  'delta = f"{'"'"'+'"'"' if wk > 0 else '"'"''"'"'}{wk} over {span} days"' \
+  'delta = f"{'"'"'+'"'"' if wk > 0 else '"'"''"'"'}{wk} in 7 days"' \
+  "$T::test_the_cover_prints_the_days_the_delta_spans"
+run_mutation "missed night not marked" $U \
+  'gap = (d.get("days_since_previous") or 1) > 1' 'gap = False' \
+  "$T::test_a_missed_night_is_marked_on_the_nightly_chart"
+run_mutation "Matter no-length count dropped" $U \
+  "f'{n(lengths[\"no_length\"])} carry no word count and sit outside the bands. '" \
+  "f''" \
+  "$T::test_the_matter_note_counts_the_items_outside_the_length_bands"
+
+echo "reviewer's mutations (PR #31 review, section 5)"
+run_mutation "M1  medium relabelled high" $U \
+  'label = (f"Inference · {e(conf)} confidence" if graded' \
+  'label = (f"Inference · {e('"'"'high'"'"' if conf == '"'"'medium'"'"' else conf)} confidence" if graded' \
+  "$T"
+run_mutation "M1b missing confidence labelled high" $U \
+  'else "Inference · confidence not set")' \
+  'else "Inference · high confidence")' \
+  "$T"
+run_mutation "M1c low not dimmed" $U \
+  'dim = " low" if (conf == "low" or not graded) else ""' \
+  'dim = " low" if (not graded) else ""' \
+  "$T"
+run_mutation "M1d cover tile counts medium as high" $U \
+  'by_conf = Counter(p.get("why_saved_confidence") for p in w["picks"])' \
+  'by_conf = Counter("high" if p.get("why_saved_confidence") == "medium" else p.get("why_saved_confidence") for p in w["picks"])' \
+  "$T"
+run_mutation "M2  safe_url becomes a javascript denylist" site/htmlkit.py \
+  'return e(u) if u.lower().startswith(SAFE_SCHEMES) else ""' \
+  'return e(u) if not u.lower().startswith("javascript:") else ""' \
+  "$T"
+run_mutation "M2b worth links any non-javascript scheme" $U \
+  'url = safe_url(p.get("url"))' \
+  'url = "" if str(p.get("url") or "").startswith("javascript:") else e(p.get("url") or "")' \
+  "$T"
+run_mutation "M3  ledger tail reads one block only" $U \
+  '            if pos == 0:
+                return None
+            step = min(block, pos)' \
+  '            if pos == 0 or buf:
+                return None
+            step = min(block, pos)' \
+  "$T"
+run_mutation "M4  week-over-week reaches 6 days back" $U \
+  'cutoff = last["date"] - dt.timedelta(days=days)' \
+  'cutoff = last["date"] - dt.timedelta(days=days - 1)' \
+  "$T"
+run_mutation "M5  opened-abandoned drops nearly finished" $U \
+  'stats += _stat(n(ab[derive.STARTED]["count"] + ab[derive.NEARLY]["count"]),' \
+  'stats += _stat(n(ab[derive.STARTED]["count"]),' \
+  "$T"
 
 echo
 echo "caught $PASS, escaped or stale $FAIL"
