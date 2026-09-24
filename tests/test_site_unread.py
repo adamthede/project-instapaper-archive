@@ -344,7 +344,12 @@ def test_every_subnav_link_resolves(built, pages_html):
 
 
 def test_no_enriched_corpus_means_no_pages_and_no_link(synth_dir, index_file, tmp_path):  # noqa: F811
-    """Mutation: drop the `if not records: return None` guard in load()."""
+    """Mutation: drop the `if not records: return None` guard in load().
+
+    The generator's except branch would also keep an empty corpus off the
+    site, so the guard is held on load() itself: no corpus is a result, not
+    an error to be caught."""
+    assert up.load(enriched=tmp_path / "missing.jsonl", daily_csv=None, ledger=None) is None
     out = tmp_path / "_site"
     gen.generate(synth_dir, out, index_path=index_file,
                  unread_paths={"enriched": str(tmp_path / "missing.jsonl"),
