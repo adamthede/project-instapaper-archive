@@ -345,7 +345,12 @@ def test_the_comparison_is_not_built_without_the_read_corpus(synth_dir, unread_f
                  unread_paths={k: str(v) for k, v in unread_files.items()})
     assert (out / "unread" / "index.html").exists()
     assert not (out / "unread" / "versus").exists()
-    assert "versus/" not in (out / "unread" / "index.html").read_text(encoding="utf-8")
+    queue = (out / "unread" / "index.html").read_text(encoding="utf-8")
+    assert "versus/" not in queue
+    # With no index the site takes its weeks-only shape and a fallback row;
+    # the pages that were built still get their row item.
+    row = re.search(r'<nav class="pagelinks".*?</nav>', queue, re.S).group(0)
+    assert '<span class="here">Unread</span>' in row
 
 
 # ---------------------------------------------------------------------------
@@ -353,22 +358,55 @@ def test_the_comparison_is_not_built_without_the_read_corpus(synth_dir, unread_f
 # ---------------------------------------------------------------------------
 
 def test_the_build_writes_three_pages_and_the_weeks_index_links_them(built):
-    """Mutation: remove the render_unread() call from generate()."""
+    """Mutation: remove the write_pages() call from generate()."""
     for rel in ("unread", "unread/versus", "unread/worth"):
         assert (built / rel / "index.html").exists(), rel
     weeks = (built / "weeks" / "index.html").read_text(encoding="utf-8")
     assert '<a href="../unread/">What I meant to read</a>' in weeks
 
 
-def test_the_unread_pages_carry_the_six_item_row_and_mark_nothing(pages_html):
-    """Mutation: narrow generate()'s `built` set so a row item drops out.
-    Adam named the six; these pages sit outside the row, like /trends/, and
-    carry the same row as every other page."""
+SEVEN = ["Cover", "Weeks", "Years", "Sources", "Subjects", "Articles", "Unread"]
+
+
+def test_the_unread_pages_carry_the_seven_item_row_and_mark_unread(pages_html):
+    """Mutations: narrow generate()'s `built` set so a row item drops out, or
+    drop here=/under= from an unread renderer. Adam made the unread pages the
+    row's seventh item on 2026-09-24: /unread/ marks itself, the two pages
+    beneath it mark it as a live link."""
     for rel, raw in pages_html.items():
         row = re.search(r'<nav class="pagelinks".*?</nav>', raw, re.S).group(0)
         got = re.findall(r'>([A-Z][a-z]+)</(?:a|span)>', row)
-        assert got == ["Cover", "Weeks", "Years", "Sources", "Subjects", "Articles"], (rel, got)
-        assert 'class="here"' not in row, rel
+        assert got == SEVEN, (rel, got)
+    assert '<span class="here">Unread</span>' in pages_html["unread"]
+    for rel in ("unread/versus", "unread/worth"):
+        assert re.search(r'<a class="here" href="\.\./\.\./unread/">Unread</a>', pages_html[rel]), rel
+
+
+def test_every_page_of_the_site_names_unread_last(built):
+    """Mutation: drop "unread" from the set generate() predicts the row from.
+    The row is chrome on every page, the week pages included."""
+    for page_path in (built / "weeks").rglob("index.html"):
+        row = re.search(r'<nav class="pagelinks".*?</nav>',
+                        page_path.read_text(encoding="utf-8"), re.S).group(0)
+        assert re.findall(r'>([A-Z][a-z]+)</(?:a|span)>', row) == SEVEN, page_path
+
+
+def test_a_renderer_that_fails_drops_the_row_item_before_any_page(
+        synth_dir, index_file, unread_files, tmp_path, monkeypatch):  # noqa: F811
+    """Mutation: skip the throwaway render in prepare_unread(). A renderer that
+    fails on tonight's data must be found while dropping the row item is still
+    free; found later, every page already names a page that is not there and
+    check_page_row_targets() refuses the whole build."""
+    def boom(*a, **k):
+        raise RuntimeError("renderer fault")
+    monkeypatch.setattr(up, "render_worth", boom)
+    out = tmp_path / "_site"
+    gen.generate(synth_dir, out, index_path=index_file,
+                 unread_paths={k: str(v) for k, v in unread_files.items()})
+    assert not (out / "unread").exists()
+    weeks = (out / "weeks" / "index.html").read_text(encoding="utf-8")
+    row = re.search(r'<nav class="pagelinks".*?</nav>', weeks, re.S).group(0)
+    assert ">Unread<" not in row
 
 
 def test_every_subnav_link_resolves(built, pages_html):
@@ -392,11 +430,12 @@ def test_no_enriched_corpus_means_no_pages_and_no_link(synth_dir, index_file, tm
                                "daily_csv": str(tmp_path / "x.csv"),
                                "ledger": str(tmp_path / "x.jsonl")})
     assert not (out / "unread").exists()
-    assert "../unread/" not in (out / "weeks" / "index.html").read_text(encoding="utf-8")
+    weeks = (out / "weeks" / "index.html").read_text(encoding="utf-8")
+    assert "../unread/" not in weeks and ">Unread<" not in weeks
 
 
 def test_a_malformed_corpus_costs_these_pages_not_the_build(synth_dir, index_file, tmp_path):  # noqa: F811
-    """Mutation: re-raise in render_unread()'s except branch."""
+    """Mutation: re-raise in prepare_unread()'s except branch."""
     bad = tmp_path / "bad.jsonl"
     bad.write_text('{"url_sha256": "a"}\n{not json\n', encoding="utf-8")
     out = tmp_path / "_site"

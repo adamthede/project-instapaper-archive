@@ -128,10 +128,10 @@ run_mutation "comparison built without the read corpus" $U \
 
 echo "generator"
 run_mutation "unread leg never called" $G \
-  '        render_unread(tmp, unread_paths, index_path)' '        pass' \
+  '            unread_mod.write_pages(tmp, unread_data, domain=DOMAIN)' '            pass' \
   "$T::test_the_build_writes_three_pages_and_the_weeks_index_links_them"
 run_mutation "row narrowed under the unread pages" $G \
-  'built = {"years", "orgs", "articles"}' 'built = {"years", "orgs"}' \
+  'built = {"years", "orgs", "articles"} | unread_keys' 'built = {"years", "orgs"} | unread_keys' \
   "$T::test_the_unread_pages_carry_the_six_item_row_and_mark_nothing"
 run_mutation "subnav target renamed" $U \
   '("unread/worth", "Still worth your time", "worth/")' \
@@ -196,6 +196,31 @@ run_mutation "Matter no-length count dropped" $U \
   "f'{n(lengths[\"no_length\"])} carry no word count and sit outside the bands. '" \
   "f''" \
   "$T::test_the_matter_note_counts_the_items_outside_the_length_bands"
+
+echo "seventh row item (Adam, 2026-09-24)"
+run_mutation "Unread left out of the predicted row" $G \
+  'unread_keys = {"unread"} if unread_data else set()' \
+  'unread_keys = set()' \
+  "$T::test_every_page_of_the_site_names_unread_last $T::test_the_unread_pages_carry_the_seven_item_row_and_mark_unread"
+run_mutation "Unread row item removed from PAGE_ROW" site/htmlkit.py \
+  '    ("unread", "Unread", "unread/"),' \
+  '' \
+  "$T::test_the_unread_pages_carry_the_seven_item_row_and_mark_unread"
+run_mutation "Unread moved ahead of Articles" site/htmlkit.py \
+  '    ("articles", "Articles", "articles/"),
+    # Added 2026-09-24' \
+  '    ("unread", "Unread", "unread/"), ("articles", "Articles", "articles/"),
+    # Added 2026-09-24' \
+  "tests/test_site_cover.py::test_the_row_names_the_seven_pages_in_the_order_adam_gave"
+run_mutation "/unread/ does not mark itself" $U \
+  'depth=depth, here="unread")' 'depth=depth)' \
+  "$T::test_the_unread_pages_carry_the_seven_item_row_and_mark_unread"
+run_mutation "throwaway render skipped" $G \
+  '            unread_mod.write_pages(scratch, data, domain=DOMAIN)' '            pass' \
+  "$T::test_a_renderer_that_fails_drops_the_row_item_before_any_page"
+run_mutation "fallback row drops Unread" $G \
+  'page_row(unread_keys, weeks_at_root=True)' 'page_row(set(), weeks_at_root=True)' \
+  "$T::test_the_comparison_is_not_built_without_the_read_corpus"
 
 echo "reviewer's mutations (PR #31 review, section 5)"
 run_mutation "M1  medium relabelled high" $U \

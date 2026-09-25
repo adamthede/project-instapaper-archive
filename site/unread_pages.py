@@ -743,7 +743,7 @@ def render_queue(data, built, domain=""):
     sections += _render_pool(pool)
 
     body = head + "\n" + stats + sections + "\n" + _footer(domain)
-    return page("The unread queue - The Week in Reading", body, depth=depth)
+    return page("The unread queue - The Week in Reading", body, depth=depth, here="unread")
 
 
 def _render_matter(m):
@@ -1094,7 +1094,7 @@ def render_versus(data, built, domain=""):
           + '  </section>\n')
 
     body = head + "\n" + stats + s1 + s2 + s3 + s4 + s5 + s6 + s7 + "\n" + _footer(domain)
-    return page("Read versus unread - The Week in Reading", body, depth=depth)
+    return page("Read versus unread - The Week in Reading", body, depth=depth, under="unread")
 
 
 EMPTY_SOURCES = '    <div class="empty">no source clears the floor</div>\n'
@@ -1168,7 +1168,7 @@ def render_worth(data, built, domain=""):
           + rows + '  </section>\n')
 
     body = head + "\n" + stats + s1 + "\n" + _footer(domain)
-    return page("Still worth your time - The Week in Reading", body, depth=depth)
+    return page("Still worth your time - The Week in Reading", body, depth=depth, under="unread")
 
 
 def write_pages(root, data, domain=""):

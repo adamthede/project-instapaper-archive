@@ -22,6 +22,7 @@ import datetime as dt
 import os
 import re
 import shutil
+import tempfile
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
@@ -1080,28 +1081,35 @@ def render_deep_dives(tmp, weeks, corpus_data, gate):
     return set(years)
 
 
-def render_unread(tmp, unread_paths, index_path):
-    """The three private unread pages, or none of them. Returns what was built.
+def prepare_unread(unread_paths, index_path):
+    """The unread pages' data, proven renderable, or None. Decided BEFORE the row.
 
-    Its own leg with its own failure, like the deep dives: the unread pages
-    read files the rest of the site never touches (the enriched corpus and the
-    Matter snapshot ledger), and a malformed line in either must cost these
-    three pages, not the night's build. Nothing here is in the page row, so
-    nothing the row predicted depends on this leg's outcome.
+    Since 2026-09-24 the unread pages are the seventh item of the sticky page
+    row (Adam's call), and the row is chrome on every page, so whether /unread/
+    exists has to be settled before the first page is written - the same
+    discipline concepts_gate() follows. Settling it means more than loading the
+    data: the three pages are rendered once into a throwaway directory, so a
+    renderer that would fail on tonight's data fails HERE, while dropping the
+    row item is still free, and not after every other page already names it.
+
+    Its own failure domain, like the deep dives: the enriched corpus and the
+    Matter ledger are files the rest of the site never touches, and a malformed
+    line in either must cost these three pages, not the night's build.
     """
     if not unread_paths:
-        return []
+        return None
     try:
         data = unread_mod.load(index_path=index_path, **unread_paths)
         if data is None:
             print(f"no enriched unread corpus at {unread_paths.get('enriched')}: "
                   f"skipping /unread/")
-            return []
-        return unread_mod.write_pages(tmp, data, domain=DOMAIN)
+            return None
+        with tempfile.TemporaryDirectory() as scratch:
+            unread_mod.write_pages(scratch, data, domain=DOMAIN)
+        return data
     except Exception as err:
         print(f"unread pages failed ({err!r}): skipping /unread/", file=sys.stderr)
-        shutil.rmtree(tmp / "unread", ignore_errors=True)
-        return []
+        return None
 
 
 def generate(synthesis_dir, out_dir, index_path=None, unread_paths=None):
@@ -1142,6 +1150,9 @@ def generate(synthesis_dir, out_dir, index_path=None, unread_paths=None):
             + trends.TRENDS_STYLE + vocabulary.VOCAB_STYLE
             + unread_mod.UNREAD_STYLE, encoding="utf-8")
         corpus_data = load_corpus_or_none(index_path)
+        # Before any row is installed: /unread/ is a row item now.
+        unread_data = prepare_unread(unread_paths, index_path)
+        unread_keys = {"unread"} if unread_data else set()
         year_pages = set()
         if corpus_data is not None and len(corpus_data):
             try:
@@ -1150,7 +1161,7 @@ def generate(synthesis_dir, out_dir, index_path=None, unread_paths=None):
                 # before the first page is written - and /concepts/ is the one
                 # destination whose existence is not already known here.
                 gate = concepts_gate(corpus_data)
-                built = {"years", "orgs", "articles"}
+                built = {"years", "orgs", "articles"} | unread_keys
                 if gate[0]:
                     built.add("concepts")
                 if cover.can_render(corpus_data):
@@ -1193,11 +1204,15 @@ def generate(synthesis_dir, out_dir, index_path=None, unread_paths=None):
         # the old row named is on disk.
         covered = bool(year_pages) and cover.can_render(corpus_data)
         if not year_pages:
-            previous = htmlkit.set_page_row(page_row(set(), weeks_at_root=True))
+            previous = htmlkit.set_page_row(page_row(unread_keys, weeks_at_root=True))
             restore_row = previous if restore_row is None else restore_row
         # After the row is final, so the unread pages carry the same row as
-        # every other page on the site whichever shape the build took.
-        render_unread(tmp, unread_paths, index_path)
+        # every other page on the site whichever shape the build took. The data
+        # already rendered once in prepare_unread(); a failure here is a disk
+        # fault, and check_page_row_targets() then refuses the build rather
+        # than ship a row item that goes nowhere.
+        if unread_data is not None:
+            unread_mod.write_pages(tmp, unread_data, domain=DOMAIN)
         # The names of the facet dirs actually on disk. `year_pages` only says
         # the leg ran; the nav has to know WHICH pages exist or it links to
         # 404s (or, as /concepts/ did, silently omits a page that shipped with

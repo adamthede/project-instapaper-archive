@@ -32,11 +32,13 @@ it.
    ranked on the stored enrichment, one line of reasoning each, labelled as
    inference with its confidence flag, with link, saved date and source.
    Private only.
-4. Wiring: the weeks index's "Beyond the week" nav and a sub-nav across the
-   three. Not the sticky page row: Adam named its six items on 2026-09-08 and
-   a test guards them, so a seventh entry is his call. The nightly build
-   regenerates the pages because they come out of `site/generate.py` with its
-   default paths.
+4. Wiring: the sticky page row's seventh item, UNREAD, last after Adam's
+   six (his decision on PR #31, 2026-09-24), plus the weeks index's "Beyond
+   the week" nav and a sub-nav across the three. Whether /unread/ exists is
+   settled before the row is installed, by loading the data and rendering the
+   three pages once into a throwaway directory. The nightly build regenerates
+   the pages because they come out of `site/generate.py` with its default
+   paths.
 
 ## As built (PR #31)
 
