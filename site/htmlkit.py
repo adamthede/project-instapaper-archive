@@ -23,6 +23,8 @@ SIBLING_SITES = [
 # (key, label, root-relative target). `key` is what a page passes as `here` to
 # mark itself; the target is what the anchor points at.
 #
+# Adam added a seventh, UNREAD, on 2026-09-24.
+#
 # Two labels are deliberately not the directory name. /orgs/ is titled
 # "Organizations" on its own page, but in a six-item row next to "Subjects" it
 # reads as SOURCES, which is what a reader of this site is looking for; same
@@ -35,6 +37,10 @@ PAGE_ROW = [
     ("orgs", "Sources", "orgs/"),
     ("concepts", "Subjects", "concepts/"),
     ("articles", "Articles", "articles/"),
+    # Added 2026-09-24 by Adam's decision on PR #31: the private unread pages,
+    # last. One word like the other six; "What I meant to read" is the label
+    # on the weeks index's "Beyond the week" nav and the pages' own kicker.
+    ("unread", "Unread", "unread/"),
 ]
 
 # The row this build renders. generate() narrows it to the pages actually

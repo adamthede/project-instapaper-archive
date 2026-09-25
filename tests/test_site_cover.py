@@ -28,6 +28,7 @@ three differences the move is allowed to make.
 """
 import datetime as dt
 import html as html_mod
+import json
 import os
 import re
 import shutil
@@ -206,10 +207,35 @@ def index_file(tmp_path):
     return p
 
 
+#: Two enriched unread rows, the least the build needs to write /unread/ and
+#: so to carry the seventh row item Adam added on 2026-09-24. Synthetic, like
+#: everything else here.
+UNREAD_ROWS = [
+    {"url_sha256": "a" * 64, "title": "Unread One", "url": "https://www.example.com/u1",
+     "domain": "www.example.com", "saved_date": "2018-03-01", "saved_year": 2018,
+     "read_progress": 0.0, "abandonment": "never_opened", "resolve_path": "instapaper",
+     "body_words": 900, "content_corrupted": False, "aged_out": False,
+     "ai_topics": ["Artificial Intelligence"], "why_saved": "A guess.",
+     "why_saved_confidence": "high"},
+    {"url_sha256": "b" * 64, "title": "Unread Two", "url": "https://www.example.com/u2",
+     "domain": "www.example.com", "saved_date": "2012-05-01", "saved_year": 2012,
+     "folder": "Steve Jobs", "read_progress": 0.5, "abandonment": "started",
+     "resolve_path": "metadata", "body_words": 0, "content_corrupted": False,
+     "aged_out": True, "ai_topics": ["Innovation"], "why_saved": "",
+     "why_saved_confidence": "low"},
+]
+
+
 @pytest.fixture
 def built(synth_dir, index_file, tmp_path):
     out = tmp_path / "_site"
-    gen.generate(synth_dir, out, index_path=index_file)
+    enriched = tmp_path / "unread_enriched.jsonl"
+    enriched.write_text("".join(json.dumps(r) + "\n" for r in UNREAD_ROWS),
+                        encoding="utf-8")
+    gen.generate(synth_dir, out, index_path=index_file,
+                 unread_paths={"enriched": str(enriched),
+                               "daily_csv": str(tmp_path / "no-ledger.csv"),
+                               "ledger": str(tmp_path / "no-ledger.jsonl")})
     return out
 
 
@@ -441,6 +467,12 @@ def test_the_weeks_index_is_the_old_root_index_and_nothing_else_changed(
     facet nav, change a tooltip - each fails here and only here.
     """
     moved = _without_the_three_differences(site["weeks/index.html"], depth=1)
+    # One later, deliberate addition: PR #31 (2026-09-24) gives the unread
+    # pages a link in the "Beyond the week" nav, which BASE_COMMIT predates.
+    # The facet nav is built from the directories on disk, so the link arrives
+    # by construction; removing exactly that anchor keeps every other byte
+    # of the page held to the old build.
+    moved = moved.replace('<a href="unread/">What I meant to read</a>', "", 1)
     before = _without_the_three_differences(old_index_html, depth=0)
     assert moved == before
 
@@ -549,11 +581,14 @@ MARKED_SELF = {
     "orgs/index.html": "Sources",
     "concepts/index.html": "Subjects",
     "articles/index.html": "Articles",
+    "unread/index.html": "Unread",
 }
 MARKED_UNDER = {
     "weeks/2012-W02/index.html": "Weeks",
     "years/2011/index.html": "Years",
     "together/index.html": "Subjects",
+    "unread/versus/index.html": "Unread",
+    "unread/worth/index.html": "Unread",
 }
 
 
@@ -595,15 +630,17 @@ def test_a_child_page_can_still_reach_the_section_it_is_marked_under(site, built
         assert target.exists(), f"{name}'s {label} link goes nowhere"
 
 
-def test_the_row_names_the_six_pages_in_the_order_adam_gave(site):
+def test_the_row_names_the_seven_pages_in_the_order_adam_gave(site):
     """Catches a renamed, reordered, dropped or added row item.
 
-    COVER, WEEKS, YEARS, SOURCES, SUBJECTS, ARTICLES - in that order, on every
-    page. Two of the labels are deliberately not the directory name: /orgs/ is
-    SOURCES here and /concepts/ is SUBJECTS. Rename either back, reorder the
-    list, or add a seventh, and this fails.
+    COVER, WEEKS, YEARS, SOURCES, SUBJECTS, ARTICLES - Adam's six of
+    2026-09-08, in that order - then UNREAD, the seventh he added on
+    2026-09-24 (PR #31), last. Two of the labels are deliberately not the
+    directory name: /orgs/ is SOURCES here and /concepts/ is SUBJECTS, and
+    UNREAD is the one-word form of "What I meant to read". Rename any back,
+    reorder the list, or add an eighth, and this fails.
     """
-    labels = ["Cover", "Weeks", "Years", "Sources", "Subjects", "Articles"]
+    labels = ["Cover", "Weeks", "Years", "Sources", "Subjects", "Articles", "Unread"]
     for name, raw in site.items():
         row = re.search(r'<nav class="pagelinks".*?</nav>', raw, re.S).group(0)
         got = re.findall(r'>([A-Z][a-z]+)</(?:a|span)>', row)
