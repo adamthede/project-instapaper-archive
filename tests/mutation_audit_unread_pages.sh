@@ -132,7 +132,7 @@ run_mutation "unread leg never called" $G \
   "$T::test_the_build_writes_three_pages_and_the_weeks_index_links_them"
 run_mutation "row narrowed under the unread pages" $G \
   'built = {"years", "orgs", "articles"} | unread_keys' 'built = {"years", "orgs"} | unread_keys' \
-  "$T::test_the_unread_pages_carry_the_six_item_row_and_mark_nothing"
+  "$T::test_the_unread_pages_carry_the_seven_item_row_and_mark_unread"
 run_mutation "subnav target renamed" $U \
   '("unread/worth", "Still worth your time", "worth/")' \
   '("unread/worth", "Still worth your time", "shortlist/")' \
